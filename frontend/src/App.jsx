@@ -16,6 +16,7 @@ import LabDashboard from './pages/dashboards/LabDashboard';
 import AshaDashboard from './pages/dashboards/AshaDashboard';
 import ReceptionistDashboard from './pages/dashboards/ReceptionistDashboard';
 import NurseDashboard from './pages/dashboards/NurseDashboard';
+import PharmacyDashboard from './pages/dashboards/PharmacyDashboard';
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
             <Route path="/dashboard/nurse" element={<NurseDashboard />} />
             <Route path="/dashboard/lab" element={<LabDashboard />} />
             <Route path="/dashboard/lab-pharmacy" element={<LabDashboard />} />
+            <Route path="/dashboard/pharmacy" element={<PharmacyDashboard />} />
 
             {/* ASHA / Frontline Community Health Worker */}
             <Route path="/dashboard/asha" element={<AshaDashboard />} />

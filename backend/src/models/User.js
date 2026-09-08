@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema(
           'ASHA',
           'Doctor',
           'LabHead',
+          'Pharmacist',
           'FacilityAdmin',
           'Receptionist',
           'Nurse',

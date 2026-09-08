@@ -1,63 +1,42 @@
-# Prompt 8.1: System Role & Auth for Lab Head
-Task: Introduce the 'LabHead' role to the unified authentication system.
+# Prompt 9.1: Pharmacy Role & Backend API (Step 4.5)
+Task: Introduce the Pharmacist role and build the API to fetch digital prescriptions.
 
 Requirements:
 
-Schema Update (User.js): Add 'LabHead' to the role enum array.
+Schema Update (User.js): Add 'Pharmacist' to the role enum.
 
-Admin UI (HospitalAdminDashboard.jsx): Add "Lab Head" to the staff creation dropdown.
+Admin & Routing Updates: Add the Pharmacist role to the Hospital Admin staff creation dropdown and update the authentication routing to redirect this role to /dashboard/pharmacy.
 
-Login Routing (auth.js, Landing.jsx, HospitalLogin.jsx, Navbar.jsx): Add switch cases for the 'LabHead' role to route to /dashboard/lab.
+Backend (pharmacyController.js & pharmacyRoutes.js):
 
-# Prompt 8.2: Nurse Dashboard Upgrade (Lab Coordination)
-Task: Upgrade the Nurse Dashboard and API to handle lab request forwarding and doctor re-queuing (Steps 4.2 & 4.4).
+Create getActivePrescriptions(req, res): Fetch documents from the Prescription collection where facilityId matches the logged-in Pharmacist and status is 'Pending'. Populate patient details.
 
-Requirements:
+Create dispenseMedication(req, res): Accept prescriptionId and update its status to 'Dispensed'.
 
-Update nurseController.js:
-
-Create getLabQueue(req, res): Fetch appointments with status 'Lab Pending' or 'Reports Ready'. Include populated LabOrder details.
-
-Create forwardToLab(req, res): Accept appointmentId. (In a real system, this might trigger a notification, but for now, just acknowledge the forward in the database or simply log it, as the Lab Head will pull from the database directly).
-
-Create notifyDoctor(req, res): Accept appointmentId. This updates a specific flag (e.g., doctorQueueType: 'Review') to ensure the doctor sees them in a separate queue, but keeps status as 'Reports Ready'.
-
-Update NurseDashboard.jsx: Add a new tab called "Lab Coordination". Display a table with two sections:
-
-Pending Lab Requests: Shows patients sent by the doctor. Include a "Forward to Lab" button.
-
-Reports Ready: Shows patients whose tests are done. Include a "Notify Doctor (Move to Review Queue)" button.
-
-# Prompt 8.3: Lab Head Backend & Dashboard
-Task: Build the API and UI for the Lab Head to process tests and upload results (Step 4.3).
+# Prompt 9.2: Pharmacy Dashboard UI (Step 4.5)
+Task: Build the frontend interface for the Pharmacy Dashboard.
 
 Requirements:
 
-Backend (labController.js & labRoutes.js):
+Create PharmacyDashboard.jsx: Guard this route for the 'Pharmacist' role.
 
-getPendingTests: Fetch LabOrder documents where facilityId matches the Lab Head's facility and status is 'Requested'. Populate patient details.
+Active Queue: Display a data table fetching from getActivePrescriptions.
 
-uploadReport: Accept labOrderId and resultText (or file URL). Update LabOrder status to 'Completed'. Update the associated Appointment status to 'Reports Ready' so the Nurse sees it.
+Prescription View: When a patient is clicked, display the exact array of medications, dosages, and instructions prescribed by the doctor.
 
-Frontend (LabDashboard.jsx & LabDashboardApi.js):
+Action: Include a "Mark as Dispensed" button that calls the dispenseMedication API and removes the patient from the pharmacist's active screen.
 
-Create the /dashboard/lab route guarded by the 'LabHead' role.
-
-Build a main data table fetching getPendingTests.
-
-Add an "Upload Result" button that opens a modal with a text area for the report. On submit, call the uploadReport API.
-
-# Prompt 8.4: Doctor Dashboard Upgrade (Secondary Queue)
-Task: Update the Doctor's queue to display patients with ready lab reports in a separate list (Step 4.4 & 4.5).
+# Prompt 9.3: Patient Dashboard & Medical Records (Step 5)
+Task: Build the dedicated Patient Dashboard for citizens to view their own medical history across all hospitals.
 
 Requirements:
 
-Update doctorController.js (getDoctorQueue): Modify the logic to return two distinct arrays:
+Backend (patientController.js): Create getMyMedicalRecords(req, res). Extract the patientId from the user's JWT. Query and return all Consultations, Prescriptions, and LabOrders associated with this ID, populating the facilityId to show which hospital they visited.
 
-activeQueue: Patients with status 'Waiting' or 'Waiting for Doctor'.
+Frontend (PatientDashboard.jsx): Build a tabbed interface or chronological timeline displaying:
 
-reviewQueue: Patients with status 'Reports Ready'.
+Hospitals Visited: A list of unique facilities they have checked into.
 
-Update DoctorQueue.jsx: Split the sidebar UI into two sections using accordions or distinct lists: "Ongoing Queue" and "Reports Ready".
+Medical History: A timeline of previous check-ups, treatments received, lab reports, and medicines taken.
 
-Update ConsultationPanel.jsx: Ensure that when a doctor clicks a patient from the "Reports Ready" queue, the panel displays the newly completed LabOrder results prominently so the doctor can review them and prescribe medication.
+Routing: Ensure patients logging in via the public portal are routed strictly to this dashboard.

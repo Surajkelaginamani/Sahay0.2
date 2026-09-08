@@ -8,6 +8,7 @@ const HOSPITAL_STAFF_ROLES = [
   'Doctor',
   'ASHA',
   'LabHead',
+  'Pharmacist',
   'FacilityAdmin',
   'Receptionist',
   'Nurse',

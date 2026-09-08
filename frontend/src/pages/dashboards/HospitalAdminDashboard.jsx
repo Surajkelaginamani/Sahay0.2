@@ -8,6 +8,7 @@ const STAFF_ROLES = [
   { value: 'Nurse', label: 'Nurse / Triage', color: 'text-teal-700 bg-teal-100 border-teal-200' },
   { value: 'ASHA', label: 'ASHA / ANM Worker', color: 'text-mint-700 bg-mint-100 border-mint-200' },
   { value: 'LabHead', label: 'Lab Head / Diagnostics', color: 'text-purple-700 bg-purple-100 border-purple-200' },
+  { value: 'Pharmacist', label: 'Pharmacist / Dispensary', color: 'text-emerald-700 bg-emerald-100 border-emerald-200' },
   { value: 'FacilityAdmin', label: 'Facility Administrator', color: 'text-amber-700 bg-amber-100 border-amber-200' },
   { value: 'Receptionist', label: 'Receptionist', color: 'text-rose-700 bg-rose-100 border-rose-200' },
 ];

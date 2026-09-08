@@ -71,6 +71,8 @@ export function getDashboardRoute(role) {
       return '/dashboard/nurse';
     case 'LabHead':
       return '/dashboard/lab';
+    case 'Pharmacist':
+      return '/dashboard/pharmacy';
     case 'Patient':
       return '/dashboard/patient';
     case 'Govt':

@@ -170,13 +170,16 @@ export const captureVitals = async (req, res) => {
 // Fetches appointments with status 'Lab Pending' or 'Reports Ready' for facility.
 export const getLabQueue = async (req, res) => {
   try {
-    const facilityId = req.user.hospitalId;
+    const facilityId = req.user.hospitalId || req.user.facilityId;
     if (!facilityId) {
       return res.status(400).json({ message: 'Nurse account is not linked to a facility.' });
     }
 
     const appointments = await Appointment.find({
-      facilityId,
+      $or: [
+        { facilityId },
+        { hospital: facilityId },
+      ],
       status: { $in: ['Lab Pending', 'Reports Ready'] },
     })
       .populate('patientId', 'firstName lastName contactPhone gender dob abhaId bloodGroup')
