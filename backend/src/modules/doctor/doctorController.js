@@ -1,6 +1,10 @@
 import Appointment from '../../models/Appointment.js';
 import Consultation from '../../models/Consultation.js';
 import Patient from '../../models/Patient.js';
+import Prescription from '../../models/Prescription.js';
+import LabOrder from '../../models/LabOrder.js';
+import Vitals from '../../models/Vitals.js';
+import LabInvestigationOrder from '../../models/LabInvestigationOrder.js';
 
 // ─── getDoctorQueue ───────────────────────────────────────────────────────────
 // @route   GET /api/doctor/queue
@@ -243,6 +247,228 @@ export const submitConsultation = async (req, res) => {
     res.status(201).json({
       message: 'Consultation saved successfully and appointment marked Completed.',
       consultation,
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── getPatientHistory (Prompt 7.2) ───────────────────────────────────────────
+// @route   GET /api/doctor/history/:patientId
+// @route   GET /api/doctor/patient/:patientId/history
+// @access  Private (Doctor)
+// Aggregates past Consultations, Prescriptions, LabOrders, and Vitals across any facility.
+export const getPatientHistory = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).lean();
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found.' });
+    }
+
+    const [consultations, prescriptions, labOrders, vitals] = await Promise.all([
+      Consultation.find({ patientId })
+        .populate('doctorId', 'name email')
+        .populate('facilityId', 'hospitalName address')
+        .sort({ createdAt: -1 })
+        .lean(),
+      Prescription.find({ patientId })
+        .populate('doctorId', 'name email')
+        .sort({ createdAt: -1 })
+        .lean(),
+      LabOrder.find({ patientId })
+        .populate('doctorId', 'name')
+        .populate('facilityId', 'hospitalName')
+        .sort({ createdAt: -1 })
+        .lean(),
+      Vitals.find({ patientId })
+        .populate('nurseId', 'name')
+        .populate('facilityId', 'hospitalName')
+        .sort({ createdAt: -1 })
+        .lean(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      patient,
+      consultations,
+      prescriptions,
+      labOrders,
+      vitals,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── requestLabTest (Prompt 7.2) ───────────────────────────────────────────────
+// @route   POST /api/doctor/lab-test
+// @access  Private (Doctor)
+// Creates a new LabOrder with status 'Requested' and moves Appointment to 'Lab Pending'
+export const requestLabTest = async (req, res) => {
+  try {
+    const { appointmentId, patientId, testName, notes } = req.body;
+
+    if (!appointmentId || !testName) {
+      return res.status(400).json({ message: 'Appointment ID and test name are required.' });
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    const targetPatientId = patientId || appointment.patientId;
+    const doctorId = req.user._id;
+    const facilityId = req.user.hospitalId || appointment.facilityId;
+
+    // 1. Create LabOrder record (Prompt 7.1 & 7.2)
+    const labOrder = await LabOrder.create({
+      appointmentId,
+      patientId: targetPatientId,
+      doctorId,
+      facilityId,
+      testName: testName.trim(),
+      status: 'Requested',
+      notes: notes?.trim() || '',
+    });
+
+    // 2. Update Appointment status to 'Lab Pending' (routes it back to Nurse / Lab queue)
+    appointment.status = 'Lab Pending';
+    if (!appointment.investigationAdvice) {
+      appointment.investigationAdvice = [];
+    }
+    appointment.investigationAdvice.push({
+      testName: testName.trim(),
+      notes: notes?.trim() || '',
+      status: 'Ordered',
+      orderedAt: new Date(),
+    });
+    await appointment.save();
+
+    // 3. Sync with LabInvestigationOrder for cross-module compatibility
+    try {
+      await LabInvestigationOrder.create({
+        consultation: appointment._id,
+        patient: targetPatientId,
+        orderedBy: doctorId,
+        hospital: facilityId,
+        testName: testName.trim(),
+        status: 'Ordered',
+      });
+    } catch {
+      // Non-blocking fallback
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Lab test requested successfully. Patient status updated to Lab Pending.',
+      labOrder,
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── closeConsultation (Prompt 7.2) ───────────────────────────────────────────
+// @route   POST /api/doctor/consultation/close
+// @access  Private (Doctor)
+// Saves Consultation and Prescription, and marks Appointment 'Completed'
+export const closeConsultation = async (req, res) => {
+  try {
+    const {
+      appointmentId,
+      patientId,
+      chiefComplaint,
+      chiefComplaints,
+      diagnosis,
+      notes,
+      clinicalNotes,
+      vitals,
+      medications,
+      instructions,
+      medicalHistory,
+      followUpDate,
+    } = req.body;
+
+    if (!appointmentId) {
+      return res.status(400).json({ message: 'Appointment ID is required.' });
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    const doctorId = req.user._id;
+    const facilityId = req.user.hospitalId || appointment.facilityId;
+    const targetPatientId = patientId || appointment.patientId;
+
+    const resolvedChiefComplaint = (chiefComplaint || chiefComplaints || appointment.chiefComplaint || '').trim();
+    const resolvedNotes = (notes || clinicalNotes || '').trim();
+    const resolvedDiagnosis = (diagnosis || '').trim();
+
+    // Format medications array safely for both Consultation & Prescription models
+    const formattedMedications = Array.isArray(medications)
+      ? medications
+          .filter((m) => m && (m.medicineName?.trim() || m.drugName?.trim()))
+          .map((m) => ({
+            medicineName: (m.medicineName || m.drugName || '').trim(),
+            drugName:     (m.medicineName || m.drugName || '').trim(),
+            dosage:       m.dosage?.trim() || '',
+            frequency:    m.frequency?.trim() || '',
+            duration:     m.duration?.trim() || (m.durationDays ? `${m.durationDays} days` : ''),
+            durationDays: m.durationDays ? Number(m.durationDays) : undefined,
+            instructions: m.instructions?.trim() || '',
+          }))
+      : [];
+
+    // 1. Create Consultation record with status 'Closed' (Prompt 7.1 & 7.2)
+    const consultation = await Consultation.create({
+      appointmentId,
+      appointment: appointmentId,
+      patientId: targetPatientId,
+      doctorId,
+      doctor: doctorId,
+      facilityId,
+      hospital: facilityId,
+      chiefComplaint: resolvedChiefComplaint,
+      chiefComplaints: resolvedChiefComplaint,
+      diagnosis: resolvedDiagnosis,
+      notes: resolvedNotes,
+      clinicalNotes: resolvedNotes,
+      medicalHistory: medicalHistory || '',
+      vitals: vitals || appointment.vitals || {},
+      medications: formattedMedications,
+      prescription: formattedMedications,
+      followUpDate: followUpDate ? new Date(followUpDate) : undefined,
+      status: 'Closed',
+    });
+
+    // 2. Create Prescription record if medications/instructions are present
+    let prescription = null;
+    if (formattedMedications.length > 0 || instructions?.trim()) {
+      prescription = await Prescription.create({
+        consultationId: consultation._id,
+        patientId: targetPatientId,
+        doctorId,
+        medications: formattedMedications,
+        instructions: instructions?.trim() || '',
+      });
+    }
+
+    // 3. Mark Appointment as 'Completed'
+    appointment.status = 'Completed';
+    await appointment.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Consultation closed and prescription created successfully.',
+      consultation,
+      prescription,
       appointment,
     });
   } catch (error) {

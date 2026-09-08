@@ -130,6 +130,11 @@ const consultationSchema = new mongoose.Schema(
       default: () => ({}),
     },
 
+    chiefComplaint: {
+      type: String,
+      trim: true,
+    },
+
     chiefComplaints: {
       type: mongoose.Schema.Types.Mixed, // allows String or [String]
       default: '',
@@ -146,6 +151,11 @@ const consultationSchema = new mongoose.Schema(
     },
 
     diagnosis: {
+      type: String,
+      trim: true,
+    },
+
+    notes: {
       type: String,
       trim: true,
     },
@@ -191,10 +201,10 @@ const consultationSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['Draft', 'Finalized'],
+        values: ['Open', 'Closed', 'Draft', 'Finalized'],
         message: '{VALUE} is not a valid consultation status',
       },
-      default: 'Finalized',
+      default: 'Closed',
     },
   },
   {
