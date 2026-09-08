@@ -1,54 +1,63 @@
-# Prompt 7.1: Clinical Database Schemas (Consultations & Labs)
-Task: Create the Mongoose schemas to store doctor consultations, prescriptions, and lab requests.
+# Prompt 8.1: System Role & Auth for Lab Head
+Task: Introduce the 'LabHead' role to the unified authentication system.
 
 Requirements:
 
-Consultation.js (backend/src/models/):
+Schema Update (User.js): Add 'LabHead' to the role enum array.
 
-References: appointmentId, patientId, doctorId, facilityId.
+Admin UI (HospitalAdminDashboard.jsx): Add "Lab Head" to the staff creation dropdown.
 
-Fields: chiefComplaint (String), diagnosis (String), notes (String), status (Enum: ['Open', 'Closed']).
+Login Routing (auth.js, Landing.jsx, HospitalLogin.jsx, Navbar.jsx): Add switch cases for the 'LabHead' role to route to /dashboard/lab.
 
-Prescription.js (backend/src/models/):
-
-References: consultationId, patientId, doctorId.
-
-Fields: medications (Array of objects: medicineName, dosage, frequency, duration), instructions (String).
-
-LabOrder.js (backend/src/models/):
-
-References: appointmentId, patientId, doctorId, facilityId.
-
-Fields: testName (String), status (Enum: ['Requested', 'Sample Collected', 'Completed']), resultURL (String - for the future report), notes (String).
-
-# Prompt 7.2: Doctor Backend API (History & Actions)
-Task: Build the API controllers for the Doctor to view patient history, request labs, and submit prescriptions.
+# Prompt 8.2: Nurse Dashboard Upgrade (Lab Coordination)
+Task: Upgrade the Nurse Dashboard and API to handle lab request forwarding and doctor re-queuing (Steps 4.2 & 4.4).
 
 Requirements:
 
-Update doctorController.js & doctorRoutes.js:
+Update nurseController.js:
 
-getPatientHistory(req, res): Accept a patientId. Fetch and return all past Consultations, Prescriptions, LabOrders, and Vitals associated with this patient across any facility. Sort by date descending.
+Create getLabQueue(req, res): Fetch appointments with status 'Lab Pending' or 'Reports Ready'. Include populated LabOrder details.
 
-requestLabTest(req, res): Accept appointmentId, patientId, and testName. Create a new LabOrder with status 'Requested'. Update the Appointment status to 'Lab Pending' (routing it back to the Nurse).
+Create forwardToLab(req, res): Accept appointmentId. (In a real system, this might trigger a notification, but for now, just acknowledge the forward in the database or simply log it, as the Lab Head will pull from the database directly).
 
-closeConsultation(req, res): Accept clinical data and prescription arrays. Save to Consultation and Prescription collections. Update the Appointment status to 'Completed'. Map these to protected GET and POST routes.
+Create notifyDoctor(req, res): Accept appointmentId. This updates a specific flag (e.g., doctorQueueType: 'Review') to ensure the doctor sees them in a separate queue, but keeps status as 'Reports Ready'.
 
-# Prompt 7.3: Doctor Frontend UI (History & Consultation Form)
-Task: Upgrade the Doctor Dashboard to include the Patient History view and the Lab Request / Prescription action panel.
+Update NurseDashboard.jsx: Add a new tab called "Lab Coordination". Display a table with two sections:
+
+Pending Lab Requests: Shows patients sent by the doctor. Include a "Forward to Lab" button.
+
+Reports Ready: Shows patients whose tests are done. Include a "Notify Doctor (Move to Review Queue)" button.
+
+# Prompt 8.3: Lab Head Backend & Dashboard
+Task: Build the API and UI for the Lab Head to process tests and upload results (Step 4.3).
 
 Requirements:
 
-Update DoctorDashboard.jsx: When a patient is clicked from the <DoctorQueue/>, render a main workspace divided into two tabs: "Medical History" and "Current Consultation".
+Backend (labController.js & labRoutes.js):
 
-PatientHistory.jsx (Tab 1): Fetch from getPatientHistory API. Display a chronological timeline of the patient's past visits, showing old diagnoses, vitals, and previous medications.
+getPendingTests: Fetch LabOrder documents where facilityId matches the Lab Head's facility and status is 'Requested'. Populate patient details.
 
-ConsultationPanel.jsx (Tab 2):
+uploadReport: Accept labOrderId and resultText (or file URL). Update LabOrder status to 'Completed'. Update the associated Appointment status to 'Reports Ready' so the Nurse sees it.
 
-Display the vitals just captured by the Nurse.
+Frontend (LabDashboard.jsx & LabDashboardApi.js):
 
-Provide a text area for Diagnosis and Notes.
+Create the /dashboard/lab route guarded by the 'LabHead' role.
 
-Action 1 - Request Lab: A dropdown to select a test (e.g., CBC, X-Ray) and a "Send to Lab" button that calls the requestLabTest API (removing the patient from the doctor's immediate screen).
+Build a main data table fetching getPendingTests.
 
-Action 2 - Prescribe & Close: A dynamic form to add medications. A final "Complete Consultation" button that calls the closeConsultation API.
+Add an "Upload Result" button that opens a modal with a text area for the report. On submit, call the uploadReport API.
+
+# Prompt 8.4: Doctor Dashboard Upgrade (Secondary Queue)
+Task: Update the Doctor's queue to display patients with ready lab reports in a separate list (Step 4.4 & 4.5).
+
+Requirements:
+
+Update doctorController.js (getDoctorQueue): Modify the logic to return two distinct arrays:
+
+activeQueue: Patients with status 'Waiting' or 'Waiting for Doctor'.
+
+reviewQueue: Patients with status 'Reports Ready'.
+
+Update DoctorQueue.jsx: Split the sidebar UI into two sections using accordions or distinct lists: "Ongoing Queue" and "Reports Ready".
+
+Update ConsultationPanel.jsx: Ensure that when a doctor clicks a patient from the "Reports Ready" queue, the panel displays the newly completed LabOrder results prominently so the doctor can review them and prescribe medication.

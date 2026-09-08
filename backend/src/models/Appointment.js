@@ -71,6 +71,20 @@ const appointmentSchema = new mongoose.Schema(
       default: 'Scheduled',
     },
 
+    // ── Lab Coordination & Review Queue (Prompt 8.2) ───────────────────────────
+    doctorQueueType: {
+      type: String,
+      enum: ['Standard', 'Review'],
+      default: 'Standard',
+    },
+    labForwarded: {
+      type: Boolean,
+      default: false,
+    },
+    labForwardedAt: {
+      type: Date,
+    },
+
     // ── Visit Details ─────────────────────────────────────────────────────────
     visitType: {
       type: String,

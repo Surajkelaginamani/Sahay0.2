@@ -48,6 +48,8 @@ export default function ConsultationPanel({
   const [consultSubmitting, setConsultSubmitting] = useState(false);
   const [consultError, setConsultError]       = useState('');
 
+  const [copyFeedback, setCopyFeedback]       = useState('');
+
   // ── Sync with selected appointment ─────────────────────────────────────────
   useEffect(() => {
     if (appointment) {
@@ -62,6 +64,7 @@ export default function ConsultationPanel({
       setLabError('');
       setConsultError('');
       setInstructions('');
+      setCopyFeedback('');
       setMedications([
         { medicineName: '', dosage: '500mg', frequency: 'Twice daily after meals', duration: '5 days' },
       ]);
@@ -90,6 +93,24 @@ export default function ConsultationPanel({
     ? `${patient.firstName} ${patient.lastName || ''}`
     : patient.name || 'Patient';
   const vitals = appointment.vitals || {};
+
+  // Prompt 8.4: Compute completed lab orders for prominent review display
+  const completedOrders = (appointment.labOrders || []).filter(
+    (o) => o.status === 'Completed' || o.result
+  );
+  const displayOrders = completedOrders.length > 0
+    ? completedOrders
+    : appointment.completedLabOrder
+    ? [appointment.completedLabOrder]
+    : [];
+  const isReportsReady = appointment.status === 'Reports Ready' || displayOrders.length > 0;
+
+  const copyResultToNotes = (order) => {
+    const textToAppend = `\n[Lab Findings - ${order.testName || 'Diagnostic Investigation'}]:\nResult: ${order.result || 'Completed'}\n${order.notes ? `Remarks: ${order.notes}\n` : ''}`;
+    setNotes((prev) => (prev ? `${prev}\n${textToAppend}` : textToAppend.trim()));
+    setCopyFeedback(order._id || 'copied');
+    setTimeout(() => setCopyFeedback(''), 3000);
+  };
 
   // ── Medication Handlers ────────────────────────────────────────────────────
   const handleMedChange = (index, field, value) => {
@@ -223,6 +244,119 @@ export default function ConsultationPanel({
           Cancel / Close
         </button>
       </div>
+
+      {/* ── Diagnostic Lab Results Banner (Prompt 8.4: Secondary Queue Review) ── */}
+      {isReportsReady && (
+        <div className="bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/60 rounded-3xl border-2 border-teal-400 p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-teal-100 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-200 shrink-0">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-extrabold text-teal-950">
+                    Diagnostic Lab Investigation Results
+                  </h3>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-extrabold border border-teal-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
+                    Reports Ready
+                  </span>
+                </div>
+                <p className="text-xs text-teal-700 mt-0.5">
+                  The laboratory department has processed and submitted findings. Review below before finalizing medication.
+                </p>
+              </div>
+            </div>
+
+            <span className="text-[11px] font-bold text-teal-800 bg-teal-100/80 px-3 py-1 rounded-xl">
+              Secondary Review Queue
+            </span>
+          </div>
+
+          {/* Render individual completed lab orders */}
+          {displayOrders.length > 0 ? (
+            <div className="space-y-3">
+              {displayOrders.map((order, idx) => (
+                <div key={order._id || idx} className="bg-white rounded-2xl border border-teal-200/90 p-4 space-y-3 shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center text-xs font-black">
+                        #{idx + 1}
+                      </span>
+                      <h4 className="text-xs font-extrabold text-slate-900">
+                        {order.testName || 'Laboratory Test'}
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                        {order.status || 'Completed'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      {order.updatedAt && (
+                        <span>Reported: {new Date(order.updatedAt).toLocaleString()}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Findings Result Box */}
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                    <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">
+                      Findings & Diagnostic Interpretation:
+                    </p>
+                    <p className="text-xs font-mono text-slate-800 whitespace-pre-wrap leading-relaxed font-medium">
+                      {order.result || 'No written findings text provided.'}
+                    </p>
+                  </div>
+
+                  {/* Remarks & URL Link if present */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <div className="text-xs text-slate-500">
+                      {order.notes && (
+                        <p><span className="font-semibold text-slate-700">Tech Remarks:</span> {order.notes}</p>
+                      )}
+                      {order.resultURL && (
+                        <a
+                          href={order.resultURL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 font-bold underline mt-1 text-xs"
+                        >
+                          <span>📄 View Attached Document / PDF</span>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => copyResultToNotes(order)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 text-teal-800 hover:bg-teal-100 text-xs font-bold transition-all border border-teal-200"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                      <span>{copyFeedback === (order._id || 'copied') ? '✓ Appended to Notes' : 'Append to Clinical Notes'}</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 rounded-2xl bg-white border border-teal-100 text-xs text-teal-800">
+              <p className="font-bold">Reports Ready Notification</p>
+              <p className="text-[11px] text-teal-600 mt-0.5">
+                The laboratory test has completed. You may now evaluate the patient and proceed to final prescription and checkout.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Triage Vitals Banner (Captured by Nurse) ──────────────────────── */}
       <div className="bg-gradient-to-br from-white to-sky-50/50 rounded-3xl border border-sky-100 p-5 shadow-sm">

@@ -1,5 +1,7 @@
 import DiagnosticOrder from '../../models/DiagnosticOrder.js';
 import DiagnosticReport from '../../models/DiagnosticReport.js';
+import LabOrder from '../../models/LabOrder.js';
+import Appointment from '../../models/Appointment.js';
 
 // @desc    Aggregates counts of DiagnosticOrders grouped by status for user's facilityId
 // @route   GET /api/lab/metrics
@@ -140,3 +142,90 @@ export const submitReport = async (req, res) => {
     res.status(500).json({ message: error.message || 'Server error submitting report' });
   }
 };
+
+// ─── Prompt 8.3: Lab Head Pending Tests & Report Upload ──────────────────────
+
+// @desc    Fetch pending LabOrder requests for the Lab Head's facility
+// @route   GET /api/lab/pending-tests
+// @access  Private (LabHead)
+export const getPendingTests = async (req, res) => {
+  try {
+    const facilityId = req.user.hospitalId;
+    if (!facilityId) {
+      return res.status(400).json({ message: 'User is not linked to any healthcare facility.' });
+    }
+
+    const { status } = req.query;
+    const query = {
+      facilityId,
+      status: status || { $in: ['Requested', 'Sample Collected'] },
+    };
+
+    const pendingTests = await LabOrder.find(query)
+      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId bloodGroup')
+      .populate('doctorId', 'name email')
+      .populate('appointmentId', 'appointmentDate queueNumber priority visitType status')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      count: pendingTests.length,
+      tests: pendingTests,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error fetching pending lab tests.' });
+  }
+};
+
+// @desc    Upload test report, mark LabOrder as Completed, and transition Appointment to 'Reports Ready'
+// @route   POST /api/lab/upload-report
+// @access  Private (LabHead)
+export const uploadReport = async (req, res) => {
+  try {
+    const facilityId = req.user.hospitalId;
+    const { labOrderId, resultText, resultURL, notes } = req.body;
+
+    if (!labOrderId) {
+      return res.status(400).json({ message: 'Lab Order ID is required.' });
+    }
+
+    const labOrder = await LabOrder.findOne({ _id: labOrderId, facilityId });
+    if (!labOrder) {
+      return res.status(404).json({ message: 'Lab order not found for this facility.' });
+    }
+
+    // 1. Update LabOrder to 'Completed' (Prompt 8.3)
+    labOrder.status = 'Completed';
+    labOrder.resultURL = resultURL || resultText || '';
+    if (notes) labOrder.notes = notes.trim();
+    await labOrder.save();
+
+    // 2. Update associated Appointment to 'Reports Ready' (Prompt 8.3)
+    let appointment = null;
+    if (labOrder.appointmentId) {
+      appointment = await Appointment.findById(labOrder.appointmentId);
+      if (appointment) {
+        appointment.status = 'Reports Ready';
+        if (appointment.investigationAdvice && appointment.investigationAdvice.length > 0) {
+          appointment.investigationAdvice.forEach((inv) => {
+            if (inv.testName === labOrder.testName || !inv.status || inv.status === 'Ordered') {
+              inv.status = 'Completed';
+            }
+          });
+        }
+        await appointment.save();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Lab report uploaded successfully and appointment updated to Reports Ready.',
+      labOrder,
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error uploading lab report.' });
+  }
+};
+

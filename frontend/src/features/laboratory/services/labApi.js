@@ -10,6 +10,15 @@ export const labApi = {
       params: status && status !== 'ALL' ? { status } : {},
     }),
 
+  // Prompt 8.3: Fetch pending LabOrder requests
+  getPendingTests: (status) =>
+    api.get('/lab/pending-tests', {
+      params: status ? { status } : {},
+    }),
+
+  // Prompt 8.3: Upload test report and update Appointment to 'Reports Ready'
+  uploadReport: (data) => api.post('/lab/upload-report', data),
+
   // Update status of an individual diagnostic order
   updateStatus: (orderId, status) =>
     api.put(`/lab/orders/${orderId}/status`, { status }),

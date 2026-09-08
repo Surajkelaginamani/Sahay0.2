@@ -10,18 +10,26 @@ import LabInvestigationOrder from '../../models/LabInvestigationOrder.js';
 // @route   GET /api/doctor/queue
 // @access  Private (Doctor)
 // Returns all waiting and checked-in patients assigned to the logged-in doctor,
-// prioritized with 'Urgent' triage first, then chronologically / sequential queue.
+// separated into activeQueue ('Waiting', 'CheckedIn', 'Waiting for Doctor') and reviewQueue ('Reports Ready').
 export const getDoctorQueue = async (req, res) => {
   try {
     const doctorId = req.user._id;
 
-    // Fetch appointments where assignedDoctorId is this doctor and status is Waiting, CheckedIn, or Waiting for Doctor
+    // Fetch appointments where assignedDoctorId is this doctor and status is Waiting, CheckedIn, Waiting for Doctor, or Reports Ready
     const appointments = await Appointment.find({
       assignedDoctorId: doctorId,
-      status: { $in: ['Waiting', 'CheckedIn', 'Waiting for Doctor'] },
+      status: { $in: ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready'] },
     })
       .populate('patientId', 'firstName lastName contactPhone gender dob abhaId address bloodGroup emergencyContact')
       .populate('facilityId', 'hospitalName address')
+      .lean();
+
+    // Fetch related LabOrders to attach to reviewQueue items
+    const apptIds = appointments.map((a) => a._id);
+    const labOrders = await LabOrder.find({
+      appointmentId: { $in: apptIds },
+    })
+      .sort({ updatedAt: -1 })
       .lean();
 
     // Explicit JS sort to guarantee Urgent first, then chronological
@@ -32,12 +40,6 @@ export const getDoctorQueue = async (req, res) => {
       if (aUrgent && !bUrgent) return -1;
       if (!aUrgent && bUrgent) return 1;
 
-      // If both same priority, triaged/checked in before generic waiting
-      const aActive = ['CheckedIn', 'Waiting for Doctor'].includes(a.status);
-      const bActive = ['CheckedIn', 'Waiting for Doctor'].includes(b.status);
-      if (aActive && !bActive) return -1;
-      if (!aActive && bActive) return 1;
-
       // Sequential queueNumber if available
       if (a.queueNumber && b.queueNumber) return a.queueNumber - b.queueNumber;
 
@@ -47,31 +49,49 @@ export const getDoctorQueue = async (req, res) => {
       return dateA - dateB;
     });
 
-    // Enrich with computed patientFullName
-    const enriched = appointments.map((appt) => ({
-      ...appt,
-      patientFullName: appt.patientId
-        ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
-        : 'Unknown Patient',
-    }));
+    // Enrich with computed patientFullName and attached LabOrders
+    const enriched = appointments.map((appt) => {
+      const orders = labOrders.filter(
+        (lo) => lo.appointmentId.toString() === appt._id.toString()
+      );
+      return {
+        ...appt,
+        patientFullName: appt.patientId
+          ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
+          : 'Unknown Patient',
+        labOrders: orders,
+        completedLabOrder: orders.find((o) => o.status === 'Completed') || orders[0] || null,
+      };
+    });
 
-    // Categorized arrays for compatibility with both DoctorQueue and PatientQueue
+    // Prompt 8.4: Two distinct queues
+    // 1. Active ongoing queue
+    const activeQueue = enriched.filter((a) =>
+      ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'In Progress'].includes(a.status)
+    );
+    // 2. Review queue for patients whose lab tests are finished
+    const reviewQueue = enriched.filter((a) => a.status === 'Reports Ready');
+
     const waiting    = enriched.filter((a) => a.status === 'Waiting');
     const inProgress = enriched.filter((a) => ['CheckedIn', 'Waiting for Doctor', 'In Progress'].includes(a.status));
     const completed  = enriched.filter((a) => a.status === 'Completed');
 
     // Calculate queue summary metrics
     const summary = {
-      total:     enriched.length,
-      urgent:    enriched.filter((a) => a.priority === 'Urgent').length,
-      routine:   enriched.filter((a) => a.priority !== 'Urgent').length,
-      checkedIn: enriched.filter((a) => a.status === 'CheckedIn').length,
-      waiting:   waiting.length,
+      total:        enriched.length,
+      active:       activeQueue.length,
+      reportsReady: reviewQueue.length,
+      urgent:       enriched.filter((a) => a.priority === 'Urgent').length,
+      routine:      enriched.filter((a) => a.priority !== 'Urgent').length,
+      checkedIn:    enriched.filter((a) => a.status === 'CheckedIn').length,
+      waiting:      waiting.length,
     };
 
     res.status(200).json({
       count: enriched.length,
       summary,
+      activeQueue,
+      reviewQueue,
       queue: enriched,
       waiting,
       inProgress,
