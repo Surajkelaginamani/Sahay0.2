@@ -52,9 +52,21 @@ export const loginPatient = async (req, res) => {
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
-    const user = await User.findOne({ email, role: 'Patient' });
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = typeof password === 'string' ? password.trim() : password;
 
-    if (user && (await user.matchPassword(password))) {
+    const user = await User.findOne({ email: cleanEmail, role: 'Patient' });
+
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid patient email or password' });
+    }
+
+    let isMatch = await user.matchPassword(cleanPassword);
+    if (!isMatch && cleanPassword !== password) {
+      isMatch = await user.matchPassword(password);
+    }
+
+    if (isMatch) {
       res.json({
         _id: user._id,
         name: user.name,
