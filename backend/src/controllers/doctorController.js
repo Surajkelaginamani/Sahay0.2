@@ -223,3 +223,10 @@ export const getPatientProfile = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export {
+  getPatientHistory,
+  requestLabTest,
+  closeConsultation,
+} from '../modules/doctor/doctorController.js';
+

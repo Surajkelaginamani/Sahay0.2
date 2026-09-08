@@ -1,5 +1,6 @@
 import Appointment from '../../models/Appointment.js';
 import Vitals from '../../models/Vitals.js';
+import LabOrder from '../../models/LabOrder.js';
 
 // ─── Helper to calculate BMI ──────────────────────────────────────────────────
 function calculateBMI(heightCm, weightKg) {
@@ -162,3 +163,123 @@ export const captureVitals = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── getLabQueue (Prompt 8.2) ─────────────────────────────────────────────────
+// @route   GET /api/nurse/lab-queue
+// @access  Private (Nurse)
+// Fetches appointments with status 'Lab Pending' or 'Reports Ready' for facility.
+export const getLabQueue = async (req, res) => {
+  try {
+    const facilityId = req.user.hospitalId;
+    if (!facilityId) {
+      return res.status(400).json({ message: 'Nurse account is not linked to a facility.' });
+    }
+
+    const appointments = await Appointment.find({
+      facilityId,
+      status: { $in: ['Lab Pending', 'Reports Ready'] },
+    })
+      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId bloodGroup')
+      .populate('assignedDoctorId', 'name email')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // Fetch related LabOrders for each appointment
+    const appointmentIds = appointments.map((a) => a._id);
+    const labOrders = await LabOrder.find({
+      appointmentId: { $in: appointmentIds },
+    })
+      .populate('doctorId', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Map labOrders onto each appointment
+    const enriched = appointments.map((appt) => {
+      const orders = labOrders.filter(
+        (lo) => lo.appointmentId.toString() === appt._id.toString()
+      );
+      return {
+        ...appt,
+        patientFullName: appt.patientId
+          ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
+          : 'Unknown Patient',
+        labOrders: orders,
+        latestLabOrder: orders[0] || null,
+      };
+    });
+
+    const pendingLabs = enriched.filter((a) => a.status === 'Lab Pending');
+    const reportsReady = enriched.filter((a) => a.status === 'Reports Ready');
+
+    res.status(200).json({
+      success: true,
+      count: enriched.length,
+      pendingLabs,
+      reportsReady,
+      all: enriched,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── forwardToLab (Prompt 8.2) ────────────────────────────────────────────────
+// @route   POST /api/nurse/forward-to-lab
+// @access  Private (Nurse)
+// Acknowledges forwarding to lab in database
+export const forwardToLab = async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+    if (!appointmentId) {
+      return res.status(400).json({ message: 'Appointment ID is required.' });
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    appointment.labForwarded = true;
+    appointment.labForwardedAt = new Date();
+    await appointment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Lab order acknowledged and forwarded to Laboratory Head.',
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── notifyDoctor (Prompt 8.2) ────────────────────────────────────────────────
+// @route   POST /api/nurse/notify-doctor
+// @access  Private (Nurse)
+// Updates doctorQueueType to 'Review', keeping status 'Reports Ready'
+export const notifyDoctor = async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+    if (!appointmentId) {
+      return res.status(400).json({ message: 'Appointment ID is required.' });
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    appointment.doctorQueueType = 'Review';
+    appointment.status = 'Reports Ready';
+    await appointment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Doctor notified and patient moved to Doctor Review Queue.',
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

@@ -314,37 +314,40 @@ export default function TestQueueTable({
 
                     {/* Actions */}
                     <td className="px-5 py-3.5 whitespace-nowrap text-right">
-                      {order.status === 'Processing' ? (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenReportModal(order)}
-                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors inline-flex items-center gap-1.5"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>Submit Report</span>
-                        </button>
-                      ) : config.nextStatus ? (
-                        <button
-                          type="button"
-                          onClick={() => onStatusUpdate(order._id, config.nextStatus)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-colors inline-flex items-center gap-1.5 ${config.actionColor}`}
-                        >
-                          <span>{config.actionLabel}</span>
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      ) : (
-                        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center gap-1">
-                          <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                          </svg>
-                          Archived
-                        </span>
-                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        {order.status !== 'Completed' ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenReportModal(order)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors inline-flex items-center gap-1.5"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>Upload Result</span>
+                            </button>
+
+                            {config.nextStatus && !order.isLabOrder && (
+                              <button
+                                type="button"
+                                onClick={() => onStatusUpdate(order._id, config.nextStatus)}
+                                className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-colors inline-flex items-center gap-1 ${config.actionColor}`}
+                              >
+                                <span>{config.actionLabel}</span>
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Completed
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

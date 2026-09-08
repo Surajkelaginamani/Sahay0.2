@@ -59,8 +59,41 @@ export default function LabDashboard() {
   const fetchQueue = useCallback(async (filter) => {
     setLoadingOrders(true);
     try {
-      const res = await labApi.getQueue(filter);
-      setOrders(res.data || []);
+      const [diagRes, pendingRes] = await Promise.allSettled([
+        labApi.getQueue(filter),
+        labApi.getPendingTests(),
+      ]);
+
+      const diagOrders = diagRes.status === 'fulfilled' ? (diagRes.value?.data || []) : [];
+      const pendingLabOrders = pendingRes.status === 'fulfilled' ? (pendingRes.value?.data?.tests || []) : [];
+
+      // Format LabOrders to match TestQueueTable expectations
+      const formattedLabOrders = pendingLabOrders.map((lo) => ({
+        _id: lo._id,
+        isLabOrder: true,
+        testName: lo.testName,
+        status: lo.status === 'Requested' ? 'Ordered' : lo.status,
+        rawStatus: lo.status,
+        patientId: lo.patientId ? {
+          name: lo.patientId.firstName
+            ? `${lo.patientId.firstName} ${lo.patientId.lastName || ''}`.trim()
+            : lo.patientId.name || 'Patient',
+          email: lo.patientId.contactPhone || lo.patientId.email || '—',
+          phone: lo.patientId.contactPhone,
+        } : { name: 'Patient' },
+        doctorId: lo.doctorId ? {
+          name: lo.doctorId.name,
+          email: lo.doctorId.email,
+        } : { name: 'Doctor' },
+        orderDate: lo.createdAt,
+        createdAt: lo.createdAt,
+        priority: lo.appointmentId?.priority || 'Routine',
+        notes: lo.notes,
+      }));
+
+      // Combine both sources (LabOrder + DiagnosticOrder)
+      const combined = [...formattedLabOrders, ...diagOrders];
+      setOrders(combined);
     } catch (err) {
       console.error('Failed to fetch queue:', err);
       showToast('error', 'Failed to load test queue. Please try again.');
@@ -82,7 +115,6 @@ export default function LabDashboard() {
     try {
       await labApi.updateStatus(orderId, nextStatus);
       showToast('success', `Test status progressed to '${nextStatus}'.`);
-      // Refresh both queue and metrics
       fetchMetrics();
       fetchQueue(activeFilter);
     } catch (err) {
@@ -92,11 +124,26 @@ export default function LabDashboard() {
 
   // Submit diagnostic report handler
   const handleSubmitReport = async (payload) => {
-    await labApi.submitReport(payload);
-    showToast('success', 'Diagnostic report submitted and verified successfully.');
-    // Refresh both queue and metrics
-    fetchMetrics();
-    fetchQueue(activeFilter);
+    try {
+      const matchingOrder = orders.find((o) => o._id === payload.orderId);
+      if (matchingOrder?.isLabOrder) {
+        await labApi.uploadReport({
+          labOrderId: payload.orderId,
+          resultText: payload.resultText,
+          resultURL: payload.fileUrl,
+          notes: payload.resultText,
+        });
+        showToast('success', 'Lab report uploaded and appointment status updated to Reports Ready.');
+      } else {
+        await labApi.submitReport(payload);
+        showToast('success', 'Diagnostic report submitted and verified successfully.');
+      }
+      fetchMetrics();
+      fetchQueue(activeFilter);
+    } catch (err) {
+      showToast('error', err.response?.data?.message || 'Failed to submit lab report.');
+      throw err;
+    }
   };
 
   // Filter change handler

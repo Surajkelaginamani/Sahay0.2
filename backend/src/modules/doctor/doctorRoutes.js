@@ -6,6 +6,9 @@ import {
   startAppointment,
   getPatientTimeline,
   getPatientProfile,
+  getPatientHistory,
+  requestLabTest,
+  closeConsultation,
 } from './doctorController.js';
 
 const router = express.Router();
@@ -22,14 +25,27 @@ router.get('/queue', getDoctorQueue);
 router.patch('/appointment/:appointmentId/start', startAppointment);
 
 // ── Patient history & profile routes ──────────────────────────────────────────
+// GET  /api/doctor/history/:patientId                → Prompt 7.2 longitudinal patient history (all facilities)
+router.get('/history/:patientId', getPatientHistory);
+router.get('/patient/:patientId/history', getPatientHistory); // alias
+
 // GET  /api/doctor/patient/:patientId/timeline       → longitudinal patient history
 router.get('/patient/:patientId/timeline', getPatientTimeline);
 
 // GET  /api/doctor/patient/:patientId                → patient demographic profile
 router.get('/patient/:patientId', getPatientProfile);
 
-// ── Consultation routes ───────────────────────────────────────────────────────
-// POST /api/doctor/consultation   → save ABDM clinical consultation & complete appointment
+// ── Lab Request routes (Prompt 7.2) ───────────────────────────────────────────
+// POST /api/doctor/lab-test                          → order lab test & update status to 'Lab Pending'
+router.post('/lab-test', requestLabTest);
+router.post('/lab/request', requestLabTest); // alias
+
+// ── Consultation & Prescription routes ────────────────────────────────────────
+// POST /api/doctor/consultation/close                → Prompt 7.2 close consultation, create prescription, mark Completed
+router.post('/consultation/close', closeConsultation);
+router.post('/close-consultation', closeConsultation); // alias
+
+// POST /api/doctor/consultation                      → save ABDM clinical consultation & complete appointment
 router.post('/consultation', submitConsultation);
 
 export default router;

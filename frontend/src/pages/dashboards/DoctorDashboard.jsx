@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DoctorQueue from '../../features/doctor/components/DoctorQueue';
-import ConsultationForm from '../../features/doctor/components/ConsultationForm';
+import ConsultationPanel from '../../features/doctor/components/ConsultationPanel';
+import PatientHistory from '../../features/doctor/components/PatientHistory';
 
 function StatCard({ icon, label, value, sub, color }) {
   return (
@@ -22,6 +23,7 @@ export default function DoctorDashboard() {
   const navigate = useNavigate();
   const [user, setUser]                               = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [workspaceTab, setWorkspaceTab]               = useState('consultation'); // 'consultation' | 'history'
   const [queueRefresh, setQueueRefresh]               = useState(0);
   const [completedCount, setCompletedCount]           = useState(0);
   const [queueStats, setQueueStats]                   = useState({
@@ -29,6 +31,7 @@ export default function DoctorDashboard() {
     urgent: 0,
     checkedIn: 0,
     waiting: 0,
+    reportsReady: 0,
   });
   const [toast, setToast] = useState(null);
 
@@ -56,14 +59,28 @@ export default function DoctorDashboard() {
     }
   }, []);
 
+  const handleSelectPatient = useCallback((appt) => {
+    setSelectedAppointment(appt);
+    if (appt) {
+      setWorkspaceTab('consultation');
+    }
+  }, []);
+
   const handleConsultationSaved = useCallback((data) => {
     const patientName = data?.consultation?.patientId?.firstName
       ? `${data.consultation.patientId.firstName} ${data.consultation.patientId.lastName || ''}`
       : 'Patient';
 
-    showToast('success', 'Consultation Saved', `OPConsultRecord created and appointment marked completed for ${patientName}.`);
+    showToast('success', 'Consultation Saved', `Consultation finalized and appointment marked completed for ${patientName}.`);
     setSelectedAppointment(null);
     setCompletedCount((c) => c + 1);
+    setQueueRefresh((r) => r + 1);
+  }, [showToast]);
+
+  const handleLabRequested = useCallback((data) => {
+    const testName = data?.labOrder?.testName || 'Investigation';
+    showToast('success', 'Lab Test Requested', `"${testName}" order placed. Patient status updated to Lab Pending.`);
+    setSelectedAppointment(null);
     setQueueRefresh((r) => r + 1);
   }, [showToast]);
 
@@ -160,33 +177,94 @@ export default function DoctorDashboard() {
             color={{ border: 'border-emerald-100', icon: 'bg-emerald-100 text-emerald-600', text: 'text-emerald-700' }}
           />
           <StatCard
-            icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
-            label="Routine Patients"
-            value={queueStats.routine || (queueStats.total - queueStats.urgent)}
-            sub="Regular follow-ups"
-            color={{ border: 'border-violet-100', icon: 'bg-violet-100 text-violet-600', text: 'text-violet-700' }}
+            icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>}
+            label="Reports Ready"
+            value={queueStats.reportsReady || 0}
+            sub="Lab tests awaiting review"
+            color={{ border: 'border-teal-100', icon: 'bg-teal-100 text-teal-700', text: 'text-teal-800' }}
           />
         </div>
 
-        {/* ── Main Workspace: Queue Sidebar + Consultation Form ───────────── */}
+        {/* ── Main Workspace: Queue Sidebar + 2-Tab Clinical Panel ─────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Doctor Queue */}
           <div className="lg:col-span-4 xl:col-span-4 sticky top-6">
             <DoctorQueue
               selectedAppointmentId={selectedAppointment?._id}
-              onSelectPatient={setSelectedAppointment}
+              onSelectPatient={handleSelectPatient}
               refreshTrigger={queueRefresh}
               onQueueLoaded={handleQueueLoaded}
             />
           </div>
 
-          {/* Right Column: Consultation Form */}
-          <div className="lg:col-span-8 xl:col-span-8">
-            <ConsultationForm
-              appointment={selectedAppointment}
-              onConsultationSaved={handleConsultationSaved}
-              onCancel={() => setSelectedAppointment(null)}
-            />
+          {/* Right Column: 2-Tab Clinical Workspace (Prompt 7.3) */}
+          <div className="lg:col-span-8 xl:col-span-8 space-y-4">
+            {selectedAppointment ? (
+              <>
+                {/* 2-Tab Navigation Bar */}
+                <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setWorkspaceTab('consultation')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                        workspaceTab === 'consultation'
+                          ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
+                          : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>Current Consultation</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setWorkspaceTab('history')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                        workspaceTab === 'history'
+                          ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
+                          : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Medical History</span>
+                    </button>
+                  </div>
+
+                  <span className="text-[11px] text-slate-400 font-semibold pr-3 hidden sm:inline">
+                    Doctor Clinical Station
+                  </span>
+                </div>
+
+                {/* Active Tab View */}
+                {workspaceTab === 'consultation' ? (
+                  <ConsultationPanel
+                    appointment={selectedAppointment}
+                    onConsultationSaved={handleConsultationSaved}
+                    onLabRequested={handleLabRequested}
+                    onCancel={() => setSelectedAppointment(null)}
+                  />
+                ) : (
+                  <PatientHistory
+                    patientId={selectedAppointment.patientId?._id || selectedAppointment.patientId}
+                    patient={selectedAppointment.patientId}
+                  />
+                )}
+              </>
+            ) : (
+              <ConsultationPanel
+                appointment={null}
+                onConsultationSaved={handleConsultationSaved}
+                onLabRequested={handleLabRequested}
+                onCancel={() => setSelectedAppointment(null)}
+              />
+            )}
           </div>
         </div>
 

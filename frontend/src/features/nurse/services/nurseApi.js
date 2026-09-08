@@ -16,6 +16,18 @@ const nurseApi = {
   /** Submit vitals and forward patient to the Doctor queue. */
   captureVitals: (data) =>
     axios.post(`${BASE_URL}/vitals`, data, { headers: getAuthHeader() }),
+
+  /** Prompt 8.2: Fetch appointments in 'Lab Pending' or 'Reports Ready' state. */
+  getLabQueue: () =>
+    axios.get(`${BASE_URL}/lab-queue`, { headers: getAuthHeader() }),
+
+  /** Prompt 8.2: Forward a lab request to the Laboratory Head. */
+  forwardToLab: (appointmentId) =>
+    axios.post(`${BASE_URL}/forward-to-lab`, { appointmentId }, { headers: getAuthHeader() }),
+
+  /** Prompt 8.2: Notify doctor that reports are ready and move patient to Doctor Review Queue. */
+  notifyDoctor: (appointmentId) =>
+    axios.post(`${BASE_URL}/notify-doctor`, { appointmentId }, { headers: getAuthHeader() }),
 };
 
 export default nurseApi;

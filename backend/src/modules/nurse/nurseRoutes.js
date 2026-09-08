@@ -3,6 +3,9 @@ import { protect, authorize } from '../../middlewares/authMiddleware.js';
 import {
   getTriageQueue,
   captureVitals,
+  getLabQueue,
+  forwardToLab,
+  notifyDoctor,
 } from './nurseController.js';
 
 const router = express.Router();
@@ -21,5 +24,15 @@ router.get('/triage/queue', getTriageQueue);
 // POST /api/nurse/capture-vitals  → alias
 router.post('/vitals',         captureVitals);
 router.post('/capture-vitals', captureVitals);
+
+// ── Lab Coordination routes (Prompt 8.2) ──────────────────────────────────────
+// GET  /api/nurse/lab-queue      → patients in 'Lab Pending' or 'Reports Ready'
+router.get('/lab-queue', getLabQueue);
+
+// POST /api/nurse/forward-to-lab → acknowledge forward to lab
+router.post('/forward-to-lab', forwardToLab);
+
+// POST /api/nurse/notify-doctor  → notify doctor and set doctorQueueType: 'Review'
+router.post('/notify-doctor', notifyDoctor);
 
 export default router;

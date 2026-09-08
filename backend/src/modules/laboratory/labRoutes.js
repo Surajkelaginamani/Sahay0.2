@@ -4,6 +4,8 @@ import {
   getTestQueue,
   updateOrderStatus,
   submitReport,
+  getPendingTests,
+  uploadReport,
 } from './labController.js';
 import { protect, authorize } from '../../middlewares/authMiddleware.js';
 
@@ -17,6 +19,13 @@ router.get('/metrics', getLabMetrics);
 
 // GET /api/lab/queue - Orders queue sorted by date
 router.get('/queue', getTestQueue);
+
+// Prompt 8.3: Pending tests & report upload
+// GET  /api/lab/pending-tests  - Pending LabOrder tests
+router.get('/pending-tests', getPendingTests);
+
+// POST /api/lab/upload-report   - Upload report, complete LabOrder, update Appointment to 'Reports Ready'
+router.post('/upload-report', uploadReport);
 
 // PUT /api/lab/orders/:id/status - Update status of an order
 router.put('/orders/:id/status', updateOrderStatus);

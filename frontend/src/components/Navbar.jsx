@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getStoredAuth } from '../utils/auth';
 
 // Staff roles that have their own dashboard workspace — public nav is hidden for these
-const STAFF_ROLES = ['Doctor', 'LabHead', 'ASHA', 'HospitalAdmin', 'FacilityAdmin'];
+const STAFF_ROLES = ['Doctor', 'LabHead', 'ASHA', 'HospitalAdmin', 'FacilityAdmin', 'Receptionist', 'Nurse'];
 
 export default function Navbar() {
   const navigate = useNavigate();
