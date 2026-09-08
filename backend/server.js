@@ -12,6 +12,7 @@ import receptionistRoutes from './src/modules/receptionist/receptionistRoutes.js
 import doctorRoutes from './src/modules/doctor/doctorRoutes.js';
 import nurseRoutes from './src/modules/nurse/nurseRoutes.js';
 import pharmacyRoutes from './src/modules/pharmacy/pharmacyRoutes.js';
+import ashaRoutes from './src/modules/asha/ashaRoutes.js';
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use('/api/receptionist', receptionistRoutes);
 app.use('/api/doctor', doctorRoutes);
 app.use('/api/nurse', nurseRoutes);
 app.use('/api/pharmacy', pharmacyRoutes);
+app.use('/api/asha', ashaRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

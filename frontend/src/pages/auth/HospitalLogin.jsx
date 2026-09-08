@@ -9,8 +9,11 @@ const ROLE_ROUTES = {
   Doctor: '/dashboard/doctor',
   LabHead: '/dashboard/lab',
   ASHA: '/dashboard/asha',
+  AshaWorker: '/dashboard/asha',
   FacilityAdmin: '/dashboard/admin', // Facility admins share the admin dashboard for now
   Receptionist: '/dashboard/receptionist',
+  Nurse: '/dashboard/nurse',
+  Pharmacist: '/dashboard/pharmacy',
 };
 
 // Subtle role badge displayed after failed login with role info
@@ -19,8 +22,11 @@ const ROLE_LABELS = {
   Doctor: 'Doctor',
   LabHead: 'Lab Head / Diagnostics',
   ASHA: 'ASHA / ANM Worker',
+  AshaWorker: 'ASHA Worker (Referral)',
   FacilityAdmin: 'Facility Administrator',
   Receptionist: 'Receptionist',
+  Nurse: 'Nurse / Triage',
+  Pharmacist: 'Pharmacist',
 };
 
 export default function HospitalLogin() {

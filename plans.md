@@ -1,42 +1,54 @@
-# Prompt 9.1: Pharmacy Role & Backend API (Step 4.5)
-Task: Introduce the Pharmacist role and build the API to fetch digital prescriptions.
+# Prompt 10.1: System Role & Referral Schema
+Task: Introduce the ASHA Worker role and build the Mongoose schema for inter-facility referrals.
 
 Requirements:
 
-Schema Update (User.js): Add 'Pharmacist' to the role enum.
+Schema Update (User.js): Add 'AshaWorker' to the role enum.
 
-Admin & Routing Updates: Add the Pharmacist role to the Hospital Admin staff creation dropdown and update the authentication routing to redirect this role to /dashboard/pharmacy.
+Authentication Routing: Update Admin creation dropdowns and login switch cases (Landing.jsx, auth.js) to route this role to /dashboard/asha.
 
-Backend (pharmacyController.js & pharmacyRoutes.js):
+Create Referral.js (backend/src/models/):
 
-Create getActivePrescriptions(req, res): Fetch documents from the Prescription collection where facilityId matches the logged-in Pharmacist and status is 'Pending'. Populate patient details.
+References: patientId (Patient), referredBy (User - AshaWorker), referredToFacility (Hospital), referredFromFacility (Hospital - Optional, if ASHA is attached to a specific PHC).
 
-Create dispenseMedication(req, res): Accept prescriptionId and update its status to 'Dispensed'.
+Fields: reasonForReferral (String), clinicalNotes (String), status (Enum: ['Pending', 'Arrived', 'Completed']).
 
-# Prompt 9.2: Pharmacy Dashboard UI (Step 4.5)
-Task: Build the frontend interface for the Pharmacy Dashboard.
+Add timestamps.
 
-Requirements:
-
-Create PharmacyDashboard.jsx: Guard this route for the 'Pharmacist' role.
-
-Active Queue: Display a data table fetching from getActivePrescriptions.
-
-Prescription View: When a patient is clicked, display the exact array of medications, dosages, and instructions prescribed by the doctor.
-
-Action: Include a "Mark as Dispensed" button that calls the dispenseMedication API and removes the patient from the pharmacist's active screen.
-
-# Prompt 9.3: Patient Dashboard & Medical Records (Step 5)
-Task: Build the dedicated Patient Dashboard for citizens to view their own medical history across all hospitals.
+# Prompt 10.2: ASHA Worker Backend & Dashboard (Step 1)
+Task: Build the ASHA Worker's interface to search patients and send referrals to higher-level hospitals.
 
 Requirements:
 
-Backend (patientController.js): Create getMyMedicalRecords(req, res). Extract the patientId from the user's JWT. Query and return all Consultations, Prescriptions, and LabOrders associated with this ID, populating the facilityId to show which hospital they visited.
+Backend (ashaController.js & ashaRoutes.js):
 
-Frontend (PatientDashboard.jsx): Build a tabbed interface or chronological timeline displaying:
+getHigherLevelHospitals(req, res): Fetch hospitals that have a higher tier than the local village center (or simply return all available district hospitals).
 
-Hospitals Visited: A list of unique facilities they have checked into.
+createReferral(req, res): Accept patientId, referredToFacility, and reasonForReferral. Save to the Referral collection with status 'Pending'.
 
-Medical History: A timeline of previous check-ups, treatments received, lab reports, and medicines taken.
+Frontend (AshaDashboard.jsx):
 
-Routing: Ensure patients logging in via the public portal are routed strictly to this dashboard.
+Design this UI to be highly mobile-responsive, as rural workers primarily use phones/tablets.
+
+Build a "Refer Patient" form: Includes a patient search bar, a dropdown of higher-level hospitals fetched from the API, and a text area for the referral reason.
+
+Build an "Active Referrals" list showing patients they have sent to the city who haven't arrived yet.
+
+# Prompt 10.3: Receptionist Referral Integration (Step 2)
+Task: Upgrade the Receptionist Dashboard to intercept incoming ASHA referrals and process them into the hospital queue.
+
+Requirements:
+
+Backend Update (receptionistController.js):
+
+Create getIncomingReferrals(req, res): Query the Referral collection where referredToFacility matches the receptionist's hospital ID and status is 'Pending'.
+
+Update the existing patient search logic: If the searched patient has a pending referral to this facility, return the referral data alongside the patient data.
+
+Frontend Update (ReceptionistDashboard.jsx):
+
+Add an "Incoming Referrals" notification badge or section.
+
+When the receptionist searches for a patient who just arrived from a village, display a prominent banner: "Valid ASHA Referral Found: [Reason]".
+
+Action: Modify the "Add to Queue" button logic. When clicked for a referred patient, it must create the standard Appointment (setting status to 'At Triage' for the Nurse), AND simultaneously update the Referral document status to 'Arrived'.
