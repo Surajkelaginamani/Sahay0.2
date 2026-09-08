@@ -26,6 +26,9 @@ export default function Landing() {
         case 'LabHead':
           navigate('/dashboard/lab', { replace: true });
           break;
+        case 'Pharmacist':
+          navigate('/dashboard/pharmacy', { replace: true });
+          break;
         case 'Patient':
           navigate('/dashboard/patient', { replace: true });
           break;

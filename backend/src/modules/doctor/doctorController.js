@@ -475,6 +475,9 @@ export const closeConsultation = async (req, res) => {
         consultationId: consultation._id,
         patientId: targetPatientId,
         doctorId,
+        facilityId,
+        hospital: facilityId,
+        status: 'Pending',
         medications: formattedMedications,
         instructions: instructions?.trim() || '',
       });

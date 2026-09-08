@@ -11,6 +11,7 @@ import labRoutes from './src/modules/laboratory/labRoutes.js';
 import receptionistRoutes from './src/modules/receptionist/receptionistRoutes.js';
 import doctorRoutes from './src/modules/doctor/doctorRoutes.js';
 import nurseRoutes from './src/modules/nurse/nurseRoutes.js';
+import pharmacyRoutes from './src/modules/pharmacy/pharmacyRoutes.js';
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.use('/api/lab', labRoutes);
 app.use('/api/receptionist', receptionistRoutes);
 app.use('/api/doctor', doctorRoutes);
 app.use('/api/nurse', nurseRoutes);
+app.use('/api/pharmacy', pharmacyRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

@@ -67,6 +67,30 @@ const prescriptionSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    facilityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hospital',
+      default: null,
+    },
+    hospital: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hospital',
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ['Pending', 'Dispensed'],
+      default: 'Pending',
+    },
+    dispensedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    dispensedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -76,6 +100,8 @@ const prescriptionSchema = new mongoose.Schema(
 prescriptionSchema.index({ patientId: 1, createdAt: -1 });
 prescriptionSchema.index({ consultationId: 1 });
 prescriptionSchema.index({ doctorId: 1, createdAt: -1 });
+prescriptionSchema.index({ facilityId: 1, status: 1 });
+prescriptionSchema.index({ hospital: 1, status: 1 });
 
 const Prescription = mongoose.model('Prescription', prescriptionSchema);
 

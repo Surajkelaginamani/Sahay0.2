@@ -52,6 +52,9 @@ export default function HospitalLogin() {
         case 'LabHead':
           navigate('/dashboard/lab', { replace: true });
           break;
+        case 'Pharmacist':
+          navigate('/dashboard/pharmacy', { replace: true });
+          break;
         case 'Patient':
           navigate('/dashboard/patient', { replace: true });
           break;
@@ -126,6 +129,9 @@ export default function HospitalLogin() {
           break;
         case 'Nurse':
           navigate('/dashboard/nurse');
+          break;
+        case 'Pharmacist':
+          navigate('/dashboard/pharmacy');
           break;
         default:
           navigate('/');
