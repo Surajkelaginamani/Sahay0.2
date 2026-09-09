@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import doctorApi from '../services/doctorApi';
+import VideoRoom from '../../../components/common/VideoRoom';
 
 // Common standard lab tests for quick addition
 const COMMON_LAB_PRESETS = [
@@ -48,6 +49,34 @@ export default function ConsultationPanel({
   const [consultError, setConsultError]       = useState('');
 
   const [copyFeedback, setCopyFeedback]       = useState('');
+
+  // ── Teleconsultation Video Call State (Prompt 16.3) ─────────────────────────
+  const [inVideoCall, setInVideoCall]   = useState(false);
+  const [joiningCall, setJoiningCall]   = useState(false);
+
+  useEffect(() => {
+    if (appointment?.status === 'In Teleconsult') {
+      setInVideoCall(true);
+    } else {
+      setInVideoCall(false);
+    }
+  }, [appointment]);
+
+  const handleJoinVideoCall = async () => {
+    setJoiningCall(true);
+    try {
+      await doctorApi.joinTeleconsult(appointment._id);
+      setInVideoCall(true);
+    } catch (err) {
+      console.error('Error joining teleconsult:', err);
+      // Fallback: if room ID exists, still launch video room
+      if (appointment?.teleconsultRoomId) {
+        setInVideoCall(true);
+      }
+    } finally {
+      setJoiningCall(false);
+    }
+  };
 
   // ── Sync with selected appointment ─────────────────────────────────────────
   useEffect(() => {
@@ -275,6 +304,75 @@ export default function ConsultationPanel({
           Cancel / Close
         </button>
       </div>
+
+      {/* ── Teleconsultation Banner (Prompt 16.3) ─────────────────────────── */}
+      {(appointment.status === 'Teleconsult Requested' || appointment.status === 'In Teleconsult' || appointment.teleconsultRoomId) && (
+        <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-950 rounded-3xl p-5 text-white shadow-xl border border-purple-500/40 flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-300 border border-purple-400/40 flex items-center justify-center text-xl shrink-0 shadow-inner">
+              📹
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-extrabold text-white">Live Teleconsultation Call</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-400 text-purple-950 uppercase tracking-wider animate-pulse">
+                  {inVideoCall || appointment.status === 'In Teleconsult' ? 'Live Call Active' : 'Request Pending'}
+                </span>
+              </div>
+              <p className="text-xs text-purple-200 mt-0.5">
+                Nurse at rural triage station requested live specialist video consultation.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!inVideoCall ? (
+              <button
+                type="button"
+                id="join-video-call-btn"
+                onClick={handleJoinVideoCall}
+                disabled={joiningCall}
+                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-950/40 hover:from-emerald-600 hover:to-teal-600 active:scale-95 transition-all flex items-center gap-2"
+              >
+                <span>📹</span>
+                <span>{joiningCall ? 'Joining Call…' : 'Join Video Call'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setInVideoCall(false)}
+                className="px-4 py-2 rounded-2xl bg-purple-900/80 hover:bg-purple-800 text-purple-200 text-xs font-bold transition-all border border-purple-700"
+              >
+                Hide / Minimize Video
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Side-by-Side Video Window (Prompt 16.3) ───────────────────────── */}
+      {inVideoCall && appointment.teleconsultRoomId && (
+        <div className="space-y-2 animate-in fade-in duration-300">
+          <div className="flex items-center justify-between px-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Live Patient Video Call — Review Vitals & Prescribe Below</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setInVideoCall(false)}
+              className="text-xs text-purple-700 hover:text-purple-900 font-bold"
+            >
+              Minimize Video
+            </button>
+          </div>
+          <VideoRoom
+            roomName={appointment.teleconsultRoomId}
+            displayName="Dr. Specialist"
+            onClose={() => setInVideoCall(false)}
+          />
+        </div>
+      )}
 
       {/* ── Diagnostic Lab Results Banner (Prompt 8.4: Secondary Queue Review) ── */}
       {isReportsReady && (

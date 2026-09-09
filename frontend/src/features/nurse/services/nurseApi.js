@@ -28,6 +28,14 @@ const nurseApi = {
   /** Prompt 8.2: Notify doctor that reports are ready and move patient to Doctor Review Queue. */
   notifyDoctor: (appointmentId) =>
     axios.post(`${BASE_URL}/notify-doctor`, { appointmentId }, { headers: getAuthHeader() }),
+
+  /** Prompt 16.1: Request video teleconsultation session with a specialist doctor. */
+  requestTeleconsult: (data) =>
+    axios.post(`${BASE_URL}/request-teleconsult`, data, { headers: getAuthHeader() }),
+
+  /** Prompt 16.1: Fetch specialist doctors available for teleconsultation. */
+  getDoctors: () =>
+    axios.get(`${BASE_URL}/doctors`, { headers: getAuthHeader() }),
 };
 
 export default nurseApi;

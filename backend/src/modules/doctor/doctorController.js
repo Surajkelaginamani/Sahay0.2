@@ -15,10 +15,10 @@ export const getDoctorQueue = async (req, res) => {
   try {
     const doctorId = req.user._id;
 
-    // Fetch appointments where assignedDoctorId is this doctor and status is Waiting, CheckedIn, Waiting for Doctor, or Reports Ready
+    // Fetch appointments where assignedDoctorId is this doctor and status is Waiting, CheckedIn, Waiting for Doctor, Reports Ready, or Teleconsult
     const appointments = await Appointment.find({
       assignedDoctorId: doctorId,
-      status: { $in: ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready'] },
+      status: { $in: ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready', 'Teleconsult Requested', 'In Teleconsult'] },
     })
       .populate('patientId', 'firstName lastName contactPhone gender dob abhaId address bloodGroup emergencyContact')
       .populate('facilityId', 'hospitalName address')
@@ -64,10 +64,10 @@ export const getDoctorQueue = async (req, res) => {
       };
     });
 
-    // Prompt 8.4: Two distinct queues
-    // 1. Active ongoing queue
+    // Prompt 8.4 & 16.1: Two distinct queues
+    // 1. Active ongoing queue (including teleconsultation requests)
     const activeQueue = enriched.filter((a) =>
-      ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'In Progress'].includes(a.status)
+      ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'In Progress', 'Teleconsult Requested', 'In Teleconsult'].includes(a.status)
     );
     // 2. Review queue for patients whose lab tests are finished
     const reviewQueue = enriched.filter((a) => a.status === 'Reports Ready');
@@ -518,6 +518,45 @@ export const closeConsultation = async (req, res) => {
       message: 'Consultation closed and prescription created successfully.',
       consultation,
       prescription,
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── joinTeleconsult (Prompt 16.1) ──────────────────────────────────────────
+// @route   POST /api/doctor/teleconsult/join
+// @access  Private (Doctor)
+export const joinTeleconsult = async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+    if (!appointmentId) {
+      return res.status(400).json({ message: 'appointmentId is required.' });
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    if (!appointment.teleconsultRoomId) {
+      return res.status(400).json({ message: 'No active teleconsultation room found for this appointment.' });
+    }
+
+    appointment.status = 'In Teleconsult';
+    await appointment.save();
+
+    await appointment.populate([
+      { path: 'patientId', select: 'firstName lastName contactPhone gender dob abhaId' },
+      { path: 'assignedDoctorId', select: 'name email' },
+      { path: 'facilityId', select: 'hospitalName address' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Joined teleconsultation session.',
+      teleconsultRoomId: appointment.teleconsultRoomId,
       appointment,
     });
   } catch (error) {

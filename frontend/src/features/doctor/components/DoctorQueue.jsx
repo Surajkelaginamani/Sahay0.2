@@ -3,6 +3,22 @@ import doctorApi from '../services/doctorApi';
 
 // ─── Status pill ───────────────────────────────────────────────────────────────
 function StatusPill({ status }) {
+  if (status === 'Teleconsult Requested') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border bg-purple-100 text-purple-900 border-purple-300 shadow-xs animate-pulse">
+        <span className="w-2 h-2 rounded-full bg-purple-600 animate-ping" />
+        📹 Teleconsult Req.
+      </span>
+    );
+  }
+  if (status === 'In Teleconsult') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border bg-indigo-100 text-indigo-900 border-indigo-300">
+        <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+        📹 Live Call
+      </span>
+    );
+  }
   if (status === 'Reports Ready') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-teal-100 text-teal-800 border-teal-200">
@@ -11,7 +27,7 @@ function StatusPill({ status }) {
       </span>
     );
   }
-  const isCheckedIn = status === 'CheckedIn';
+  const isCheckedIn = status === 'CheckedIn' || status === 'Waiting for Doctor';
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
@@ -21,16 +37,18 @@ function StatusPill({ status }) {
       }`}
     >
       <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
-      {isCheckedIn ? 'Checked In' : 'Waiting'}
+      {isCheckedIn ? 'Ready' : 'Waiting'}
     </span>
   );
 }
 
 // ─── Patient Card ─────────────────────────────────────────────────────────────
 function PatientCard({ appt, isSelected, onSelect }) {
-  const isUrgent       = appt.priority === 'Urgent';
-  const isReportsReady = appt.status === 'Reports Ready';
-  const patient        = appt.patientId;
+  const isUrgent                 = appt.priority === 'Urgent';
+  const isReportsReady           = appt.status === 'Reports Ready';
+  const isTeleconsultRequested   = appt.status === 'Teleconsult Requested';
+  const isInTeleconsult          = appt.status === 'In Teleconsult';
+  const patient                  = appt.patientId;
 
   // Age calculation
   const age = patient?.dob
@@ -45,6 +63,10 @@ function PatientCard({ appt, isSelected, onSelect }) {
       className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
         isSelected
           ? 'border-sky-500 bg-sky-50/80 shadow-sm ring-2 ring-sky-400/40'
+          : isTeleconsultRequested
+          ? 'border-purple-400 border-l-4 border-l-purple-600 bg-gradient-to-r from-purple-50/90 to-fuchsia-50/60 ring-2 ring-purple-400/40 shadow-md animate-pulse'
+          : isInTeleconsult
+          ? 'border-indigo-300 border-l-4 border-l-indigo-600 bg-indigo-50/70 shadow-sm'
           : isReportsReady
           ? 'border-teal-200 border-l-4 border-l-teal-500 bg-teal-50/40 hover:bg-teal-50/80 shadow-xs'
           : isUrgent
@@ -58,7 +80,9 @@ function PatientCard({ appt, isSelected, onSelect }) {
           {appt.queueNumber ? (
             <span
               className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
-                isReportsReady
+                isTeleconsultRequested
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : isReportsReady
                   ? 'bg-teal-200 text-teal-900'
                   : isUrgent
                   ? 'bg-rose-200 text-rose-800'
@@ -106,6 +130,31 @@ function PatientCard({ appt, isSelected, onSelect }) {
           <StatusPill status={appt.status} />
         </div>
       </div>
+
+      {/* Teleconsult Requested Flashing Notice (Prompt 16.3) */}
+      {isTeleconsultRequested && (
+        <div className="mt-2 text-[11px] text-purple-900 bg-purple-100/90 px-2.5 py-1.5 rounded-xl border border-purple-300 flex items-center justify-between shadow-xs">
+          <span className="flex items-center gap-1.5 font-extrabold">
+            <span className="text-xs animate-bounce">📹</span>
+            <span>Live Video Teleconsultation</span>
+          </span>
+          <span className="text-[9px] font-black uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded-md animate-pulse">
+            Connect
+          </span>
+        </div>
+      )}
+
+      {isInTeleconsult && (
+        <div className="mt-2 text-[11px] text-indigo-900 bg-indigo-100/80 px-2.5 py-1.5 rounded-xl border border-indigo-200 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 font-bold">
+            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping" />
+            <span>Video Call In Progress</span>
+          </span>
+          <span className="text-[9px] font-black uppercase tracking-wider bg-indigo-600 text-white px-2 py-0.5 rounded-md">
+            Live
+          </span>
+        </div>
+      )}
 
       {/* Reports Ready Badge / Test Notice */}
       {isReportsReady && (

@@ -1,55 +1,44 @@
-# Prompt 14.1: Backend Data Population
-Task: Ensure the patient records API populates the hospital and doctor names so the frontend can group them.
+# Prompt 16.1: Backend - Teleconsultation Schema & API
+Task: Upgrade the Appointment schema and controllers to support live video teleconsultation rooms.
 
 Requirements:
 
-Locate Controller: Open backend/src/modules/patient/patientController.js and find getMyMedicalRecords (or the equivalent API fetching patient records).
+Schema Update (Appointment.js): Add a teleconsultRoomId (String) field and add 'Teleconsult Requested' and 'In Teleconsult' to the status enum.
 
-Update Queries: For the Prescription.find() and LabOrder.find() queries, attach .populate('facilityId', 'name') to get the hospital name, and .populate('doctorId', 'firstName lastName') to get the doctor's name.
+Controller (nurseController.js): Create requestTeleconsult(req, res). Accept an appointmentId and a doctorId. Generate a unique room ID (e.g., Sahay-Tele-[appointmentId]-[timestamp]). Update the appointment with this teleconsultRoomId and set status to 'Teleconsult Requested'.
 
-Verify that the response payload now includes these nested object names instead of just raw MongoDB ObjectIDs.
+Controller (doctorController.js): Update getDoctorQueue to also fetch appointments with status 'Teleconsult Requested'. Create joinTeleconsult(req, res) to update the status to 'In Teleconsult'.
 
-# Prompt 14.2: Frontend Grouping Logic & Nested UI
-Task: Restructure the "Digital Prescription" and "Diagnostics Lab Reports" tabs to display nested, categorized lists.
-
-Requirements:
-
-Data Grouping Utility: In PatientDashboard.jsx, write a JavaScript helper function using .reduce() that takes a flat array of records and groups them. The resulting object structure must be:
-{ "Hospital Name": { "Dr. Firstname Lastname": [ record1, record2 ] } }
-
-Digital Prescriptions Tab: Apply the grouping function to the prescriptions array. Map over the Object.keys() of the hospitals to render a prominent Hospital header card. Inside that, map over the doctors to render a sub-header. Finally, map over the doctor's specific prescriptions to render the medication lists.
-
-Diagnostics Lab Reports Tab: Apply the exact same grouping function and nested mapping layout to the lab reports array.
-
-UI Fallback: Ensure that if a record is missing a linked facility or doctor (due to old dummy data), it defaults to falling under an "Unknown Hospital" or "General Consulting" category so the UI does not crash.
-|
-# Prompt 15.1: Backend - Shared Referral Route & Origin Tracking
-Task: Upgrade the referral API to allow Nurses to create referrals and track the origin facility.
+# Prompt 16.2: Frontend - Shared Jitsi Video Component
+Task: Create a reusable WebRTC video component using the Jitsi React SDK.
 
 Requirements:
 
-Route Permissions: Update the referral creation route (e.g., POST /api/referrals) to allow both ['AshaWorker', 'Nurse'] roles to access it.
+Dependencies: Install the @jitsi/react-sdk package.
 
-Origin Tracking in Controller: In the createReferral controller, automatically grab the logged-in user's hospital ID (req.user.hospitalId) and save it to the referredFromFacility field in the Referral document.
+Component (frontend/src/components/common/VideoRoom.jsx):
 
-Receptionist Query Update: In the receptionist's getIncomingReferrals controller (and the patient search controller), populate the referral data: .populate('referredFromFacility', 'name address city') and .populate('referredBy', 'firstName lastName role').
+Import JitsiMeeting from the SDK.
 
-# Prompt 15.2: Frontend - Shared Referral Component for NursesTask:
- Extract the ASHA "Refer Patient" UI and embed it into the Nurse Dashboard.Requirements:Component Extraction: Take the referral form shown in the ASHA Portal (Search Patient $\rightarrow$ Select Destination Hospital $\rightarrow$ Referral Details) and turn it into a shared component: frontend/src/components/common/CreateReferralForm.jsx.Nurse Dashboard Integration: Open NurseDashboard.jsx and add a new tab or section called "Outbound Referrals". Render the <CreateReferralForm/> inside this tab.API Hookup: Ensure the form submits to the shared referral API endpoint, passing the selected patient, destination hospital, reason, and notes.
+Accept props: roomName (the generated room ID), displayName (the logged-in user's name), and onClose (callback for when the call ends).
 
- # Prompt 15.3: Frontend - Enhanced Receptionist Referral Banner
-Task: Update the Receptionist Dashboard to display the detailed origin of incoming referrals.
+Configure the JitsiMeeting component to hide unnecessary UI elements (like screen sharing or inviting others) to keep it lightweight for rural bandwidth. Set the domain to meet.jit.si.
+
+# Prompt 16.3: Frontend - Nurse & Doctor Dashboard Integration
+Task: Embed the teleconsultation workflow into both the Nurse and Doctor workspaces.
 
 Requirements:
 
-Update UI: Locate the "Valid Referral Found" banner in ReceptionistDashboard.jsx (which appears when searching for a referred patient).
+Nurse Dashboard (NurseDashboard.jsx):
 
-Display Origin Data: Add new lines to this banner using the populated data from the backend. It must explicitly show:
+Add a "Request Teleconsultation" button next to patients in the Triage queue.
 
-From Facility: referral.referredFromFacility.name - referral.referredFromFacility.address, referral.referredFromFacility.city
+When clicked, open a modal to select a Specialist (Doctor), call the requestTeleconsult API, and then render the <VideoRoom/> component on the Nurse's screen, joining the generated room.
 
-Referred By: referral.referredBy.firstName referral.referredBy.lastName (referral.referredBy.role)
+Doctor Dashboard (DoctorQueue.jsx & ConsultationPanel.jsx):
 
-Reason & Notes: (Keep the existing reason and clinical notes display).
+Update the queue sidebar to prominently flash/highlight incoming patients with the 'Teleconsult Requested' status.
 
-Ensure the UI handles fallbacks gracefully (e.g., if an ASHA worker is not attached to a specific facility, display "Independent Field Worker" instead of crashing).
+When the Doctor clicks on this patient, display a "Join Video Call" button in the consultation panel.
+
+Clicking it calls joinTeleconsult and renders the <VideoRoom/> component side-by-side with the clinical notes form, allowing the doctor to type prescriptions while talking to the nurse and patient.

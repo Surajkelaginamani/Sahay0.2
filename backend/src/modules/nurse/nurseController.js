@@ -1,6 +1,7 @@
 import Appointment from '../../models/Appointment.js';
 import Vitals from '../../models/Vitals.js';
 import LabOrder from '../../models/LabOrder.js';
+import User from '../../models/User.js';
 
 // ─── Helper to calculate BMI ──────────────────────────────────────────────────
 function calculateBMI(heightCm, weightKg) {
@@ -280,6 +281,82 @@ export const notifyDoctor = async (req, res) => {
       success: true,
       message: 'Doctor notified and patient moved to Doctor Review Queue.',
       appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── requestTeleconsult (Prompt 16.1) ────────────────────────────────────────
+// @route   POST /api/nurse/request-teleconsult
+// @access  Private (Nurse)
+export const requestTeleconsult = async (req, res) => {
+  try {
+    const { appointmentId, doctorId } = req.body;
+    if (!appointmentId || !doctorId) {
+      return res.status(400).json({ message: 'appointmentId and doctorId are required.' });
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    // Generate unique teleconsultation room ID
+    const cleanApptId = appointmentId.toString().slice(-8);
+    const timestamp = Date.now();
+    const teleconsultRoomId = `Sahay-Tele-${cleanApptId}-${timestamp}`;
+
+    appointment.assignedDoctorId = doctorId;
+    appointment.teleconsultRoomId = teleconsultRoomId;
+    appointment.status = 'Teleconsult Requested';
+    await appointment.save();
+
+    await appointment.populate([
+      { path: 'patientId', select: 'firstName lastName contactPhone gender dob abhaId' },
+      { path: 'assignedDoctorId', select: 'name email' },
+      { path: 'facilityId', select: 'hospitalName address' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Teleconsultation requested successfully.',
+      teleconsultRoomId,
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── getAvailableDoctors ──────────────────────────────────────────────────────
+// @route   GET /api/nurse/doctors
+// @access  Private (Nurse)
+export const getAvailableDoctors = async (req, res) => {
+  try {
+    const facilityId = req.user?.hospitalId;
+
+    // First attempt to get doctors in the same hospital facility
+    let doctors = [];
+    if (facilityId) {
+      doctors = await User.find({ role: 'Doctor', hospitalId: facilityId })
+        .select('_id name email specialization hospitalId')
+        .populate('hospitalId', 'hospitalName')
+        .lean();
+    }
+
+    // If no local doctors found, fetch approved active doctors system-wide
+    if (doctors.length === 0) {
+      doctors = await User.find({ role: 'Doctor' })
+        .select('_id name email specialization hospitalId')
+        .populate('hospitalId', 'hospitalName')
+        .limit(25)
+        .lean();
+    }
+
+    res.status(200).json({
+      count: doctors.length,
+      doctors,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

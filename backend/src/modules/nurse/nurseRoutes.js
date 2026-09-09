@@ -6,6 +6,8 @@ import {
   getLabQueue,
   forwardToLab,
   notifyDoctor,
+  requestTeleconsult,
+  getAvailableDoctors,
 } from './nurseController.js';
 
 const router = express.Router();
@@ -34,5 +36,11 @@ router.post('/forward-to-lab', forwardToLab);
 
 // POST /api/nurse/notify-doctor  → notify doctor and set doctorQueueType: 'Review'
 router.post('/notify-doctor', notifyDoctor);
+
+// ── Teleconsultation routes (Prompt 16.1) ─────────────────────────────────────
+// POST /api/nurse/request-teleconsult → request video teleconsultation session
+router.post('/request-teleconsult', requestTeleconsult);
+// GET  /api/nurse/doctors             → fetch available specialist doctors
+router.get('/doctors', getAvailableDoctors);
 
 export default router;

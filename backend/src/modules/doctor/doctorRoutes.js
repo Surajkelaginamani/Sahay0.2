@@ -9,6 +9,7 @@ import {
   getPatientHistory,
   requestLabTest,
   closeConsultation,
+  joinTeleconsult,
 } from './doctorController.js';
 
 const router = express.Router();
@@ -47,5 +48,10 @@ router.post('/close-consultation', closeConsultation); // alias
 
 // POST /api/doctor/consultation                      → save ABDM clinical consultation & complete appointment
 router.post('/consultation', submitConsultation);
+
+// ── Teleconsultation routes (Prompt 16.1) ─────────────────────────────────────
+// POST /api/doctor/teleconsult/join                  → join video teleconsultation room
+router.post('/teleconsult/join', joinTeleconsult);
+router.post('/join-teleconsult', joinTeleconsult); // alias
 
 export default router;

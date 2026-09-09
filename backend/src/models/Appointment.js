@@ -60,6 +60,8 @@ const appointmentSchema = new mongoose.Schema(
           'Waiting for Doctor',
           'Lab Pending',
           'Reports Ready',
+          'Teleconsult Requested',
+          'In Teleconsult',
           'Completed',
           // Backward-compatible statuses
           'CheckedIn',
@@ -69,6 +71,13 @@ const appointmentSchema = new mongoose.Schema(
         message: '{VALUE} is not a valid appointment status',
       },
       default: 'Scheduled',
+    },
+
+    // ── Teleconsultation Room (Prompt 16.1) ────────────────────────────────────
+    teleconsultRoomId: {
+      type: String,
+      trim: true,
+      default: null,
     },
 
     // ── Lab Coordination & Review Queue (Prompt 8.2) ───────────────────────────

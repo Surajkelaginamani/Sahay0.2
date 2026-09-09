@@ -4,6 +4,8 @@ import TriageQueue from '../../features/nurse/components/TriageQueue';
 import VitalsForm from '../../features/nurse/components/VitalsForm';
 import LabCoordination from '../../features/nurse/components/LabCoordination';
 import CreateReferralForm from '../../components/common/CreateReferralForm';
+import VideoRoom from '../../components/common/VideoRoom';
+import nurseApi from '../../features/nurse/services/nurseApi';
 
 function StatCard({ icon, label, value, sub, color }) {
   return (
@@ -34,6 +36,14 @@ export default function NurseDashboard() {
   });
   const [toast, setToast]                             = useState(null);
   const [currentTime, setCurrentTime]                 = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+
+  // ── Teleconsultation state (Prompt 16.3) ───────────────────────────────────
+  const [teleconsultAppt, setTeleconsultAppt]         = useState(null);
+  const [teleconsultDoctors, setTeleconsultDoctors]   = useState([]);
+  const [loadingDoctors, setLoadingDoctors]           = useState(false);
+  const [selectedDoctorId, setSelectedDoctorId]       = useState('');
+  const [requestingTeleconsult, setRequestingTeleconsult] = useState(false);
+  const [activeVideoRoom, setActiveVideoRoom]         = useState(null);
 
   // Live time ticker
   useEffect(() => {
@@ -94,6 +104,60 @@ export default function NurseDashboard() {
     setVitalsCapturedCount((c) => c + 1);
     setRefreshTrigger((r) => r + 1);
   }, [showToast, selectedAppointment]);
+
+  // ── Teleconsultation Handlers (Prompt 16.3) ─────────────────────────────────
+  const handleOpenTeleconsultModal = useCallback(async (appt) => {
+    if (appt.teleconsultRoomId && (appt.status === 'Teleconsult Requested' || appt.status === 'In Teleconsult')) {
+      setActiveVideoRoom({
+        roomName: appt.teleconsultRoomId,
+        patientName: appt.patientFullName || 'Patient',
+        appointmentId: appt._id,
+      });
+      return;
+    }
+
+    setTeleconsultAppt(appt);
+    setSelectedDoctorId(appt.assignedDoctorId?._id || appt.assignedDoctorId || '');
+    setLoadingDoctors(true);
+    try {
+      const res = await nurseApi.getDoctors();
+      setTeleconsultDoctors(res.data?.doctors || []);
+    } catch {
+      showToast('error', 'Doctors Unavailable', 'Could not load doctors list.');
+    } finally {
+      setLoadingDoctors(false);
+    }
+  }, [showToast]);
+
+  const handleStartTeleconsult = async () => {
+    if (!teleconsultAppt || !selectedDoctorId) {
+      showToast('error', 'Specialist Required', 'Please select a doctor for teleconsultation.');
+      return;
+    }
+
+    setRequestingTeleconsult(true);
+    try {
+      const res = await nurseApi.requestTeleconsult({
+        appointmentId: teleconsultAppt._id,
+        doctorId: selectedDoctorId,
+      });
+
+      const roomName = res.data?.teleconsultRoomId;
+      showToast('success', 'Teleconsultation Initialized', 'Connecting video room with specialist…');
+
+      setTeleconsultAppt(null);
+      setActiveVideoRoom({
+        roomName,
+        patientName: teleconsultAppt.patientFullName || 'Patient',
+        appointmentId: teleconsultAppt._id,
+      });
+      setRefreshTrigger((r) => r + 1);
+    } catch (err) {
+      showToast('error', 'Teleconsult Failed', err.response?.data?.message || 'Could not start teleconsultation.');
+    } finally {
+      setRequestingTeleconsult(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -308,6 +372,47 @@ export default function NurseDashboard() {
           </span>
         </div>
 
+        {/* ── Active Live Teleconsultation Room (Prompt 16.3) ─────────────── */}
+        {activeVideoRoom && (
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-purple-200 shadow-xl space-y-4 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg shrink-0">
+                  📹
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    Live Specialist Teleconsultation
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Patient: <strong className="text-purple-900">{activeVideoRoom.patientName}</strong> · Room: <span className="font-mono text-slate-600">{activeVideoRoom.roomName}</span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveVideoRoom(null);
+                  setRefreshTrigger((r) => r + 1);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
+              >
+                Hide / Minimize Video
+              </button>
+            </div>
+
+            <VideoRoom
+              roomName={activeVideoRoom.roomName}
+              displayName={`${user?.name || 'Nurse'} (Nurse / Triage)`}
+              onClose={() => {
+                setActiveVideoRoom(null);
+                setRefreshTrigger((r) => r + 1);
+              }}
+            />
+          </div>
+        )}
+
         {/* ── Active Tab View ─────────────────────────────────────────────── */}
         {activeTab === 'triage' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -316,6 +421,7 @@ export default function NurseDashboard() {
               <TriageQueue
                 selectedAppointmentId={selectedAppointment?._id}
                 onEnterVitals={setSelectedAppointment}
+                onRequestTeleconsult={handleOpenTeleconsultModal}
                 refreshTrigger={refreshTrigger}
                 onQueueLoaded={handleQueueLoaded}
               />
@@ -365,6 +471,99 @@ export default function NurseDashboard() {
                 );
               }}
             />
+          </div>
+        )}
+
+        {/* ── Teleconsultation Doctor Selection Modal (Prompt 16.3) ──────── */}
+        {teleconsultAppt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg shrink-0">
+                    📹
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">Request Teleconsultation</h3>
+                    <p className="text-xs text-slate-400">Escalate patient to live specialist video</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTeleconsultAppt(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-sm font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Patient Banner */}
+              <div className="p-3.5 bg-purple-50/70 border border-purple-200 rounded-2xl flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  {teleconsultAppt.patientId?.firstName?.[0] || 'P'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-purple-950 truncate">
+                    {teleconsultAppt.patientFullName}
+                  </p>
+                  <p className="text-[11px] text-purple-700 truncate">
+                    {teleconsultAppt.chiefComplaint || 'Vitals checkup / Teleconsult evaluation'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Doctor Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  Select Specialist Doctor <span className="text-rose-500">*</span>
+                </label>
+                {loadingDoctors ? (
+                  <div className="h-10 bg-slate-100 rounded-xl animate-pulse" />
+                ) : (
+                  <select
+                    value={selectedDoctorId}
+                    onChange={(e) => setSelectedDoctorId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300 text-slate-700"
+                  >
+                    <option value="">— Choose a specialist doctor —</option>
+                    {teleconsultDoctors.map((doc) => (
+                      <option key={doc._id} value={doc._id}>
+                        Dr. {doc.name} {doc.specialization ? `(${doc.specialization})` : ''} {doc.hospitalId?.hospitalName ? `· ${doc.hospitalId.hospitalName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {teleconsultDoctors.length === 0 && !loadingDoctors && (
+                  <p className="text-xs text-slate-400">No doctors currently registered in system.</p>
+                )}
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTeleconsultAppt(null)}
+                  className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartTeleconsult}
+                  disabled={requestingTeleconsult || !selectedDoctorId}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-extrabold shadow-md shadow-purple-200 hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                >
+                  {requestingTeleconsult ? (
+                    <span>Connecting…</span>
+                  ) : (
+                    <>
+                      <span>📹</span>
+                      <span>Start Video Room</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

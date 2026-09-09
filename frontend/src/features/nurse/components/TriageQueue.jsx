@@ -3,6 +3,23 @@ import nurseApi from '../services/nurseApi';
 
 // ─── Status pill ───────────────────────────────────────────────────────────────
 function StatusPill({ status }) {
+  if (status === 'Teleconsult Requested') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border bg-purple-100 text-purple-800 border-purple-300 animate-pulse">
+        <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-ping" />
+        Teleconsult Req.
+      </span>
+    );
+  }
+  if (status === 'In Teleconsult') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border bg-indigo-100 text-indigo-800 border-indigo-300">
+        <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+        In Teleconsult
+      </span>
+    );
+  }
+
   const isTriage = status === 'At Triage';
   return (
     <span
@@ -21,6 +38,7 @@ function StatusPill({ status }) {
 export default function TriageQueue({
   selectedAppointmentId,
   onEnterVitals,
+  onRequestTeleconsult,
   refreshTrigger,
   onQueueLoaded,
 }) {
@@ -343,18 +361,37 @@ export default function TriageQueue({
                       <StatusPill status={appt.status} />
                     </td>
 
-                    {/* Action: Enter Vitals */}
+                    {/* Action: Enter Vitals & Teleconsult (Prompt 16.3) */}
                     <td className="py-3 px-3.5 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => onEnterVitals?.(appt)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs shadow-teal-200 transition-colors"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
-                        <span>Enter Vitals</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onRequestTeleconsult?.(appt)}
+                          title="Request Teleconsultation with Specialist Doctor"
+                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                            appt.status === 'Teleconsult Requested' || appt.status === 'In Teleconsult'
+                              ? 'bg-purple-600 text-white border-purple-600 animate-pulse shadow-xs shadow-purple-200'
+                              : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200'
+                          }`}
+                        >
+                          <span>📹</span>
+                          <span className="hidden sm:inline">
+                            {appt.status === 'Teleconsult Requested' ? 'Requested' : appt.status === 'In Teleconsult' ? 'Live Call' : 'Teleconsult'}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onEnterVitals?.(appt)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs shadow-teal-200 transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                          <span>Vitals</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

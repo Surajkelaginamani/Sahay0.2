@@ -28,6 +28,10 @@ const doctorApi = {
   /** Prompt 7.2: Close consultation, generate prescription, and mark appointment 'Completed'. */
   closeConsultation: (data) =>
     axios.post(`${BASE_URL}/consultation/close`, data, { headers: getAuthHeader() }),
+
+  /** Prompt 16.1 & 16.3: Join active teleconsultation session. */
+  joinTeleconsult: (appointmentId) =>
+    axios.post(`${BASE_URL}/teleconsult/join`, { appointmentId }, { headers: getAuthHeader() }),
 };
 
 export default doctorApi;
