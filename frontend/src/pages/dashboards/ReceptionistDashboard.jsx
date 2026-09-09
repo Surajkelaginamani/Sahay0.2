@@ -6,6 +6,7 @@ import TodayQueue              from '../../features/receptionist/components/Toda
 import DoctorRoster            from '../../features/receptionist/components/DoctorRoster';
 import AppointmentScheduler   from '../../features/receptionist/components/AppointmentScheduler';
 import UpcomingAppointments    from '../../features/receptionist/components/UpcomingAppointments';
+import receptionistApi         from '../../features/receptionist/services/receptionistApi';
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ toast }) {
@@ -99,14 +100,27 @@ const TABS = [
       </svg>
     ),
   },
+  {
+    id: 'referrals',
+    label: 'Incoming Referrals',
+    shortLabel: 'Referrals',
+    color: 'emerald',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+      </svg>
+    ),
+  },
 ];
 
 const TAB_ACTIVE_CLASSES = {
-  amber:  'bg-amber-500 text-white shadow-sm shadow-amber-200',
-  rose:   'bg-rose-500 text-white shadow-sm shadow-rose-200',
-  violet: 'bg-violet-600 text-white shadow-sm shadow-violet-200',
-  sky:    'bg-sky-600   text-white shadow-sm shadow-sky-200',
-  teal:   'bg-teal-600  text-white shadow-sm shadow-teal-200',
+  amber:   'bg-amber-500 text-white shadow-sm shadow-amber-200',
+  rose:    'bg-rose-500 text-white shadow-sm shadow-rose-200',
+  violet:  'bg-violet-600 text-white shadow-sm shadow-violet-200',
+  sky:     'bg-sky-600   text-white shadow-sm shadow-sky-200',
+  teal:    'bg-teal-600  text-white shadow-sm shadow-teal-200',
+  emerald: 'bg-emerald-600 text-white shadow-sm shadow-emerald-200',
 };
 
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
@@ -119,6 +133,9 @@ export default function ReceptionistDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   // Increment to trigger TodayQueue re-fetch
   const [queueRefresh, setQueueRefresh] = useState(0);
+  // Incoming ASHA referrals
+  const [incomingReferrals, setIncomingReferrals] = useState([]);
+  const [loadingReferrals, setLoadingReferrals]   = useState(false);
 
   // ── Live clock ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -134,6 +151,23 @@ export default function ReceptionistDashboard() {
     if (parsed.role !== 'Receptionist') { navigate('/'); return; }
     setUser(parsed);
   }, [navigate]);
+
+  // ── Load incoming referrals ──────────────────────────────────────────────
+  const loadIncomingReferrals = useCallback(async () => {
+    setLoadingReferrals(true);
+    try {
+      const res = await receptionistApi.getIncomingReferrals();
+      setIncomingReferrals(res.data.referrals || []);
+    } catch {
+      // Silently ignore — referrals are supplemental
+    } finally {
+      setLoadingReferrals(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) loadIncomingReferrals();
+  }, [user, loadIncomingReferrals]);
 
   // ── Toast helper ────────────────────────────────────────────────────────
   const showToast = useCallback((type, title, message) => {
@@ -269,16 +303,19 @@ export default function ReceptionistDashboard() {
         </div>
 
         {/* ── Tab navigation ──────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 flex gap-1">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 flex gap-1 overflow-x-auto">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
+            const badge = tab.id === 'referrals' && incomingReferrals.length > 0
+              ? incomingReferrals.length
+              : null;
             return (
               <button
                 key={tab.id}
                 id={`tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl
-                  text-sm font-semibold transition-all
+                  text-sm font-semibold transition-all relative shrink-0
                   ${isActive
                     ? TAB_ACTIVE_CLASSES[tab.color]
                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -287,6 +324,11 @@ export default function ReceptionistDashboard() {
                 {tab.icon}
                 <span className="hidden sm:inline">{tab.label}</span>
                 <span className="sm:hidden">{tab.shortLabel}</span>
+                {badge && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center">
+                    {badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -375,6 +417,85 @@ export default function ReceptionistDashboard() {
             {/* Tab 5: Upcoming Appointments */}
             {activeTab === 'upcoming' && (
               <UpcomingAppointments onBookNew={() => setActiveTab('book')} />
+            )}
+
+            {/* Tab 6: Incoming Referrals */}
+            {activeTab === 'referrals' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-500">
+                    {loadingReferrals ? 'Loading…' : `${incomingReferrals.length} pending referral(s) from ASHA workers`}
+                  </p>
+                  <button
+                    id="refresh-referrals-btn"
+                    onClick={loadIncomingReferrals}
+                    disabled={loadingReferrals}
+                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <svg className={`w-3.5 h-3.5 ${loadingReferrals ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Refresh
+                  </button>
+                </div>
+
+                {incomingReferrals.length === 0 && !loadingReferrals ? (
+                  <div className="text-center py-10">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 mx-auto flex items-center justify-center mb-3">
+                      <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-600">No pending referrals</p>
+                    <p className="text-xs text-slate-400 mt-1">ASHA worker referrals to your facility will appear here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {incomingReferrals.map((ref) => (
+                      <div key={ref._id} className="border border-emerald-200 rounded-2xl overflow-hidden bg-emerald-50/30">
+                        <div className="h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
+                        <div className="p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0">
+                                {ref.patientId?.firstName?.[0]}{ref.patientId?.lastName?.[0]}
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900 text-sm">{ref.patientFullName}</p>
+                                <p className="text-xs text-slate-500">{ref.patientId?.gender} · {ref.patientId?.contactPhone || '—'}</p>
+                              </div>
+                            </div>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Pending
+                            </span>
+                          </div>
+
+                          <div className="bg-white rounded-xl px-3 py-2 border border-emerald-100">
+                            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Reason for Referral</p>
+                            <p className="text-sm text-slate-800 font-medium">{ref.reasonForReferral}</p>
+                          </div>
+
+                          <div className="flex items-center gap-4 text-xs text-slate-500">
+                            <span>👤 ASHA: <strong className="text-slate-700">{ref.ashaWorkerName}</strong></span>
+                            <span>📅 {new Date(ref.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                          </div>
+
+                          <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex items-start gap-2">
+                            <svg className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <p className="text-xs text-sky-800">
+                              Search <strong>{ref.patientFullName}</strong> in the <strong>Search & Add Existing</strong> tab.
+                              A referral banner will appear — click <strong>Add to Queue</strong> to process arrival.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
           </div>

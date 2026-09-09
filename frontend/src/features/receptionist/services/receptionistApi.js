@@ -70,6 +70,11 @@ const receptionistApi = {
   /** Fetch all doctors associated with the receptionist's facility. */
   getFacilityDoctors: () =>
     axios.get(`${BASE_URL}/doctors`, { headers: getAuthHeader() }),
+
+  // ── Referrals ──────────────────────────────────────────────────────────────
+  /** Fetch all pending ASHA referrals directed to this facility. */
+  getIncomingReferrals: () =>
+    axios.get(`${BASE_URL}/referrals/incoming`, { headers: getAuthHeader() }),
 };
 
 export default receptionistApi;

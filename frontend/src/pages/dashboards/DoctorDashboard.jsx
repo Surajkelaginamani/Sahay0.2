@@ -78,8 +78,10 @@ export default function DoctorDashboard() {
   }, [showToast]);
 
   const handleLabRequested = useCallback((data) => {
-    const testName = data?.labOrder?.testName || 'Investigation';
-    showToast('success', 'Lab Test Requested', `"${testName}" order placed. Patient status updated to Lab Pending.`);
+    const testSummary = Array.isArray(data?.labOrders) && data.labOrders.length > 0
+      ? data.labOrders.map((o) => o.testName).join(', ')
+      : (data?.labOrder?.testName || 'Investigation');
+    showToast('success', 'Lab Orders Placed', `"${testSummary}" requested. Patient status updated to Lab Pending.`);
     setSelectedAppointment(null);
     setQueueRefresh((r) => r + 1);
   }, [showToast]);

@@ -1,6 +1,7 @@
 import Patient from '../../models/Patient.js';
 import Appointment from '../../models/Appointment.js';
 import User from '../../models/User.js';
+import Referral from '../../models/Referral.js';
 import bcrypt from 'bcrypt';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -164,11 +165,29 @@ export const searchPatients = async (req, res) => {
       .limit(20)
       .lean();
 
+    // For each patient, check if there is a pending referral to THIS facility
+    const facilityId = req.user.hospitalId;
+    const patientIds = patients.map((p) => p._id);
+    const pendingReferrals = await Referral.find({
+      patientId:          { $in: patientIds },
+      referredToFacility: facilityId,
+      status:             'Pending',
+    })
+      .populate('referredBy', 'name')
+      .lean();
+
+    // Build a map: patientId -> referral
+    const referralMap = {};
+    pendingReferrals.forEach((r) => {
+      referralMap[r.patientId.toString()] = r;
+    });
+
     res.json({
       count: patients.length,
       patients: patients.map((p) => ({
         ...p,
         fullName: `${p.firstName} ${p.lastName}`,
+        pendingReferral: referralMap[p._id.toString()] || null,
       })),
     });
   } catch (error) {
@@ -411,6 +430,13 @@ export const addToQueue = async (req, res) => {
       queueNumber,
     });
 
+    // ── If patient had a pending referral to this facility, mark it Arrived ─────
+    const updatedReferral = await Referral.findOneAndUpdate(
+      { patientId, referredToFacility: facilityId, status: 'Pending' },
+      { status: 'Arrived', appointmentId: appointment._id },
+      { new: true }
+    );
+
     await appointment.populate([
       { path: 'patientId',        select: 'firstName lastName contactPhone gender' },
       { path: 'assignedDoctorId', select: 'name email' },
@@ -419,6 +445,7 @@ export const addToQueue = async (req, res) => {
     const priorityLabel = resolvedPriority === 'Urgent' ? '⚠️ URGENT — ' : '';
     res.status(201).json({
       message: `${priorityLabel}Patient added to Dr. ${doctor.name}'s queue. Queue number: ${queueNumber}.`,
+      referralUpdated: !!updatedReferral,
       appointment: {
         ...appointment.toObject(),
         patientFullName: `${patient.firstName} ${patient.lastName}`,
@@ -643,3 +670,32 @@ export const getUpcomingAppointments = async (req, res) => {
   }
 };
 
+// --- getIncomingReferrals ---
+// @route   GET /api/receptionist/referrals/incoming
+// @access  Private (Receptionist)
+export const getIncomingReferrals = async (req, res) => {
+  try {
+    const facilityId = req.user.hospitalId;
+
+    const referrals = await Referral.find({
+      referredToFacility: facilityId,
+      status: 'Pending',
+    })
+      .populate('patientId',  'firstName lastName contactPhone gender dob abhaId')
+      .populate('referredBy', 'name email')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const enriched = referrals.map((r) => ({
+      ...r,
+      patientFullName: r.patientId
+        ? `${r.patientId.firstName} ${r.patientId.lastName}`
+        : 'Unknown',
+      ashaWorkerName: r.referredBy?.name || 'Unknown',
+    }));
+
+    res.json({ count: enriched.length, referrals: enriched });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

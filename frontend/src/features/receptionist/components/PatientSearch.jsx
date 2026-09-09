@@ -242,9 +242,37 @@ export default function PatientSearch({ onQueueSuccess }) {
                 return (
                   <div
                     key={patient._id}
-                    className="bg-white border border-slate-200 rounded-2xl p-4 transition-all
-                      hover:border-violet-200 hover:shadow-sm"
+                    className={`bg-white rounded-2xl p-4 transition-all hover:shadow-sm border
+                      ${patient.pendingReferral
+                        ? 'border-emerald-400 ring-1 ring-emerald-300'
+                        : 'border-slate-200 hover:border-violet-200'}`}
                   >
+                    {/* ── ASHA Referral Banner ─────────────────────────────── */}
+                    {patient.pendingReferral && (
+                      <div className="mb-3 flex items-start gap-2 bg-emerald-50 border border-emerald-300 rounded-xl px-3 py-2.5">
+                        <svg className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-emerald-800">
+                            ✅ Valid ASHA Referral Found
+                          </p>
+                          <p className="text-[11px] text-emerald-700 mt-0.5 leading-relaxed">
+                            <strong>Reason:</strong> {patient.pendingReferral.reasonForReferral}
+                          </p>
+                          {patient.pendingReferral.referredBy?.name && (
+                            <p className="text-[11px] text-emerald-600 mt-0.5">
+                              Referred by ASHA: <strong>{patient.pendingReferral.referredBy.name}</strong>
+                            </p>
+                          )}
+                          <p className="text-[10px] text-emerald-500 mt-0.5">
+                            Adding to queue will automatically mark this referral as <strong>Arrived</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       {/* Patient information */}
                       <div className="min-w-0">

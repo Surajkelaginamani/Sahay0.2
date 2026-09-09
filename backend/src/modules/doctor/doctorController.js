@@ -323,16 +323,32 @@ export const getPatientHistory = async (req, res) => {
   }
 };
 
-// ─── requestLabTest (Prompt 7.2) ───────────────────────────────────────────────
+// ─── requestLabTest (Prompt 11.1) ──────────────────────────────────────────────
 // @route   POST /api/doctor/lab-test
 // @access  Private (Doctor)
-// Creates a new LabOrder with status 'Requested' and moves Appointment to 'Lab Pending'
+// Creates LabOrders with status 'Requested' for multiple tests and moves Appointment to 'Lab Pending'
 export const requestLabTest = async (req, res) => {
   try {
-    const { appointmentId, patientId, testName, notes } = req.body;
+    const { appointmentId, patientId, testName, testNames, notes } = req.body;
 
-    if (!appointmentId || !testName) {
-      return res.status(400).json({ message: 'Appointment ID and test name are required.' });
+    // Support both testNames (Array of Strings) and testName (single String)
+    let rawTests = [];
+    if (Array.isArray(testNames)) {
+      rawTests = testNames;
+    } else if (typeof testNames === 'string' && testNames.trim()) {
+      rawTests = [testNames];
+    } else if (typeof testName === 'string' && testName.trim()) {
+      rawTests = [testName];
+    }
+
+    const cleanTestNames = rawTests
+      .map((t) => (typeof t === 'string' ? t.trim() : ''))
+      .filter(Boolean);
+
+    if (!appointmentId || cleanTestNames.length === 0) {
+      return res.status(400).json({
+        message: 'Appointment ID and at least one valid test name are required.',
+      });
     }
 
     const appointment = await Appointment.findById(appointmentId);
@@ -343,49 +359,59 @@ export const requestLabTest = async (req, res) => {
     const targetPatientId = patientId || appointment.patientId;
     const doctorId = req.user._id;
     const facilityId = req.user.hospitalId || appointment.facilityId;
+    const trimmedNotes = notes?.trim() || '';
 
-    // 1. Create LabOrder record (Prompt 7.1 & 7.2)
-    const labOrder = await LabOrder.create({
+    // 1. Create separate LabOrder documents using insertMany (Prompt 11.1)
+    const labOrdersToInsert = cleanTestNames.map((name) => ({
       appointmentId,
       patientId: targetPatientId,
       doctorId,
       facilityId,
-      testName: testName.trim(),
+      testName: name,
       status: 'Requested',
-      notes: notes?.trim() || '',
-    });
+      notes: trimmedNotes,
+    }));
+
+    const labOrders = await LabOrder.insertMany(labOrdersToInsert);
 
     // 2. Update Appointment status to 'Lab Pending' (routes it back to Nurse / Lab queue)
     appointment.status = 'Lab Pending';
     if (!appointment.investigationAdvice) {
       appointment.investigationAdvice = [];
     }
-    appointment.investigationAdvice.push({
-      testName: testName.trim(),
-      notes: notes?.trim() || '',
-      status: 'Ordered',
-      orderedAt: new Date(),
+
+    const now = new Date();
+    cleanTestNames.forEach((name) => {
+      appointment.investigationAdvice.push({
+        testName: name,
+        notes: trimmedNotes,
+        status: 'Ordered',
+        orderedAt: now,
+      });
     });
+
     await appointment.save();
 
     // 3. Sync with LabInvestigationOrder for cross-module compatibility
     try {
-      await LabInvestigationOrder.create({
+      const syncOrders = cleanTestNames.map((name) => ({
         consultation: appointment._id,
         patient: targetPatientId,
         orderedBy: doctorId,
         hospital: facilityId,
-        testName: testName.trim(),
+        testName: name,
         status: 'Ordered',
-      });
+      }));
+      await LabInvestigationOrder.insertMany(syncOrders);
     } catch {
       // Non-blocking fallback
     }
 
     res.status(201).json({
       success: true,
-      message: 'Lab test requested successfully. Patient status updated to Lab Pending.',
-      labOrder,
+      message: `Successfully requested ${labOrders.length} lab test(s). Patient status updated to Lab Pending.`,
+      labOrders,
+      labOrder: labOrders[0] || null, // Backwards compatibility for single-order consumers
       appointment,
     });
   } catch (error) {

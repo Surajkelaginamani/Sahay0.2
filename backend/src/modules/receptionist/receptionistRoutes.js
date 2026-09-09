@@ -11,6 +11,7 @@ import {
   getFacilityDoctors,
   scheduleAppointment,
   getUpcomingAppointments,
+  getIncomingReferrals,
 } from './receptionistController.js';
 
 const router = express.Router();
@@ -47,5 +48,9 @@ router.get('/doctors', getFacilityDoctors);
 // GET    /api/receptionist/queue/today      → today's full queue (optional ?status=)
 router.post('/queue',        addToQueue);
 router.get('/queue/today',   getTodayQueue);
+
+// ── Referral routes ───────────────────────────────────────────────────────────
+// GET    /api/receptionist/referrals/incoming  → all pending ASHA referrals to this facility
+router.get('/referrals/incoming', getIncomingReferrals);
 
 export default router;

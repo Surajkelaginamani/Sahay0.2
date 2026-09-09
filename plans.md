@@ -1,42 +1,27 @@
-# Prompt 9.1: Pharmacy Role & Backend API (Step 4.5)
-Task: Introduce the Pharmacist role and build the API to fetch digital prescriptions.
+# Prompt 11.1: Backend - Support Multiple Lab Orders
+Task: Update the requestLabTest controller to process multiple lab tests simultaneously.
 
 Requirements:
 
-Schema Update (User.js): Add 'Pharmacist' to the role enum.
+Update doctorController.js (requestLabTest):
 
-Admin & Routing Updates: Add the Pharmacist role to the Hospital Admin staff creation dropdown and update the authentication routing to redirect this role to /dashboard/pharmacy.
+Change the expected request body from a single testName (String) to testNames (Array of Strings).
 
-Backend (pharmacyController.js & pharmacyRoutes.js):
+Map over the testNames array and use LabOrder.insertMany() to create a separate LabOrder document for each requested test, all linked to the same appointmentId, patientId, and facilityId.
 
-Create getActivePrescriptions(req, res): Fetch documents from the Prescription collection where facilityId matches the logged-in Pharmacist and status is 'Pending'. Populate patient details.
+Keep the logic that updates the Appointment status to 'Lab Pending'. Return the array of created lab orders in the response.
 
-Create dispenseMedication(req, res): Accept prescriptionId and update its status to 'Dispensed'.
-
-# Prompt 9.2: Pharmacy Dashboard UI (Step 4.5)
-Task: Build the frontend interface for the Pharmacy Dashboard.
+# Prompt 11.2: Frontend - Dynamic Custom Lab Requests
+Task: Upgrade the Lab Request section in the Doctor Dashboard to support multiple custom test entries.
 
 Requirements:
 
-Create PharmacyDashboard.jsx: Guard this route for the 'Pharmacist' role.
+Update ConsultationPanel.jsx:
 
-Active Queue: Display a data table fetching from getActivePrescriptions.
+Replace the single lab test dropdown with a local state array: const [labTests, setLabTests] = useState([]).
 
-Prescription View: When a patient is clicked, display the exact array of medications, dosages, and instructions prescribed by the doctor.
+UI Layout: Create a flex row containing a text input field (with the placeholder: "Enter custom lab test name (e.g., CBC, MRI Brain)") and an "Add" button.
 
-Action: Include a "Mark as Dispensed" button that calls the dispenseMedication API and removes the patient from the pharmacist's active screen.
+List Display: Below the input, map through the labTests array and render them as small pill/badges with an "X" icon to remove them if the doctor makes a mistake.
 
-# Prompt 9.3: Patient Dashboard & Medical Records (Step 5)
-Task: Build the dedicated Patient Dashboard for citizens to view their own medical history across all hospitals.
-
-Requirements:
-
-Backend (patientController.js): Create getMyMedicalRecords(req, res). Extract the patientId from the user's JWT. Query and return all Consultations, Prescriptions, and LabOrders associated with this ID, populating the facilityId to show which hospital they visited.
-
-Frontend (PatientDashboard.jsx): Build a tabbed interface or chronological timeline displaying:
-
-Hospitals Visited: A list of unique facilities they have checked into.
-
-Medical History: A timeline of previous check-ups, treatments received, lab reports, and medicines taken.
-
-Routing: Ensure patients logging in via the public portal are routed strictly to this dashboard.
+Submission: Update the "Send to Lab" button to pass the entire labTests array to the updated backend API, then clear the input fields and remove the patient from the screen.

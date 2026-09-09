@@ -79,6 +79,7 @@ export function getDashboardRoute(role) {
     case 'GovernmentOfficial':
       return '/dashboard/govt';
     case 'ASHA':
+    case 'AshaWorker':
       return '/dashboard/asha';
     default:
       return null;
