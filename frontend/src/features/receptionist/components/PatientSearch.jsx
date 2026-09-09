@@ -119,7 +119,8 @@ export default function PatientSearch({ onQueueSuccess }) {
     setQueueError((e) => ({ ...e, [pid]: '' }));
 
     try {
-      const res = await receptionistApi.addToQueue(pid, docId, undefined, priority);
+      const referralId = patient.pendingReferral?._id;
+      const res = await receptionistApi.addToQueue(pid, docId, undefined, priority, referralId);
       const qNum = res.data.appointment?.queueNumber;
       const assignedDoc = doctors.find((d) => d._id === docId);
       const doctorName = assignedDoc ? assignedDoc.name : res.data.appointment?.doctorName || 'Doctor';

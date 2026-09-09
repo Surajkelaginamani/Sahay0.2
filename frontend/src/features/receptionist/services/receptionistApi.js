@@ -40,11 +40,13 @@ const receptionistApi = {
     }),
 
   // ── Queue ──────────────────────────────────────────────────────────────────
-  /** Add an existing patient to today's walk-in queue with an assigned doctor and optional priority. */
-  addToQueue: (patientId, assignedDoctorId, appointmentDate, priority = 'Routine') =>
+  /** Add an existing patient to today's walk-in queue with an assigned doctor, optional priority, and referralId. */
+  addToQueue: (patientId, assignedDoctorId, appointmentDate, priority = 'Routine', referralId) =>
     axios.post(
       `${BASE_URL}/queue`,
-      { patientId, assignedDoctorId, appointmentDate, priority },
+      typeof patientId === 'object'
+        ? patientId
+        : { patientId, assignedDoctorId, appointmentDate, priority, referralId },
       { headers: getAuthHeader() }
     ),
 

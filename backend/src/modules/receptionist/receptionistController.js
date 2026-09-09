@@ -230,6 +230,7 @@ export const createAppointment = async (req, res) => {
     const {
       patientId, appointmentDate, assignedDoctorId,
       visitType, chiefComplaint, timeSlot, staffNotes,
+      referralId,
     } = req.body;
 
     if (!patientId || !appointmentDate) {
@@ -238,17 +239,15 @@ export const createAppointment = async (req, res) => {
       });
     }
 
-    // Verify patient belongs to this facility
-    const patient = await Patient.findOne({
-      _id: patientId,
-      registeredAtFacility: req.user.hospitalId,
-    });
+    // Verify patient exists globally (Prompt: Fix Global Patient Queue Validation)
+    const patient = await Patient.findById(patientId);
     if (!patient) {
       return res.status(404).json({
-        message: 'Patient not found in your facility.',
+        message: 'Patient not found.',
       });
     }
 
+    // Maintain Queue Security: facilityId is strictly set to req.user.hospitalId
     const appointment = await Appointment.create({
       patientId,
       facilityId:       req.user.hospitalId,
@@ -261,6 +260,21 @@ export const createAppointment = async (req, res) => {
       timeSlot:         timeSlot?.trim()        || undefined,
       staffNotes:       staffNotes?.trim()      || undefined,
     });
+
+    // Check Referral Logic: update Referral document status to 'Arrived'
+    if (referralId) {
+      await Referral.findByIdAndUpdate(
+        referralId,
+        { status: 'Arrived', appointmentId: appointment._id },
+        { new: true }
+      );
+    } else {
+      await Referral.findOneAndUpdate(
+        { patientId, referredToFacility: req.user.hospitalId, status: 'Pending' },
+        { status: 'Arrived', appointmentId: appointment._id },
+        { new: true }
+      );
+    }
 
     await appointment.populate([
       { path: 'patientId',         select: 'firstName lastName contactPhone' },
@@ -387,7 +401,7 @@ export const getTodayQueue = async (req, res) => {
 // Body:    { patientId, assignedDoctorId, appointmentDate?, priority? }
 export const addToQueue = async (req, res) => {
   try {
-    const { patientId, assignedDoctorId, appointmentDate, priority } = req.body;
+    const { patientId, assignedDoctorId, appointmentDate, priority, referralId } = req.body;
 
     if (!patientId) {
       return res.status(400).json({ message: 'patientId is required.' });
@@ -401,15 +415,13 @@ export const addToQueue = async (req, res) => {
     const resolvedPriority = priority === 'Urgent' ? 'Urgent' : 'Routine';
 
     // hospitalId comes from the Receptionist's JWT (set by authMiddleware)
+    // Maintain Queue Security: facilityId of Appointment is strictly set to req.user.hospitalId
     const facilityId = req.user.hospitalId;
 
-    // Verify patient exists and belongs to this facility
-    const patient = await Patient.findOne({
-      _id: patientId,
-      registeredAtFacility: facilityId,
-    });
+    // Verify patient exists globally (Prompt: Fix Global Patient Queue Validation)
+    const patient = await Patient.findById(patientId);
     if (!patient) {
-      return res.status(404).json({ message: 'Patient not found in your facility.' });
+      return res.status(404).json({ message: 'Patient not found.' });
     }
 
     // Verify the assigned doctor belongs to this facility
@@ -446,6 +458,7 @@ export const addToQueue = async (req, res) => {
       queueNumber = existingCount + 1;
     }
 
+    // Maintain Queue Security: facilityId is strictly set to req.user.hospitalId
     const appointment = await Appointment.create({
       patientId,
       facilityId,
@@ -457,12 +470,22 @@ export const addToQueue = async (req, res) => {
       queueNumber,
     });
 
-    // ── If patient had a pending referral to this facility, mark it Arrived ─────
-    const updatedReferral = await Referral.findOneAndUpdate(
-      { patientId, referredToFacility: facilityId, status: 'Pending' },
-      { status: 'Arrived', appointmentId: appointment._id },
-      { new: true }
-    );
+    // ── Check Referral Logic: update Referral document status to 'Arrived' ────────────
+    let updatedReferral = null;
+    if (referralId) {
+      updatedReferral = await Referral.findByIdAndUpdate(
+        referralId,
+        { status: 'Arrived', appointmentId: appointment._id },
+        { new: true }
+      );
+    }
+    if (!updatedReferral) {
+      updatedReferral = await Referral.findOneAndUpdate(
+        { patientId, referredToFacility: facilityId, status: 'Pending' },
+        { status: 'Arrived', appointmentId: appointment._id },
+        { new: true }
+      );
+    }
 
     await appointment.populate([
       { path: 'patientId',        select: 'firstName lastName contactPhone gender' },
@@ -526,13 +549,10 @@ export const scheduleAppointment = async (req, res) => {
 
     const facilityId = req.user.hospitalId;
 
-    // ── Verify patient belongs to this facility ────────────────────────────────────
-    const patient = await Patient.findOne({
-      _id: patientId,
-      registeredAtFacility: facilityId,
-    });
+    // ── Verify patient exists globally (Prompt: Fix Global Patient Queue Validation) ────────
+    const patient = await Patient.findById(patientId);
     if (!patient) {
-      return res.status(404).json({ message: 'Patient not found in your facility.' });
+      return res.status(404).json({ message: 'Patient not found.' });
     }
 
     // ── Verify doctor belongs to this facility ────────────────────────────────────
