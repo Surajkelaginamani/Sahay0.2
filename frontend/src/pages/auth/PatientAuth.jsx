@@ -8,6 +8,7 @@ export default function PatientAuth() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     password: '',
   });
   const [loading, setLoading] = useState(false);
@@ -62,7 +63,9 @@ export default function PatientAuth() {
       let response;
       if (isLogin) {
         response = await patientAPI.login({
+          identifier: formData.email,
           email: formData.email,
+          phone: formData.email,
           password: formData.password,
         });
       } else {
@@ -74,11 +77,12 @@ export default function PatientAuth() {
         response = await patientAPI.register({
           name: formData.name,
           email: formData.email,
+          phone: formData.phone,
           password: formData.password,
         });
       }
 
-      // Save credentials in local storage
+      // Save credentials in local storage (Prompt 12.2)
       localStorage.setItem('sahay_token', response.data.token);
       localStorage.setItem(
         'sahay_user',
@@ -86,9 +90,14 @@ export default function PatientAuth() {
           _id: response.data._id,
           name: response.data.name,
           email: response.data.email,
+          phone: response.data.phone,
+          patientId: response.data.patientId,
           role: response.data.role,
         })
       );
+      if (response.data.patientId) {
+        localStorage.setItem('patient_id', response.data.patientId);
+      }
 
       navigate('/dashboard/patient');
     } catch (err) {
@@ -163,33 +172,50 @@ export default function PatientAuth() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Full Legal Name
-              </label>
-              <input
-                type="text"
-                name="name"
-                required
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="e.g. Ramesh Chandra"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Full Legal Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="e.g. Ramesh Chandra"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  required
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="e.g. 9876543210"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
+                />
+              </div>
+            </>
           )}
 
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">
-              Email Address
+              {isLogin ? 'Phone Number or Email Address' : 'Email Address (Optional)'}
             </label>
             <input
-              type="email"
+              type={isLogin ? 'text' : 'email'}
               name="email"
-              required
+              required={isLogin}
               value={formData.email}
               onChange={handleChange}
-              placeholder="e.g. patient@example.com"
+              placeholder={isLogin ? "e.g. 9876543210 or patient@example.com" : "e.g. patient@example.com"}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
             />
           </div>

@@ -10,14 +10,28 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
-      unique: true,
+      sparse: true,
       trim: true,
       lowercase: true,
-      match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        'Please provide a valid email address',
-      ],
+      validate: {
+        validator: function (v) {
+          if (!v) {
+            return this.role === 'Patient';
+          }
+          return /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
+        },
+        message: 'Please provide a valid email address',
+      },
+    },
+    phone: {
+      type: String,
+      trim: true,
+      sparse: true,
+    },
+    patientProfileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Patient',
+      default: null,
     },
     password: {
       type: String,
@@ -61,6 +75,9 @@ const userSchema = new mongoose.Schema(
     },
   }
 );
+
+userSchema.index({ phone: 1 }, { sparse: true });
+userSchema.index({ patientProfileId: 1 }, { sparse: true });
 
 // Pre-save hook to hash password if modified
 userSchema.pre('save', async function () {

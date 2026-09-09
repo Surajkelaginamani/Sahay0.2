@@ -18,7 +18,7 @@ function getTodayRange() {
   return { start, end };
 }
 
-// ─── registerPatient ──────────────────────────────────────────────────────────
+// ─── registerPatient / createPatient (Prompt 12.1) ──────────────────────────
 // @route   POST /api/receptionist/patient
 // @access  Private (Receptionist)
 export const registerPatient = async (req, res) => {
@@ -27,7 +27,7 @@ export const registerPatient = async (req, res) => {
   try {
     const {
       firstName, lastName, dob, gender,
-      contactPhone, address, abhaId,
+      contactPhone, phone, address, abhaId,
       email, password,
     } = req.body;
 
@@ -38,22 +38,19 @@ export const registerPatient = async (req, res) => {
       });
     }
 
-    if (!email || !password) {
-      return res.status(400).json({
-        message: 'email and password are required to create a patient login account.',
-      });
-    }
+    const cleanPhone = (contactPhone || phone || '').trim();
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    const userPassword = (password && password.trim().length >= 6) ? password.trim() : 'Sahay@123';
+    const cleanEmail = email && email.trim()
+      ? email.trim().toLowerCase()
+      : (cleanPhone ? `${cleanPhone}@patient.sahay.gov.in` : undefined);
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
-    }
-
-    // ── Duplicate phone check ──────────────────────────────────────────────────
-    if (contactPhone) {
-      const phoneExists = await Patient.findOne({ contactPhone: contactPhone.trim() });
+    // ── Duplicate phone check on Patient collection ─────────────────────────────
+    if (cleanPhone) {
+      const phoneExists = await Patient.findOne({ contactPhone: cleanPhone });
       if (phoneExists) {
         return res.status(400).json({
-          message: `A patient with phone ${contactPhone} is already registered.`,
+          message: `A patient with phone ${cleanPhone} is already registered.`,
           existingPatient: {
             _id: phoneExists._id,
             fullName: `${phoneExists.firstName} ${phoneExists.lastName}`,
@@ -63,60 +60,78 @@ export const registerPatient = async (req, res) => {
       }
     }
 
-    // ── Duplicate email check ──────────────────────────────────────────────────
-    const emailExists = await User.findOne({ email: email.trim().toLowerCase() });
-    if (emailExists) {
-      return res.status(400).json({
-        message: `An account with email ${email.trim()} already exists.`,
+    // ── Step 1: Create or find linked User document (Prompt 12.1) ──────────────
+    let user = null;
+    if (cleanPhone) {
+      user = await User.findOne({
+        $or: [
+          { phone: cleanPhone },
+          ...(cleanEmail ? [{ email: cleanEmail }] : []),
+        ],
       });
+    } else if (cleanEmail) {
+      user = await User.findOne({ email: cleanEmail });
     }
 
-    // ── Step 1: Create User login account ─────────────────────────────────────
-    // User.pre('save') will hash the password automatically
-    const fullName = `${firstName.trim()} ${lastName.trim()}`;
-    createdUser = await User.create({
-      name:     fullName,
-      email:    email.trim().toLowerCase(),
-      password, // hashed by pre-save hook in User.js
-      role:     'Patient',
-      hospitalId: null,
-    });
+    if (!user) {
+      createdUser = await User.create({
+        name:     fullName,
+        phone:    cleanPhone || undefined,
+        email:    cleanEmail,
+        password: userPassword, // hashed by pre-save hook in User.js
+        role:     'Patient',
+        hospitalId: null,
+      });
+      user = createdUser;
+    }
 
-    // ── Step 2: Create Patient medical profile linked to User ─────────────────
+    // ── Step 2: Create Patient document linked to User._id (Prompt 12.1) ───────
     const patient = await Patient.create({
       firstName:            firstName.trim(),
       lastName:             lastName.trim(),
       dob:                  new Date(dob),
       gender,
-      contactPhone:         contactPhone?.trim()  || undefined,
+      contactPhone:         cleanPhone            || undefined,
       address:              address               || {},
       abhaId:               abhaId?.trim()        || undefined,
       registeredAtFacility: req.user.hospitalId,
-      userId:               createdUser._id,
+      userId:               user._id,
     });
 
+    // ── Step 3: Two-way binding (Prompt 12.1) ──────────────────────────────────
+    user.patientProfileId = patient._id;
+    if (!user.phone && cleanPhone) {
+      user.phone = cleanPhone;
+    }
+    await user.save();
+
     res.status(201).json({
-      message: 'Patient registered successfully with a login account.',
+      success: true,
+      message: 'Patient registered. They can log in using their phone number and default password: Sahay@123',
+      defaultPassword: 'Sahay@123',
       patient: {
         _id:                  patient._id,
         fullName:             `${patient.firstName} ${patient.lastName}`,
+        firstName:            patient.firstName,
+        lastName:             patient.lastName,
         dob:                  patient.dob,
         gender:               patient.gender,
         contactPhone:         patient.contactPhone,
         abhaId:               patient.abhaId,
         registeredAtFacility: patient.registeredAtFacility,
-        userId:               createdUser._id,
-        email:                createdUser.email,
+        userId:               user._id,
+        email:                user.email,
+        phone:                user.phone || patient.contactPhone,
         createdAt:            patient.createdAt,
       },
     });
   } catch (error) {
-    // Roll back: if Patient creation fails after User was created, delete the orphan User
+    // Roll back: if Patient creation fails after new User was created, delete orphan User
     if (createdUser) {
       await User.findByIdAndDelete(createdUser._id).catch(() => null);
     }
 
-    // Handle Mongoose duplicate key (abhaId unique index)
+    // Handle Mongoose duplicate key
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern || {})[0] || 'field';
       return res.status(400).json({
@@ -128,10 +143,14 @@ export const registerPatient = async (req, res) => {
   }
 };
 
+// Export alias for createPatient (Prompt 12.1)
+export const createPatient = registerPatient;
 
-// ─── searchPatients ───────────────────────────────────────────────────────────
+
+// ─── searchPatients (Prompt 12.2) ─────────────────────────────────────────────
 // @route   GET /api/receptionist/patient/search?q=<name|phone>
 // @access  Private (Receptionist)
+// Searches unified Patient collection globally across the database
 export const searchPatients = async (req, res) => {
   try {
     const { q } = req.query;
@@ -144,23 +163,31 @@ export const searchPatients = async (req, res) => {
 
     const term = q.trim();
 
-    // Build OR query: phone exact match OR name partial match (case-insensitive)
-    const isPhone = /^\d+$/.test(term);
+    const regex = { $regex: term, $options: 'i' };
 
-    const filter = isPhone
-      ? { contactPhone: { $regex: term, $options: 'i' } }
-      : {
-          $or: [
-            { firstName: { $regex: term, $options: 'i' } },
-            { lastName:  { $regex: term, $options: 'i' } },
-          ],
-        };
+    // Search unified Patient collection globally across firstName, lastName, contactPhone, or abhaId (Prompt 12.2)
+    const filter = {
+      $or: [
+        { firstName: regex },
+        { lastName:  regex },
+        { contactPhone: regex },
+        { abhaId: regex },
+      ],
+    };
 
-    // Scope to the receptionist's facility
-    filter.registeredAtFacility = req.user.hospitalId;
+    // If search term has multiple words (e.g. "Ramesh Chandra"), match full name parts
+    const parts = term.split(/\s+/);
+    if (parts.length > 1) {
+      filter.$or.push({
+        $and: [
+          { firstName: { $regex: parts[0], $options: 'i' } },
+          { lastName:  { $regex: parts.slice(1).join(' '), $options: 'i' } },
+        ],
+      });
+    }
 
     const patients = await Patient.find(filter)
-      .select('firstName lastName dob gender contactPhone abhaId registeredAtFacility createdAt')
+      .select('firstName lastName dob gender contactPhone abhaId registeredAtFacility userId createdAt')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();

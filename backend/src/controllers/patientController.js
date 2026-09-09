@@ -6,59 +6,129 @@ import LabOrder from '../models/LabOrder.js';
 import Appointment from '../models/Appointment.js';
 import generateToken from '../utils/generateToken.js';
 
-// @desc    Register a new patient
+// @desc    Register a new patient (Self-Registration - Prompt 12.1)
 // @route   POST /api/patients/register
 // @access  Public
 export const registerPatient = async (req, res) => {
+  let createdUser = null;
   try {
-    const { name, email, password } = req.body;
+    const { name, email, phone, contactPhone, password, dob, gender, bloodGroup, address } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Please provide name, email, and password' });
+    if (!name || !password || (!email && !phone && !contactPhone)) {
+      return res.status(400).json({
+        message: 'Please provide name, password, and at least an email or phone number',
+      });
     }
 
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: 'User with this email already exists' });
+    const cleanPhone = (phone || contactPhone || '').trim();
+    const cleanEmail = email && email.trim()
+      ? email.trim().toLowerCase()
+      : (cleanPhone ? `${cleanPhone}@patient.sahay.gov.in` : undefined);
+    const cleanPassword = typeof password === 'string' ? password.trim() : password;
+
+    if (cleanPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
 
-    const user = await User.create({
-      name,
-      email,
-      password,
+    // Check for existing User by email or phone
+    const userOrQuery = [];
+    if (cleanEmail) userOrQuery.push({ email: cleanEmail });
+    if (cleanPhone) userOrQuery.push({ phone: cleanPhone });
+
+    if (userOrQuery.length > 0) {
+      const userExists = await User.findOne({ $or: userOrQuery });
+      if (userExists) {
+        return res.status(400).json({ message: 'User with this email or phone already exists' });
+      }
+    }
+
+    // 1. Create User document with chosen password (Prompt 12.1)
+    createdUser = await User.create({
+      name: name.trim(),
+      email: cleanEmail,
+      phone: cleanPhone || undefined,
+      password: cleanPassword,
       role: 'Patient',
     });
 
+    // Parse firstName and lastName from name
+    const nameParts = name.trim().split(/\s+/);
+    const firstName = nameParts[0] || 'Patient';
+    const lastName = nameParts.slice(1).join(' ') || 'Citizen';
+
+    // 2. Immediately create Patient document linked to User._id (Prompt 12.1)
+    const patient = await Patient.create({
+      firstName,
+      lastName,
+      dob: dob ? new Date(dob) : new Date('2000-01-01'),
+      gender: gender && ['Male', 'Female', 'Other'].includes(gender) ? gender : 'Other',
+      contactPhone: cleanPhone || undefined,
+      bloodGroup: bloodGroup || undefined,
+      address: address || {},
+      userId: createdUser._id,
+    });
+
+    // Two-way binding (Prompt 12.1)
+    createdUser.patientProfileId = patient._id;
+    await createdUser.save();
+
     res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id, user.role),
+      success: true,
+      message: 'Patient registered successfully',
+      _id: createdUser._id,
+      name: createdUser.name,
+      email: createdUser.email,
+      phone: createdUser.phone,
+      role: createdUser.role,
+      token: generateToken(createdUser._id, createdUser.role),
+      patientId: patient._id,
+      patientProfileId: patient._id,
+      patient,
     });
   } catch (error) {
+    if (createdUser) {
+      await User.findByIdAndDelete(createdUser._id).catch(() => null);
+    }
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Authenticate patient & get token
+// @desc    Authenticate patient & get token (Prompt 12.2)
 // @route   POST /api/patients/login
 // @access  Public
 export const loginPatient = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, phone, contactPhone, identifier, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
+    const rawId = (phone || contactPhone || email || identifier || '').trim();
+    if (!rawId || !password) {
+      return res.status(400).json({ message: 'Please provide your phone number or email, and password' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = typeof password === 'string' ? password.trim() : password;
 
-    const user = await User.findOne({ email: cleanEmail, role: 'Patient' });
+    // Build query to find User by phone, contactPhone, or email
+    const idQueries = [
+      { email: rawId.toLowerCase(), role: 'Patient' },
+      { phone: rawId, role: 'Patient' },
+    ];
+
+    if (!rawId.includes('@')) {
+      idQueries.push({ phone: rawId.replace(/\D/g, ''), role: 'Patient' });
+    }
+
+    let user = await User.findOne({ $or: idQueries });
+
+    // Fallback: If not found in User directly, check if a Patient document exists with this contactPhone
+    if (!user && !rawId.includes('@')) {
+      const patientByPhone = await Patient.findOne({ contactPhone: rawId });
+      if (patientByPhone && patientByPhone.userId) {
+        user = await User.findOne({ _id: patientByPhone.userId, role: 'Patient' });
+      }
+    }
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid patient email or password' });
+      return res.status(401).json({ message: 'Invalid patient credentials (phone/email or password)' });
     }
 
     let isMatch = await user.matchPassword(cleanPassword);
@@ -66,17 +136,49 @@ export const loginPatient = async (req, res) => {
       isMatch = await user.matchPassword(password);
     }
 
-    if (isMatch) {
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        token: generateToken(user._id, user.role),
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid patient email or password' });
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid patient credentials (phone/email or password)' });
     }
+
+    // Find linked Patient document (Prompt 12.2: return both User token AND linked Patient._id)
+    let patient = null;
+    if (user.patientProfileId) {
+      patient = await Patient.findById(user.patientProfileId);
+    }
+
+    if (!patient) {
+      patient = await Patient.findOne({
+        $or: [
+          { userId: user._id },
+          ...(user.phone ? [{ contactPhone: user.phone }] : []),
+          ...(!rawId.includes('@') ? [{ contactPhone: rawId }] : []),
+        ],
+      });
+
+      // Synchronize two-way binding if found
+      if (patient) {
+        if (!user.patientProfileId) {
+          user.patientProfileId = patient._id;
+          await user.save();
+        }
+        if (!patient.userId) {
+          patient.userId = user._id;
+          await patient.save();
+        }
+      }
+    }
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone || patient?.contactPhone,
+      role: user.role,
+      token: generateToken(user._id, user.role),
+      patientId: patient?._id || null,
+      patientProfileId: patient?._id || null,
+      patient: patient || null,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
