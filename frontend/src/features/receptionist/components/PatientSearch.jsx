@@ -248,31 +248,87 @@ export default function PatientSearch({ onQueueSuccess }) {
                         ? 'border-emerald-400 ring-1 ring-emerald-300'
                         : 'border-slate-200 hover:border-violet-200'}`}
                   >
-                    {/* ── ASHA Referral Banner ─────────────────────────────── */}
-                    {patient.pendingReferral && (
-                      <div className="mb-3 flex items-start gap-2 bg-emerald-50 border border-emerald-300 rounded-xl px-3 py-2.5">
-                        <svg className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <div className="min-w-0">
-                          <p className="text-xs font-black text-emerald-800">
-                            ✅ Valid ASHA Referral Found
-                          </p>
-                          <p className="text-[11px] text-emerald-700 mt-0.5 leading-relaxed">
-                            <strong>Reason:</strong> {patient.pendingReferral.reasonForReferral}
-                          </p>
-                          {patient.pendingReferral.referredBy?.name && (
-                            <p className="text-[11px] text-emerald-600 mt-0.5">
-                              Referred by ASHA: <strong>{patient.pendingReferral.referredBy.name}</strong>
+                    {/* ── Referral Origin Banner (Prompt 15.3) ─────────────── */}
+                    {patient.pendingReferral && (() => {
+                      const ref = patient.pendingReferral;
+
+                      // 1. From Facility: referral.referredFromFacility.name - referral.referredFromFacility.address, referral.referredFromFacility.city
+                      const fac = ref.referredFromFacility;
+                      let fromFacilityText = 'Independent Field Worker';
+                      if (fac) {
+                        const facName = fac.name || fac.hospitalName || '';
+                        const parts = [];
+                        if (fac.address) parts.push(fac.address);
+                        if (fac.city) parts.push(fac.city);
+                        const loc = parts.join(', ');
+                        if (facName && loc) {
+                          fromFacilityText = `${facName} - ${loc}`;
+                        } else if (facName) {
+                          fromFacilityText = facName;
+                        } else if (loc) {
+                          fromFacilityText = loc;
+                        }
+                      }
+
+                      // 2. Referred By: referral.referredBy.firstName referral.referredBy.lastName (referral.referredBy.role)
+                      const referrer = ref.referredBy;
+                      let referrerName = 'Healthcare Worker';
+                      if (referrer) {
+                        if (referrer.firstName || referrer.lastName) {
+                          referrerName = `${referrer.firstName || ''} ${referrer.lastName || ''}`.trim();
+                        } else if (referrer.name) {
+                          referrerName = referrer.name;
+                        }
+                      }
+                      const referrerRole = referrer?.role || 'Staff';
+
+                      return (
+                        <div className="mb-3 flex items-start gap-2.5 bg-emerald-50 border border-emerald-300 rounded-2xl p-3.5 shadow-sm">
+                          <svg className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                          </svg>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <p className="text-xs font-black text-emerald-900 flex items-center gap-1.5">
+                                <span>✅ Valid Referral Found</span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200/70 text-emerald-800">
+                                  {ref.status || 'Pending'}
+                                </span>
+                              </p>
+                              <span className="text-[10px] text-emerald-700 font-mono">
+                                ID: #{ref._id.slice(-6).toUpperCase()}
+                              </span>
+                            </div>
+
+                            <div className="text-[11px] text-emerald-800 space-y-0.5 pt-0.5">
+                              <p>
+                                <span className="font-bold text-slate-700">From Facility:</span>{' '}
+                                <span className="font-semibold text-emerald-900">{fromFacilityText}</span>
+                              </p>
+                              <p>
+                                <span className="font-bold text-slate-700">Referred By:</span>{' '}
+                                <span className="font-semibold text-emerald-900">{referrerName}</span>{' '}
+                                <span className="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded font-medium">({referrerRole})</span>
+                              </p>
+                              <p>
+                                <span className="font-bold text-slate-700">Reason:</span>{' '}
+                                <span className="text-slate-800 font-medium">{ref.reasonForReferral}</span>
+                              </p>
+                              {ref.clinicalNotes && (
+                                <p className="text-emerald-700 italic">
+                                  <span className="font-bold text-slate-700 not-italic">Notes:</span> {ref.clinicalNotes}
+                                </p>
+                              )}
+                            </div>
+
+                            <p className="text-[10px] text-emerald-600 pt-1 font-medium">
+                              Adding patient to queue will automatically mark this referral as <strong>Arrived</strong>.
                             </p>
-                          )}
-                          <p className="text-[10px] text-emerald-500 mt-0.5">
-                            Adding to queue will automatically mark this referral as <strong>Arrived</strong>.
-                          </p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       {/* Patient information */}

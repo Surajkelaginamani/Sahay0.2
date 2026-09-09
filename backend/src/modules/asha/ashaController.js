@@ -128,8 +128,10 @@ export const createReferral = async (req, res) => {
     });
 
     await referral.populate([
-      { path: 'patientId',          select: 'firstName lastName contactPhone' },
-      { path: 'referredToFacility', select: 'hospitalName address' },
+      { path: 'patientId',            select: 'firstName lastName contactPhone' },
+      { path: 'referredToFacility',   select: 'name hospitalName address' },
+      { path: 'referredFromFacility', select: 'name hospitalName address city' },
+      { path: 'referredBy',           select: 'name firstName lastName role' },
     ]);
 
     res.status(201).json({

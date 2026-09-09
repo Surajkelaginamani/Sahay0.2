@@ -423,8 +423,8 @@ export default function ReceptionistDashboard() {
             {activeTab === 'referrals' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-500">
-                    {loadingReferrals ? 'Loading…' : `${incomingReferrals.length} pending referral(s) from ASHA workers`}
+                  <p className="text-xs text-slate-500 font-medium">
+                    {loadingReferrals ? 'Loading…' : `${incomingReferrals.length} pending incoming referral(s)`}
                   </p>
                   <button
                     id="refresh-referrals-btn"
@@ -476,9 +476,16 @@ export default function ReceptionistDashboard() {
                             <p className="text-sm text-slate-800 font-medium">{ref.reasonForReferral}</p>
                           </div>
 
-                          <div className="flex items-center gap-4 text-xs text-slate-500">
-                            <span>👤 ASHA: <strong className="text-slate-700">{ref.ashaWorkerName}</strong></span>
-                            <span>📅 {new Date(ref.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 bg-white/70 px-3 py-2 rounded-xl border border-emerald-100">
+                            <span>
+                              🏥 Origin: <strong className="text-slate-800">{ref.referredFromFacility?.hospitalName || ref.referredFromFacility?.name || 'Independent Field Worker'}</strong>
+                            </span>
+                            <span>
+                              👤 By: <strong className="text-slate-800">{ref.ashaWorkerName}</strong> {ref.referredBy?.role && <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-1.5 py-0.5 rounded">({ref.referredBy.role})</span>}
+                            </span>
+                            <span>
+                              📅 {new Date(ref.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </span>
                           </div>
 
                           <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex items-start gap-2">

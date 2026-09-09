@@ -1,49 +1,55 @@
-# Prompt 11.1: Backend - Support Multiple Lab Orders
-Task: Update the requestLabTest controller to process multiple lab tests simultaneously.
+# Prompt 14.1: Backend Data Population
+Task: Ensure the patient records API populates the hospital and doctor names so the frontend can group them.
 
 Requirements:
 
-Update doctorController.js (requestLabTest):
+Locate Controller: Open backend/src/modules/patient/patientController.js and find getMyMedicalRecords (or the equivalent API fetching patient records).
 
-Change the expected request body from a single testName (String) to testNames (Array of Strings).
+Update Queries: For the Prescription.find() and LabOrder.find() queries, attach .populate('facilityId', 'name') to get the hospital name, and .populate('doctorId', 'firstName lastName') to get the doctor's name.
 
-Map over the testNames array and use LabOrder.insertMany() to create a separate LabOrder document for each requested test, all linked to the same appointmentId, patientId, and facilityId.
+Verify that the response payload now includes these nested object names instead of just raw MongoDB ObjectIDs.
 
-Keep the logic that updates the Appointment status to 'Lab Pending'. Return the array of created lab orders in the response.
-
-# Prompt 11.2: Frontend - Dynamic Custom Lab Requests
-Task: Upgrade the Lab Request section in the Doctor Dashboard to support multiple custom test entries.
+# Prompt 14.2: Frontend Grouping Logic & Nested UI
+Task: Restructure the "Digital Prescription" and "Diagnostics Lab Reports" tabs to display nested, categorized lists.
 
 Requirements:
 
-Update ConsultationPanel.jsx:
+Data Grouping Utility: In PatientDashboard.jsx, write a JavaScript helper function using .reduce() that takes a flat array of records and groups them. The resulting object structure must be:
+{ "Hospital Name": { "Dr. Firstname Lastname": [ record1, record2 ] } }
 
-Replace the single lab test dropdown with a local state array: const [labTests, setLabTests] = useState([]).
+Digital Prescriptions Tab: Apply the grouping function to the prescriptions array. Map over the Object.keys() of the hospitals to render a prominent Hospital header card. Inside that, map over the doctors to render a sub-header. Finally, map over the doctor's specific prescriptions to render the medication lists.
 
-UI Layout: Create a flex row containing a text input field (with the placeholder: "Enter custom lab test name (e.g., CBC, MRI Brain)") and an "Add" button.
+Diagnostics Lab Reports Tab: Apply the exact same grouping function and nested mapping layout to the lab reports array.
 
-List Display: Below the input, map through the labTests array and render them as small pill/badges with an "X" icon to remove them if the doctor makes a mistake.
-
-Submission: Update the "Send to Lab" button to pass the entire labTests array to the updated backend API, then clear the input fields and remove the patient from the screen.
-
-# Prompt 12.1: Unified Patient Registration (Backend Fix)
-Task: Synchronize the Patient and User creation logic so patients can log in regardless of who registered them.
-
-Requirements:
-
-Update Receptionist createPatient controller: When the receptionist adds a new patient, the backend MUST first create a User document (Role: 'Patient', Phone: patient's phone, Password: a default like 'Sahay@123' or their DOB). Then, create the Patient document and link it to the newly created User._id.
-
-Update Public register controller (Self-Registration): When a patient registers themselves on the landing page, the backend MUST first create the User document with their chosen password, and then immediately create a blank Patient document (containing their name, phone, and demographic data) linked to that User._id.
-
-Schema Check: Ensure the Patient schema has a userId field referencing the User collection, and the User schema has a patientProfileId referencing the Patient collection (two-way binding).
-
-# Prompt 12.2: Fix Receptionist Search & Patient Login
-Task: Fix the receptionist search API to find all patients globally, and ensure patient login routes correctly.
+UI Fallback: Ensure that if a record is missing a linked facility or doctor (due to old dummy data), it defaults to falling under an "Unknown Hospital" or "General Consulting" category so the UI does not crash.
+|
+# Prompt 15.1: Backend - Shared Referral Route & Origin Tracking
+Task: Upgrade the referral API to allow Nurses to create referrals and track the origin facility.
 
 Requirements:
 
-Update searchPatients API (Receptionist): Modify the query to search the unified Patient collection using a regex on firstName, lastName, or contactPhone. It must return all patients in the database, regardless of whether they were created by a receptionist or via self-registration.
+Route Permissions: Update the referral creation route (e.g., POST /api/referrals) to allow both ['AshaWorker', 'Nurse'] roles to access it.
 
-Update patientLogin API: When a patient logs in from the landing page using their phone and password, the backend must return both their User token AND their linked Patient._id.
+Origin Tracking in Controller: In the createReferral controller, automatically grab the logged-in user's hospital ID (req.user.hospitalId) and save it to the referredFromFacility field in the Referral document.
 
-Frontend Alert: Update the Receptionist's "Add Patient" UI to display a small success message after creation: "Patient registered. They can log in using their phone number and default password: Sahay@123".
+Receptionist Query Update: In the receptionist's getIncomingReferrals controller (and the patient search controller), populate the referral data: .populate('referredFromFacility', 'name address city') and .populate('referredBy', 'firstName lastName role').
+
+# Prompt 15.2: Frontend - Shared Referral Component for NursesTask:
+ Extract the ASHA "Refer Patient" UI and embed it into the Nurse Dashboard.Requirements:Component Extraction: Take the referral form shown in the ASHA Portal (Search Patient $\rightarrow$ Select Destination Hospital $\rightarrow$ Referral Details) and turn it into a shared component: frontend/src/components/common/CreateReferralForm.jsx.Nurse Dashboard Integration: Open NurseDashboard.jsx and add a new tab or section called "Outbound Referrals". Render the <CreateReferralForm/> inside this tab.API Hookup: Ensure the form submits to the shared referral API endpoint, passing the selected patient, destination hospital, reason, and notes.
+
+ # Prompt 15.3: Frontend - Enhanced Receptionist Referral Banner
+Task: Update the Receptionist Dashboard to display the detailed origin of incoming referrals.
+
+Requirements:
+
+Update UI: Locate the "Valid Referral Found" banner in ReceptionistDashboard.jsx (which appears when searching for a referred patient).
+
+Display Origin Data: Add new lines to this banner using the populated data from the backend. It must explicitly show:
+
+From Facility: referral.referredFromFacility.name - referral.referredFromFacility.address, referral.referredFromFacility.city
+
+Referred By: referral.referredBy.firstName referral.referredBy.lastName (referral.referredBy.role)
+
+Reason & Notes: (Keep the existing reason and clinical notes display).
+
+Ensure the UI handles fallbacks gracefully (e.g., if an ASHA worker is not attached to a specific facility, display "Independent Field Worker" instead of crashing).

@@ -200,7 +200,8 @@ export const searchPatients = async (req, res) => {
       referredToFacility: facilityId,
       status:             'Pending',
     })
-      .populate('referredBy', 'name')
+      .populate('referredBy', 'name firstName lastName role')
+      .populate('referredFromFacility', 'name hospitalName address city')
       .lean();
 
     // Build a map: patientId -> referral
@@ -729,17 +730,24 @@ export const getIncomingReferrals = async (req, res) => {
       status: 'Pending',
     })
       .populate('patientId',  'firstName lastName contactPhone gender dob abhaId')
-      .populate('referredBy', 'name email')
+      .populate('referredBy', 'name firstName lastName role email')
+      .populate('referredFromFacility', 'name hospitalName address city')
       .sort({ createdAt: -1 })
       .lean();
 
-    const enriched = referrals.map((r) => ({
-      ...r,
-      patientFullName: r.patientId
-        ? `${r.patientId.firstName} ${r.patientId.lastName}`
-        : 'Unknown',
-      ashaWorkerName: r.referredBy?.name || 'Unknown',
-    }));
+    const enriched = referrals.map((r) => {
+      const refName = r.referredBy?.firstName && r.referredBy?.lastName
+        ? `${r.referredBy.firstName} ${r.referredBy.lastName}`.trim()
+        : r.referredBy?.name || 'Unknown';
+
+      return {
+        ...r,
+        patientFullName: r.patientId
+          ? `${r.patientId.firstName} ${r.patientId.lastName}`
+          : 'Unknown',
+        ashaWorkerName: refName,
+      };
+    });
 
     res.json({ count: enriched.length, referrals: enriched });
   } catch (error) {

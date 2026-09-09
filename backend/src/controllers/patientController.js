@@ -270,25 +270,26 @@ export const getMyMedicalRecords = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // 2. Fetch Prescriptions
+    // 2. Fetch Prescriptions (Prompt 14.1 — populate hospital & doctor names)
     const prescriptions = await Prescription.find({
       patientId: { $in: candidateIds },
     })
-      .populate('facilityId', 'hospitalName address')
-      .populate('doctorId', 'name specialization')
+      .populate('facilityId', 'name hospitalName address')
+      .populate('hospital', 'name hospitalName address')
+      .populate('doctorId', 'name firstName lastName specialization')
       .populate('dispensedBy', 'name')
       .sort({ createdAt: -1 })
       .lean();
 
-    // 3. Fetch Lab Orders
+    // 3. Fetch Lab Orders (Prompt 14.1 — populate hospital & doctor names)
     const labOrders = await LabOrder.find({
       $or: [
         { patientId: { $in: candidateIds } },
         { patient: { $in: candidateIds } },
       ],
     })
-      .populate('facilityId', 'hospitalName address')
-      .populate('doctorId', 'name specialization')
+      .populate('facilityId', 'name hospitalName address')
+      .populate('doctorId', 'name firstName lastName specialization')
       .sort({ createdAt: -1 })
       .lean();
 

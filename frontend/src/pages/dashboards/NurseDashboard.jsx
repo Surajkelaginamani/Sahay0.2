@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TriageQueue from '../../features/nurse/components/TriageQueue';
 import VitalsForm from '../../features/nurse/components/VitalsForm';
 import LabCoordination from '../../features/nurse/components/LabCoordination';
+import CreateReferralForm from '../../components/common/CreateReferralForm';
 
 function StatCard({ icon, label, value, sub, color }) {
   return (
@@ -23,7 +24,7 @@ export default function NurseDashboard() {
   const navigate = useNavigate();
   const [user, setUser]                               = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [activeTab, setActiveTab]                     = useState('triage'); // 'triage' | 'labCoordination'
+  const [activeTab, setActiveTab]                     = useState('triage'); // 'triage' | 'labCoordination' | 'referrals'
   const [refreshTrigger, setRefreshTrigger]           = useState(0);
   const [vitalsCapturedCount, setVitalsCapturedCount] = useState(0);
   const [queueStats, setQueueStats]                   = useState({
@@ -277,6 +278,29 @@ export default function NurseDashboard() {
                 Step 4.2 / 4.4
               </span>
             </button>
+
+            {/* Prompt 15.2: Outbound Referrals Tab */}
+            <button
+              type="button"
+              id="tab-outbound-referrals"
+              onClick={() => setActiveTab('referrals')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                activeTab === 'referrals'
+                  ? 'bg-teal-600 text-white shadow-sm shadow-teal-200'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                  d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+              <span>Outbound Referrals</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                activeTab === 'referrals' ? 'bg-teal-700 text-white' : 'bg-teal-100 text-teal-800'
+              }`}>
+                Transfer
+              </span>
+            </button>
           </div>
 
           <span className="text-[11px] text-slate-400 font-semibold pr-3 hidden sm:inline">
@@ -285,7 +309,7 @@ export default function NurseDashboard() {
         </div>
 
         {/* ── Active Tab View ─────────────────────────────────────────────── */}
-        {activeTab === 'triage' ? (
+        {activeTab === 'triage' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Left Column: Triage Queue Table */}
             <div className="lg:col-span-7 xl:col-span-7">
@@ -306,10 +330,42 @@ export default function NurseDashboard() {
               />
             </div>
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'labCoordination' && (
           <LabCoordination
             onActionSuccess={(msg) => showToast('success', 'Lab Coordination', msg)}
           />
+        )}
+
+        {/* Tab 3: Outbound Referrals (Prompt 15.2) */}
+        {activeTab === 'referrals' && (
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center text-xl shadow-md shadow-teal-200 shrink-0">
+                  🚑
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-900">Initiate Outbound Clinical Referral</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Escalate patient care to a higher-level facility or specialty hospital with automatic origin tracking.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <CreateReferralForm
+              role="Nurse"
+              onSuccess={(data) => {
+                showToast(
+                  'success',
+                  'Outbound Referral Created',
+                  data.message || 'Patient referral has been created and transmitted to the destination hospital.'
+                );
+              }}
+            />
+          </div>
         )}
 
       </div>

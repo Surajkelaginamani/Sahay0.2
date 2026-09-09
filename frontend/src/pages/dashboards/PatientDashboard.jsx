@@ -89,6 +89,45 @@ export default function PatientDashboard() {
     ? Math.floor((new Date() - new Date(patientData.dob)) / (1000 * 60 * 60 * 24 * 365.25))
     : null;
 
+  // ── Prompt 14.2: Group records by Hospital → Doctor ─────────────────────────
+  // Returns: { "Hospital Name": { "Dr. Firstname Lastname": [ record1, record2 ] } }
+  const groupByHospitalAndDoctor = (records) => {
+    return records.reduce((acc, record) => {
+      // Resolve hospital name with fallback
+      const facility = record.facilityId || record.hospital;
+      let hospitalName = 'Unknown Hospital';
+      if (facility) {
+        if (typeof facility === 'string') {
+          hospitalName = facility;
+        } else {
+          hospitalName = facility.hospitalName || facility.name || 'Unknown Hospital';
+        }
+      }
+
+      // Resolve doctor name with fallback
+      const doc = record.doctorId || record.doctor;
+      let doctorName = 'General Consulting';
+      if (doc) {
+        if (typeof doc === 'string') {
+          doctorName = doc.startsWith('Dr.') ? doc : `Dr. ${doc}`;
+        } else if (doc.firstName || doc.lastName) {
+          doctorName = `Dr. ${(doc.firstName || '')} ${(doc.lastName || '')}`.trim();
+        } else if (doc.name) {
+          doctorName = doc.name.startsWith('Dr.') ? doc.name : `Dr. ${doc.name}`;
+        }
+      }
+
+      if (!acc[hospitalName]) {
+        acc[hospitalName] = {};
+      }
+      if (!acc[hospitalName][doctorName]) {
+        acc[hospitalName][doctorName] = [];
+      }
+      acc[hospitalName][doctorName].push(record);
+      return acc;
+    }, {});
+  };
+
   return (
     <div className="min-h-[85vh] bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 px-4 sm:px-8 py-8">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -380,7 +419,7 @@ export default function PatientDashboard() {
             </div>
           )}
 
-          {/* TAB 2: Digital Prescriptions */}
+          {/* TAB 2: Digital Prescriptions (Prompt 14.2 — grouped by Hospital → Doctor) */}
           {activeTab === 'prescriptions' && (
             <div className="space-y-4">
               {prescriptions.length === 0 ? (
@@ -392,80 +431,109 @@ export default function PatientDashboard() {
                   </p>
                 </div>
               ) : (
-                prescriptions.map((rx) => (
-                  <div key={rx._id} className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-extrabold text-slate-900">
-                            Prescription #{rx._id.slice(-6).toUpperCase()}
-                          </h4>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              rx.status === 'Dispensed'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-amber-100 text-amber-800'
-                            }`}
-                          >
-                            {rx.status === 'Dispensed' ? '✓ Dispensed at Pharmacy' : '● Awaiting Pharmacy Dispense'}
-                          </span>
+                (() => {
+                  const grouped = groupByHospitalAndDoctor(prescriptions);
+                  return Object.keys(grouped).map((hospitalName) => (
+                    <div key={hospitalName} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      {/* Hospital Header */}
+                      <div className="bg-gradient-to-r from-sky-50 to-indigo-50 border-b border-sky-100 px-6 py-4 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center text-lg shrink-0">
+                          🏥
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Issued on {new Date(rx.createdAt).toLocaleDateString()} by Dr. {rx.doctorId?.name || 'Physician'}
-                          {rx.facilityId?.hospitalName && ` · ${rx.facilityId.hospitalName}`}
-                        </p>
-                      </div>
-
-                      {rx.dispensedAt && (
-                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl">
-                          Dispensed: {new Date(rx.dispensedAt).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Medications Table */}
-                    <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
-                      <div className="bg-slate-50 px-4 py-2 grid grid-cols-12 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                        <div className="col-span-5">Medicine</div>
-                        <div className="col-span-2">Dosage</div>
-                        <div className="col-span-3">Frequency</div>
-                        <div className="col-span-2">Duration</div>
-                      </div>
-
-                      {(rx.medications || []).map((med, idx) => (
-                        <div key={idx} className="px-4 py-3 grid grid-cols-12 text-xs items-center">
-                          <div className="col-span-5 font-bold text-slate-900">
-                            {med.medicineName || med.drugName || 'Medicine'}
-                            {med.instructions && (
-                              <p className="text-[10px] font-normal text-slate-500 italic mt-0.5">
-                                {med.instructions}
-                              </p>
-                            )}
-                          </div>
-                          <div className="col-span-2 font-mono text-slate-600">{med.dosage || '—'}</div>
-                          <div className="col-span-3 text-slate-600">
-                            <span className="bg-slate-100 px-2 py-0.5 rounded-md font-semibold text-[11px]">
-                              {med.frequency || 'As advised'}
-                            </span>
-                          </div>
-                          <div className="col-span-2 font-semibold text-slate-700">{med.duration || 'Standard'}</div>
+                        <div>
+                          <h3 className="text-sm font-extrabold text-slate-900">{hospitalName}</h3>
+                          <p className="text-[11px] text-slate-500">
+                            {Object.values(grouped[hospitalName]).flat().length} prescription(s) from this facility
+                          </p>
                         </div>
-                      ))}
-                    </div>
-
-                    {rx.instructions && (
-                      <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-600 border border-slate-100">
-                        <span className="font-bold text-slate-500 text-[10px] uppercase mr-1">Instructions:</span>
-                        {rx.instructions}
                       </div>
-                    )}
-                  </div>
-                ))
+
+                      {/* Doctor Sub-groups */}
+                      <div className="divide-y divide-slate-100">
+                        {Object.keys(grouped[hospitalName]).map((doctorName) => (
+                          <div key={doctorName} className="px-6 py-4">
+                            {/* Doctor Sub-header */}
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs">👨‍⚕️</span>
+                              <span className="text-xs font-bold text-indigo-900">{doctorName}</span>
+                              <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold border border-indigo-100">
+                                {grouped[hospitalName][doctorName].length} Rx
+                              </span>
+                            </div>
+
+                            {/* Prescriptions under this doctor */}
+                            <div className="space-y-4 ml-9">
+                              {grouped[hospitalName][doctorName].map((rx) => (
+                                <div key={rx._id} className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 space-y-3">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="text-xs font-extrabold text-slate-900">
+                                        Prescription #{rx._id.slice(-6).toUpperCase()}
+                                      </h4>
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                          rx.status === 'Dispensed'
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : 'bg-amber-100 text-amber-800'
+                                        }`}
+                                      >
+                                        {rx.status === 'Dispensed' ? '✓ Dispensed' : '● Pending'}
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-slate-400">
+                                      {new Date(rx.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                                    </span>
+                                  </div>
+
+                                  {/* Medications Table */}
+                                  <div className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
+                                    <div className="bg-slate-100/60 px-4 py-2 grid grid-cols-12 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                                      <div className="col-span-5">Medicine</div>
+                                      <div className="col-span-2">Dosage</div>
+                                      <div className="col-span-3">Frequency</div>
+                                      <div className="col-span-2">Duration</div>
+                                    </div>
+                                    {(rx.medications || []).map((med, idx) => (
+                                      <div key={idx} className="px-4 py-2.5 grid grid-cols-12 text-xs items-center">
+                                        <div className="col-span-5 font-bold text-slate-900">
+                                          {med.medicineName || med.drugName || 'Medicine'}
+                                          {med.instructions && (
+                                            <p className="text-[10px] font-normal text-slate-500 italic mt-0.5">
+                                              {med.instructions}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <div className="col-span-2 font-mono text-slate-600">{med.dosage || '—'}</div>
+                                        <div className="col-span-3 text-slate-600">
+                                          <span className="bg-slate-100 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                                            {med.frequency || 'As advised'}
+                                          </span>
+                                        </div>
+                                        <div className="col-span-2 font-semibold text-slate-700">{med.duration || 'Standard'}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {rx.instructions && (
+                                    <div className="bg-white p-3 rounded-xl text-xs text-slate-600 border border-slate-100">
+                                      <span className="font-bold text-slate-500 text-[10px] uppercase mr-1">Instructions:</span>
+                                      {rx.instructions}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()
               )}
             </div>
           )}
 
-          {/* TAB 3: Diagnostic Lab Reports */}
+          {/* TAB 3: Diagnostic Lab Reports (Prompt 14.2 — grouped by Hospital → Doctor) */}
           {activeTab === 'labs' && (
             <div className="space-y-4">
               {labOrders.length === 0 ? (
@@ -477,57 +545,95 @@ export default function PatientDashboard() {
                   </p>
                 </div>
               ) : (
-                labOrders.map((lab) => (
-                  <div key={lab._id} className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-extrabold text-slate-900">{lab.testName}</h4>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              lab.status === 'Completed'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-purple-100 text-purple-800'
-                            }`}
-                          >
-                            {lab.status || 'Completed'}
-                          </span>
+                (() => {
+                  const grouped = groupByHospitalAndDoctor(labOrders);
+                  return Object.keys(grouped).map((hospitalName) => (
+                    <div key={hospitalName} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      {/* Hospital Header */}
+                      <div className="bg-gradient-to-r from-purple-50 to-fuchsia-50 border-b border-purple-100 px-6 py-4 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg shrink-0">
+                          🏥
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Reported on {new Date(lab.updatedAt || lab.createdAt).toLocaleString()}
-                          {lab.facilityId?.hospitalName && ` · ${lab.facilityId.hospitalName}`}
-                        </p>
+                        <div>
+                          <h3 className="text-sm font-extrabold text-slate-900">{hospitalName}</h3>
+                          <p className="text-[11px] text-slate-500">
+                            {Object.values(grouped[hospitalName]).flat().length} lab report(s) from this facility
+                          </p>
+                        </div>
                       </div>
 
-                      {lab.resultURL && (
-                        <a
-                          href={lab.resultURL}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 text-xs font-bold transition-all border border-sky-200"
-                        >
-                          <span>📄 View Official Report PDF</span>
-                        </a>
-                      )}
-                    </div>
+                      {/* Doctor Sub-groups */}
+                      <div className="divide-y divide-slate-100">
+                        {Object.keys(grouped[hospitalName]).map((doctorName) => (
+                          <div key={doctorName} className="px-6 py-4">
+                            {/* Doctor Sub-header */}
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-xs">👨‍⚕️</span>
+                              <span className="text-xs font-bold text-purple-900">{doctorName}</span>
+                              <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold border border-purple-100">
+                                {grouped[hospitalName][doctorName].length} test(s)
+                              </span>
+                            </div>
 
-                    {/* Result Findings */}
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">
-                        Diagnostic Findings & Test Observations:
-                      </p>
-                      <p className="text-xs font-mono text-slate-800 whitespace-pre-wrap leading-relaxed">
-                        {lab.result || 'No formal narrative text uploaded for this test.'}
-                      </p>
-                    </div>
+                            {/* Lab orders under this doctor */}
+                            <div className="space-y-3 ml-9">
+                              {grouped[hospitalName][doctorName].map((lab) => (
+                                <div key={lab._id} className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 space-y-3">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="text-sm font-extrabold text-slate-900">{lab.testName}</h4>
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                          lab.status === 'Completed'
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : 'bg-purple-100 text-purple-800'
+                                        }`}
+                                      >
+                                        {lab.status || 'Completed'}
+                                      </span>
+                                    </div>
 
-                    {lab.notes && (
-                      <p className="text-xs text-slate-500 italic">
-                        <span className="font-semibold text-slate-700">Technician Remarks:</span> {lab.notes}
-                      </p>
-                    )}
-                  </div>
-                ))
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-mono text-slate-400">
+                                        {new Date(lab.updatedAt || lab.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                                      </span>
+                                      {lab.resultURL && (
+                                        <a
+                                          href={lab.resultURL}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 text-[10px] font-bold transition-all border border-sky-200"
+                                        >
+                                          📄 View PDF
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Result Findings */}
+                                  <div className="bg-white p-3.5 rounded-xl border border-slate-200/80">
+                                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">
+                                      Diagnostic Findings & Test Observations:
+                                    </p>
+                                    <p className="text-xs font-mono text-slate-800 whitespace-pre-wrap leading-relaxed">
+                                      {lab.result || 'No formal narrative text uploaded for this test.'}
+                                    </p>
+                                  </div>
+
+                                  {lab.notes && (
+                                    <p className="text-xs text-slate-500 italic">
+                                      <span className="font-semibold text-slate-700">Technician Remarks:</span> {lab.notes}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()
               )}
             </div>
           )}
