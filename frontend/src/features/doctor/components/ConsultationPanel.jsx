@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import doctorApi from '../services/doctorApi';
 
-// Common standard lab tests for quick selection
-const LAB_TEST_OPTIONS = [
-  'Complete Blood Count (CBC)',
+// Common standard lab tests for quick addition
+const COMMON_LAB_PRESETS = [
+  'CBC',
   'Blood Glucose (Fasting / PP)',
-  'HbA1c (Glycated Hemoglobin)',
+  'HbA1c',
   'Lipid Profile',
-  'Liver Function Test (LFT)',
-  'Kidney Function Test (KFT)',
+  'LFT',
+  'KFT',
   'Serum Electrolytes',
   'Urine Routine & Microscopic',
   'Chest X-Ray PA View',
@@ -17,7 +17,6 @@ const LAB_TEST_OPTIONS = [
   'Widal / Typhoid Test',
   'Malaria Antigen / Dengue NS1',
   'Sputum for AFB',
-  'Other / Custom Test',
 ];
 
 export default function ConsultationPanel({
@@ -32,13 +31,13 @@ export default function ConsultationPanel({
   const [notes, setNotes]                   = useState('');
   const [medicalHistory, setMedicalHistory] = useState('');
 
-  // ── Action 1: Lab Request State ────────────────────────────────────────────
-  const [selectedLabTest, setSelectedLabTest] = useState(LAB_TEST_OPTIONS[0]);
-  const [customLabTest, setCustomLabTest]     = useState('');
-  const [labNotes, setLabNotes]               = useState('');
-  const [labSubmitting, setLabSubmitting]     = useState(false);
-  const [labSuccess, setLabSuccess]           = useState('');
-  const [labError, setLabError]               = useState('');
+  // ── Action 1: Lab Request State (Prompt 11.2) ──────────────────────────────
+  const [labTests, setLabTests]         = useState([]);
+  const [labTestInput, setLabTestInput] = useState('');
+  const [labNotes, setLabNotes]         = useState('');
+  const [labSubmitting, setLabSubmitting] = useState(false);
+  const [labSuccess, setLabSuccess]     = useState('');
+  const [labError, setLabError]         = useState('');
 
   // ── Action 2: Prescriptions State ──────────────────────────────────────────
   const [medications, setMedications] = useState([
@@ -57,8 +56,8 @@ export default function ConsultationPanel({
       setDiagnosis('');
       setNotes('');
       setMedicalHistory('');
-      setSelectedLabTest(LAB_TEST_OPTIONS[0]);
-      setCustomLabTest('');
+      setLabTests([]);
+      setLabTestInput('');
       setLabNotes('');
       setLabSuccess('');
       setLabError('');
@@ -134,15 +133,39 @@ export default function ConsultationPanel({
     setMedications(medications.filter((_, i) => i !== index));
   };
 
-  // ── Action 1: Handle Send to Lab ───────────────────────────────────────────
+  // ── Action 1: Lab Test Handlers (Prompt 11.2) ──────────────────────────────
+  const handleAddLabTest = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const trimmed = labTestInput.trim();
+    if (!trimmed) return;
+    if (labTests.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
+      setLabError(`"${trimmed}" is already in the list.`);
+      return;
+    }
+    setLabTests((prev) => [...prev, trimmed]);
+    setLabTestInput('');
+    setLabError('');
+  };
+
+  const handleRemoveLabTest = (indexToRemove) => {
+    setLabTests((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  // ── Action 1: Handle Send to Lab (Prompt 11.2) ─────────────────────────────
   const handleSendToLab = async (e) => {
     e.preventDefault();
     setLabError('');
     setLabSuccess('');
 
-    const resolvedTest = selectedLabTest === 'Other / Custom Test' ? customLabTest.trim() : selectedLabTest;
-    if (!resolvedTest) {
-      setLabError('Please select or specify a valid laboratory test name.');
+    // If doctor typed a test name and forgot to click "Add", include it
+    let testsToSubmit = [...labTests];
+    const pendingInput = labTestInput.trim();
+    if (pendingInput && !testsToSubmit.some((t) => t.toLowerCase() === pendingInput.toLowerCase())) {
+      testsToSubmit.push(pendingInput);
+    }
+
+    if (testsToSubmit.length === 0) {
+      setLabError('Please add at least one laboratory test before sending.');
       return;
     }
 
@@ -151,16 +174,24 @@ export default function ConsultationPanel({
       const response = await doctorApi.requestLabTest({
         appointmentId: appointment._id,
         patientId: patient._id || appointment.patientId,
-        testName: resolvedTest,
+        testNames: testsToSubmit,
         notes: labNotes.trim(),
       });
 
-      setLabSuccess(`Test "${resolvedTest}" sent to lab queue. Patient status updated to Lab Pending.`);
+      // Clear input fields (Prompt 11.2)
+      setLabTests([]);
+      setLabTestInput('');
+      setLabNotes('');
+      setLabSuccess(`Requested ${testsToSubmit.length} test(s) successfully.`);
+
+      // Remove the patient from the screen (Prompt 11.2)
       if (onLabRequested) {
         onLabRequested(response.data);
+      } else if (onCancel) {
+        onCancel();
       }
     } catch (err) {
-      setLabError(err.response?.data?.message || 'Failed to request lab test.');
+      setLabError(err.response?.data?.message || 'Failed to request lab tests.');
     } finally {
       setLabSubmitting(false);
     }
@@ -499,58 +530,130 @@ export default function ConsultationPanel({
           </div>
         )}
 
-        <form onSubmit={handleSendToLab} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-            <div className="sm:col-span-7">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Select Diagnostic Test
-              </label>
-              <select
-                value={selectedLabTest}
-                onChange={(e) => setSelectedLabTest(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-              >
-                {LAB_TEST_OPTIONS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-
-            {selectedLabTest === 'Other / Custom Test' && (
-              <div className="sm:col-span-5">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Specify Custom Test
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={customLabTest}
-                  onChange={(e) => setCustomLabTest(e.target.value)}
-                  placeholder="e.g. Troponin-I, D-Dimer"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-            )}
-
-            <div className={selectedLabTest === 'Other / Custom Test' ? 'sm:col-span-12' : 'sm:col-span-5'}>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Lab Instructions / Clinical Notes
-              </label>
+        <form onSubmit={handleSendToLab} className="space-y-4">
+          {/* Flex row containing text input field and "Add" button (Prompt 11.2) */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Add Diagnostic Lab Tests
+            </label>
+            <div className="flex items-center gap-2">
               <input
                 type="text"
-                value={labNotes}
-                onChange={(e) => setLabNotes(e.target.value)}
-                placeholder="e.g. STAT urgent sample, fasting mandatory"
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                value={labTestInput}
+                onChange={(e) => setLabTestInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddLabTest();
+                  }
+                }}
+                placeholder="Enter custom lab test name (e.g., CBC, MRI Brain)"
+                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white shadow-xs"
               />
+              <button
+                type="button"
+                onClick={handleAddLabTest}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm shadow-amber-200 transition-all shrink-0 cursor-pointer"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add</span>
+              </button>
             </div>
+          </div>
+
+          {/* Quick presets for common tests */}
+          <div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 mr-1">Quick Add:</span>
+              {COMMON_LAB_PRESETS.slice(0, 8).map((preset) => {
+                const isAdded = labTests.some((t) => t.toLowerCase() === preset.toLowerCase());
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    disabled={isAdded}
+                    onClick={() => {
+                      if (!isAdded) {
+                        setLabTests((prev) => [...prev, preset]);
+                        setLabError('');
+                      }
+                    }}
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-lg border transition-all ${
+                      isAdded
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                        : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100 cursor-pointer'
+                    }`}
+                  >
+                    + {preset}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* List Display: map through labTests array and render small pill/badges with "X" icon (Prompt 11.2) */}
+          {labTests.length > 0 ? (
+            <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">
+                  Tests to be Ordered ({labTests.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLabTests([])}
+                  className="text-[10px] text-amber-700 hover:text-amber-900 font-semibold underline cursor-pointer"
+                >
+                  Clear all
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {labTests.map((test, index) => (
+                  <span
+                    key={`${test}-${index}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-amber-300 text-amber-900 text-xs font-bold shadow-xs transition-all"
+                  >
+                    <span>{test}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLabTest(index)}
+                      title={`Remove ${test}`}
+                      className="w-4 h-4 rounded-full flex items-center justify-center text-amber-600 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">
+              No lab tests added yet. Type a test name above and click "Add".
+            </div>
+          )}
+
+          {/* Clinical Instructions / Notes */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Lab Instructions / Clinical Notes (Optional)
+            </label>
+            <input
+              type="text"
+              value={labNotes}
+              onChange={(e) => setLabNotes(e.target.value)}
+              placeholder="e.g. STAT urgent sample, fasting mandatory, report to ICU"
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
           </div>
 
           <div className="flex justify-end pt-1">
             <button
               type="submit"
               disabled={labSubmitting}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold shadow-sm shadow-amber-200 transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold shadow-sm shadow-amber-200 transition-all disabled:opacity-50 cursor-pointer"
             >
               {labSubmitting ? (
                 <>
