@@ -1,69 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import receptionistApi from '../services/receptionistApi';
+import SharedPatientForm from '../../../components/common/SharedPatientForm';
 
-// ─── Field config ──────────────────────────────────────────────────────────────
-const GENDERS    = ['Male', 'Female', 'Other'];
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-
-const EMPTY_FORM = {
-  firstName: '', lastName: '', dob: '', gender: 'Male',
-  bloodGroup: '', contactPhone: '',
-  address: { village: '', district: '', state: '', pincode: '' },
-  abhaId: '',
-  email: '', password: '',
-};
-
-// ─── Tiny field components ─────────────────────────────────────────────────────
-function Label({ children, required }) {
-  return (
-    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-      {children} {required && <span className="text-rose-500">*</span>}
-    </label>
-  );
-}
-
-function Input({ error, ...props }) {
-  return (
-    <>
-      <input
-        {...props}
-        className={`w-full px-3.5 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2
-          focus:ring-rose-400 focus:border-rose-400 transition-all bg-slate-50 focus:bg-white
-          ${error ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'}`}
-      />
-      {error && <p className="text-[11px] text-rose-600 mt-1">{error}</p>}
-    </>
-  );
-}
-
-function Select({ children, ...props }) {
-  return (
-    <select
-      {...props}
-      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none
-        focus:ring-2 focus:ring-rose-400 bg-slate-50 focus:bg-white transition-all"
-    >
-      {children}
-    </select>
-  );
-}
-
-// ─── PatientRegistrationForm ───────────────────────────────────────────────────
+// ─── PatientRegistrationForm (Prompt 13.1) ─────────────────────────────────────
+// Wraps the SharedPatientForm in Receptionist mode (isSelfRegister=false).
+// Adds receptionist-specific features: search existing patient, auto-queue option.
 export default function PatientRegistrationForm({ onSuccess }) {
-  const [form, setForm]     = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [apiError, setApiError] = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [apiError, setApiError]         = useState('');
   const [successAlert, setSuccessAlert] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [searchPhone, setSearchPhone] = useState('');
-  const [searchResults, setSearchResults] = useState(null);
-  const [searching, setSearching] = useState(false);
 
-  // Doctors list for optional walk-in queue assignment
-  const [doctors, setDoctors] = useState([]);
+  // ── Search existing patient ────────────────────────────────────────────────
+  const [searchPhone, setSearchPhone]     = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [searching, setSearching]         = useState(false);
+
+  // ── Doctors list for optional walk-in queue assignment ─────────────────────
+  const [doctors, setDoctors]             = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
-  const [autoQueue, setAutoQueue] = useState(false);
+  const [autoQueue, setAutoQueue]         = useState(false);
   const [assignedDoctorId, setAssignedDoctorId] = useState('');
 
   // ── Fetch facility doctors on mount ────────────────────────────────────────
@@ -88,39 +43,6 @@ export default function PatientRegistrationForm({ onSuccess }) {
     return () => { active = false; };
   }, []);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
-  const setField = (key, val) => {
-    setForm((f) => ({ ...f, [key]: val }));
-    setSuccessAlert('');
-  };
-  const setAddress = (key, val) =>
-    setForm((f) => ({ ...f, address: { ...f.address, [key]: val } }));
-
-  // ── Validation (Prompt 12.1 & 12.2) ─────────────────────────────────────────
-  const validate = () => {
-    const e = {};
-    if (!form.firstName.trim()) e.firstName = 'First name is required';
-    if (!form.lastName.trim())  e.lastName  = 'Last name is required';
-    if (!form.dob)              e.dob       = 'Date of birth is required';
-    if (!form.gender)           e.gender    = 'Gender is required';
-    if (!form.contactPhone.trim()) {
-      e.contactPhone = 'Phone number is required';
-    } else if (!/^\d{10}$/.test(form.contactPhone.trim())) {
-      e.contactPhone = 'Must be a 10-digit number';
-    }
-    if (form.email && form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-      e.email = 'Enter a valid email address';
-    }
-    if (form.password && form.password.length < 6) {
-      e.password = 'Minimum 6 characters';
-    }
-    if (form.abhaId && !/^\d{2}-\d{4}-\d{4}-\d{4}$/.test(form.abhaId.trim())) {
-      e.abhaId = 'Format: XX-XXXX-XXXX-XXXX';
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
   // ── Search existing patient ────────────────────────────────────────────────
   const handleSearch = useCallback(async () => {
     if (!searchPhone.trim() || searchPhone.trim().length < 2) return;
@@ -136,26 +58,12 @@ export default function PatientRegistrationForm({ onSuccess }) {
     }
   }, [searchPhone]);
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
+  // ── Handle form submission (Receptionist mode) ─────────────────────────────
+  const handleFormSubmit = async (payload, resetForm) => {
     setLoading(true);
     setApiError('');
     setSuccessAlert('');
     try {
-      const payload = {
-        firstName:    form.firstName.trim(),
-        lastName:     form.lastName.trim(),
-        dob:          form.dob,
-        gender:       form.gender,
-        email:        form.email.trim().toLowerCase() || undefined,
-        password:     form.password ? form.password.trim() : 'Sahay@123',
-        contactPhone: form.contactPhone.trim() || undefined,
-        bloodGroup:   form.bloodGroup          || undefined,
-        address:      form.address,
-        abhaId:       form.abhaId.trim()       || undefined,
-      };
       const res = await receptionistApi.registerPatient(payload);
       const newPatient = res.data.patient;
       let queueInfo = null;
@@ -179,8 +87,7 @@ export default function PatientRegistrationForm({ onSuccess }) {
         queueInfo,
         message: successMsg,
       });
-      setForm(EMPTY_FORM);
-      setErrors({});
+      resetForm?.();
       setAutoQueue(false);
     } catch (err) {
       const msg = err.response?.data?.message || 'Registration failed. Please try again.';
@@ -253,260 +160,59 @@ export default function PatientRegistrationForm({ onSuccess }) {
         )}
       </div>
 
-      {/* ── Registration form ─────────────────────────────────────────────── */}
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="flex-1 h-px bg-slate-100" />
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">New Patient Details</p>
-          <div className="flex-1 h-px bg-slate-100" />
-        </div>
+      {/* ── Shared Patient Registration Form (Receptionist Mode) ──────────── */}
+      <SharedPatientForm
+        isSelfRegister={false}
+        onSubmit={handleFormSubmit}
+        loading={loading}
+        apiError={apiError}
+        successAlert={successAlert}
+      />
 
-        {/* Name row */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label required>First Name</Label>
-            <Input
-              type="text" placeholder="e.g. Ramesh"
-              value={form.firstName}
-              onChange={(e) => setField('firstName', e.target.value)}
-              error={errors.firstName}
-            />
-          </div>
-          <div>
-            <Label required>Last Name</Label>
-            <Input
-              type="text" placeholder="e.g. Kumar"
-              value={form.lastName}
-              onChange={(e) => setField('lastName', e.target.value)}
-              error={errors.lastName}
-            />
-          </div>
-        </div>
-
-        {/* DOB / Gender / Blood Group */}
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <Label required>Date of Birth</Label>
-            <Input
-              type="date" value={form.dob}
-              onChange={(e) => setField('dob', e.target.value)}
-              error={errors.dob}
-              max={new Date().toISOString().split('T')[0]}
-            />
-          </div>
-          <div>
-            <Label required>Gender</Label>
-            <Select value={form.gender} onChange={(e) => setField('gender', e.target.value)}>
-              {GENDERS.map((g) => <option key={g}>{g}</option>)}
-            </Select>
-          </div>
-          <div>
-            <Label>Blood Group</Label>
-            <Select value={form.bloodGroup} onChange={(e) => setField('bloodGroup', e.target.value)}>
-              <option value="">— Select —</option>
-              {BLOOD_GROUPS.map((b) => <option key={b}>{b}</option>)}
-            </Select>
-          </div>
-        </div>
-
-        {/* Phone */}
-        <div>
-          <Label>Contact Phone</Label>
-          <Input
-            type="tel" placeholder="10-digit mobile number"
-            value={form.contactPhone}
-            onChange={(e) => setField('contactPhone', e.target.value)}
-            error={errors.contactPhone}
+      {/* ── Optional Immediate Queue Assignment ──────────────────────── */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 -mt-2">
+        <label className="flex items-center gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            id="auto-queue-checkbox"
+            checked={autoQueue}
+            onChange={(e) => setAutoQueue(e.target.checked)}
+            className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300"
           />
-        </div>
+          <span className="text-xs font-bold text-amber-900">
+            Immediately add patient to today's queue for doctor consultation
+          </span>
+        </label>
 
-        {/* ABHA ID */}
-        <div>
-          <Label>ABHA ID
-            <span className="ml-1.5 text-[10px] font-normal text-slate-400 normal-case">
-              (Ayushman Bharat Health Account — optional)
-            </span>
-          </Label>
-          <Input
-            type="text" placeholder="XX-XXXX-XXXX-XXXX"
-            value={form.abhaId}
-            onChange={(e) => setField('abhaId', e.target.value)}
-            error={errors.abhaId}
-          />
-        </div>
-
-        {/* ── Login Credentials ───────────────────────────────────────── */}
-        <div className="flex items-center gap-2 pt-1">
-          <div className="flex-1 h-px bg-slate-100" />
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Patient Login Credentials</p>
-          <div className="flex-1 h-px bg-slate-100" />
-        </div>
-        <p className="text-[11px] text-slate-400 -mt-3">
-          These credentials allow the patient to log in to the SAHAY patient portal later.
-        </p>
-
-        {/* Success Alert Banner (Prompt 12.2) */}
-        {successAlert && (
-          <div className="flex items-start gap-2.5 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-semibold shadow-xs animate-fadeIn">
-            <svg className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
-              <p className="font-bold text-emerald-900 text-sm">Registration Successful!</p>
-              <p className="mt-0.5 text-emerald-800">{successAlert}</p>
-            </div>
+        {autoQueue && (
+          <div className="mt-3 pt-3 border-t border-amber-200/60 space-y-2">
+            <label className="block text-[11px] font-bold text-amber-900">
+              Select Consulting Doctor <span className="text-rose-500">*</span>
+            </label>
+            {loadingDoctors ? (
+              <p className="text-xs text-slate-500">Loading facility doctors…</p>
+            ) : doctors.length === 0 ? (
+              <p className="text-xs text-rose-600">
+                No doctors registered at this facility.
+              </p>
+            ) : (
+              <select
+                id="auto-queue-doctor-select"
+                value={assignedDoctorId}
+                onChange={(e) => setAssignedDoctorId(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-amber-200 text-xs bg-white text-slate-800
+                  focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                {doctors.map((doc) => (
+                  <option key={doc._id} value={doc._id}>
+                    Dr. {doc.name} ({doc.email})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         )}
-
-        <div>
-          <Label>Email Address <span className="text-[10px] font-normal text-slate-400 normal-case">(Optional)</span></Label>
-          <Input
-            type="email" placeholder="patient@example.com (optional)"
-            value={form.email}
-            onChange={(e) => setField('email', e.target.value)}
-            error={errors.email}
-          />
-        </div>
-
-        <div>
-          <Label>Password
-            <span className="ml-1.5 text-[10px] font-normal text-slate-400 normal-case">(Defaults to Sahay@123 if blank)</span>
-          </Label>
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Default: Sahay@123"
-              value={form.password}
-              onChange={(e) => setField('password', e.target.value)}
-              className={`w-full px-3.5 py-2.5 pr-10 rounded-xl border text-sm focus:outline-none focus:ring-2
-                focus:ring-rose-400 focus:border-rose-400 transition-all bg-slate-50 focus:bg-white
-                ${errors.password ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'}`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-              tabIndex={-1}
-            >
-              {showPassword ? (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              )}
-            </button>
-          </div>
-          {errors.password && <p className="text-[11px] text-rose-600 mt-1">{errors.password}</p>}
-        </div>
-
-        {/* Address */}
-        <div>
-          <Label>Address</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { key: 'village', placeholder: 'Village / Area' },
-              { key: 'district', placeholder: 'District' },
-              { key: 'state', placeholder: 'State' },
-              { key: 'pincode', placeholder: 'Pincode' },
-            ].map(({ key, placeholder }) => (
-              <input
-                key={key}
-                type="text"
-                placeholder={placeholder}
-                value={form.address[key]}
-                onChange={(e) => setAddress(key, e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-rose-400 bg-slate-50 focus:bg-white transition-all"
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* ── Optional Immediate Queue Assignment ──────────────────────── */}
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
-          <label className="flex items-center gap-2.5 cursor-pointer">
-            <input
-              type="checkbox"
-              id="auto-queue-checkbox"
-              checked={autoQueue}
-              onChange={(e) => setAutoQueue(e.target.checked)}
-              className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300"
-            />
-            <span className="text-xs font-bold text-amber-900">
-              Immediately add patient to today's queue for doctor consultation
-            </span>
-          </label>
-
-          {autoQueue && (
-            <div className="mt-3 pt-3 border-t border-amber-200/60 space-y-2">
-              <label className="block text-[11px] font-bold text-amber-900">
-                Select Consulting Doctor <span className="text-rose-500">*</span>
-              </label>
-              {loadingDoctors ? (
-                <p className="text-xs text-slate-500">Loading facility doctors…</p>
-              ) : doctors.length === 0 ? (
-                <p className="text-xs text-rose-600">
-                  No doctors registered at this facility.
-                </p>
-              ) : (
-                <select
-                  id="auto-queue-doctor-select"
-                  value={assignedDoctorId}
-                  onChange={(e) => setAssignedDoctorId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-amber-200 text-xs bg-white text-slate-800
-                    focus:outline-none focus:ring-2 focus:ring-amber-400"
-                >
-                  {doctors.map((doc) => (
-                    <option key={doc._id} value={doc._id}>
-                      Dr. {doc.name} ({doc.email})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* API error banner */}
-        {apiError && (
-          <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
-            <svg className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{apiError}</span>
-          </div>
-        )}
-
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white text-sm
-            font-bold shadow-sm shadow-rose-200 hover:from-rose-600 hover:to-pink-700 transition-all
-            active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <>
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Registering…
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-              </svg>
-              Register Patient
-            </>
-          )}
-        </button>
-      </form>
+      </div>
     </div>
   );
 }

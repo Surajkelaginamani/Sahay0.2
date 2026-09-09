@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { patientAPI } from '../../services/api';
 import { getStoredAuth } from '../../utils/auth';
+import SharedPatientForm from '../../components/common/SharedPatientForm';
 
 export default function PatientAuth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,6 +14,9 @@ export default function PatientAuth() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [regLoading, setRegLoading] = useState(false);
+  const [regError, setRegError] = useState('');
+  const [regSuccess, setRegSuccess] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -54,33 +58,19 @@ export default function PatientAuth() {
     setError('');
   };
 
-  const handleSubmit = async (e) => {
+  // ── Login handler ──────────────────────────────────────────────────────────
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      let response;
-      if (isLogin) {
-        response = await patientAPI.login({
-          identifier: formData.email,
-          email: formData.email,
-          phone: formData.email,
-          password: formData.password,
-        });
-      } else {
-        if (!formData.name.trim()) {
-          setError('Please provide your full legal name');
-          setLoading(false);
-          return;
-        }
-        response = await patientAPI.register({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-        });
-      }
+      const response = await patientAPI.login({
+        identifier: formData.email,
+        email: formData.email,
+        phone: formData.email,
+        password: formData.password,
+      });
 
       // Save credentials in local storage (Prompt 12.2)
       localStorage.setItem('sahay_token', response.data.token);
@@ -109,9 +99,51 @@ export default function PatientAuth() {
     }
   };
 
+  // ── Self-registration handler (SharedPatientForm) ─────────────────────────
+  const handleSelfRegister = async (payload, resetForm) => {
+    setRegLoading(true);
+    setRegError('');
+    setRegSuccess('');
+
+    try {
+      const response = await patientAPI.register(payload);
+
+      // Save credentials in local storage
+      localStorage.setItem('sahay_token', response.data.token);
+      localStorage.setItem(
+        'sahay_user',
+        JSON.stringify({
+          _id: response.data._id,
+          name: response.data.name,
+          email: response.data.email,
+          phone: response.data.phone,
+          patientId: response.data.patientId,
+          role: response.data.role,
+        })
+      );
+      if (response.data.patientId) {
+        localStorage.setItem('patient_id', response.data.patientId);
+      }
+
+      setRegSuccess('Account created successfully! Redirecting to your dashboard…');
+      resetForm?.();
+
+      // Redirect after a brief delay so the user sees the success message
+      setTimeout(() => {
+        navigate('/dashboard/patient');
+      }, 1500);
+    } catch (err) {
+      setRegError(
+        err.response?.data?.message || 'Registration failed. Please try again.'
+      );
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-6">
+      <div className={`w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-6 ${isLogin ? 'max-w-md' : 'max-w-lg'}`}>
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="w-12 h-12 mx-auto rounded-xl bg-mint-100 text-mint-700 flex items-center justify-center font-bold text-xl">
@@ -134,6 +166,8 @@ export default function PatientAuth() {
             onClick={() => {
               setIsLogin(true);
               setError('');
+              setRegError('');
+              setRegSuccess('');
             }}
             className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
               isLogin
@@ -148,6 +182,8 @@ export default function PatientAuth() {
             onClick={() => {
               setIsLogin(false);
               setError('');
+              setRegError('');
+              setRegSuccess('');
             }}
             className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
               !isLogin
@@ -159,100 +195,77 @@ export default function PatientAuth() {
           </button>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">
-            <svg className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{error}</span>
-          </div>
-        )}
+        {/* ── Login Tab ──────────────────────────────────────────────────── */}
+        {isLogin ? (
+          <>
+            {/* Error Alert */}
+            {error && (
+              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">
+                <svg className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <>
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Full Legal Name
+                  Phone Number or Email Address
                 </label>
                 <input
                   type="text"
-                  name="name"
+                  name="email"
                   required
-                  value={formData.name}
+                  value={formData.email}
                   onChange={handleChange}
-                  placeholder="e.g. Ramesh Chandra"
+                  placeholder="e.g. 9876543210 or patient@example.com"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Phone Number
+                  Password
                 </label>
                 <input
-                  type="tel"
-                  name="phone"
+                  type="password"
+                  name="password"
                   required
-                  value={formData.phone}
+                  minLength={6}
+                  value={formData.password}
                   onChange={handleChange}
-                  placeholder="e.g. 9876543210"
+                  placeholder="••••••••"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
                 />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Minimum 6 characters with secure hashing
+                </p>
               </div>
-            </>
-          )}
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              {isLogin ? 'Phone Number or Email Address' : 'Email Address (Optional)'}
-            </label>
-            <input
-              type={isLogin ? 'text' : 'email'}
-              name="email"
-              required={isLogin}
-              value={formData.email}
-              onChange={handleChange}
-              placeholder={isLogin ? "e.g. 9876543210 or patient@example.com" : "e.g. patient@example.com"}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              required
-              minLength={6}
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">
-              Minimum 6 characters with secure hashing
-            </p>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 rounded-xl bg-mint-600 hover:bg-mint-700 text-white font-semibold text-sm shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {loading ? (
-              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-            ) : isLogin ? (
-              'Sign In to Health Portal'
-            ) : (
-              'Complete Registration'
-            )}
-          </button>
-        </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 rounded-xl bg-mint-600 hover:bg-mint-700 text-white font-semibold text-sm shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                  'Sign In to Health Portal'
+                )}
+              </button>
+            </form>
+          </>
+        ) : (
+          /* ── Registration Tab (SharedPatientForm) ──────────────────── */
+          <SharedPatientForm
+            isSelfRegister={true}
+            onSubmit={handleSelfRegister}
+            loading={regLoading}
+            apiError={regError}
+            successAlert={regSuccess}
+          />
+        )}
 
         <div className="text-center pt-2">
           <Link to="/" className="text-xs font-medium text-slate-500 hover:text-slate-800">

@@ -6,27 +6,58 @@ import LabOrder from '../models/LabOrder.js';
 import Appointment from '../models/Appointment.js';
 import generateToken from '../utils/generateToken.js';
 
-// @desc    Register a new patient (Self-Registration - Prompt 12.1)
+// @desc    Register a new patient (Self-Registration - Prompt 12.1 & 13.2)
 // @route   POST /api/patients/register
 // @access  Public
 export const registerPatient = async (req, res) => {
   let createdUser = null;
   try {
-    const { name, email, phone, contactPhone, password, dob, gender, bloodGroup, address } = req.body;
+    const {
+      // New shared-form fields (Prompt 13.1 / 13.2)
+      firstName: rawFirst, lastName: rawLast,
+      // Legacy field (backward compat)
+      name,
+      email, phone, contactPhone, password,
+      dob, gender, bloodGroup, address, abhaId,
+      isSelfRegister,
+    } = req.body;
 
-    if (!name || !password || (!email && !phone && !contactPhone)) {
+    // ── Derive first/last name (supports both old "name" and new "firstName/lastName") ──
+    let firstName, lastName;
+    if (rawFirst) {
+      firstName = rawFirst.trim();
+      lastName  = (rawLast || '').trim() || 'Citizen';
+    } else if (name) {
+      const nameParts = name.trim().split(/\s+/);
+      firstName = nameParts[0] || 'Patient';
+      lastName  = nameParts.slice(1).join(' ') || 'Citizen';
+    } else {
       return res.status(400).json({
-        message: 'Please provide name, password, and at least an email or phone number',
+        message: 'Please provide firstName/lastName or name.',
       });
     }
 
+    const fullName = `${firstName} ${lastName}`;
     const cleanPhone = (phone || contactPhone || '').trim();
+
+    if (!cleanPhone && !email) {
+      return res.status(400).json({
+        message: 'Please provide at least an email or phone number.',
+      });
+    }
+
     const cleanEmail = email && email.trim()
       ? email.trim().toLowerCase()
       : (cleanPhone ? `${cleanPhone}@patient.sahay.gov.in` : undefined);
-    const cleanPassword = typeof password === 'string' ? password.trim() : password;
 
-    if (cleanPassword.length < 6) {
+    // Step 1 (Auth): If isSelfRegister is false, use default password 'Sahay@123' (Prompt 13.2)
+    const resolvedPassword = (isSelfRegister === false || !password)
+      ? (password && typeof password === 'string' && password.trim().length >= 6
+          ? password.trim()
+          : 'Sahay@123')
+      : (typeof password === 'string' ? password.trim() : password);
+
+    if (resolvedPassword.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
 
@@ -42,21 +73,31 @@ export const registerPatient = async (req, res) => {
       }
     }
 
-    // 1. Create User document with chosen password (Prompt 12.1)
+    // Check for existing Patient by phone
+    if (cleanPhone) {
+      const patientExists = await Patient.findOne({ contactPhone: cleanPhone });
+      if (patientExists) {
+        return res.status(400).json({
+          message: `A patient with phone ${cleanPhone} is already registered.`,
+          existingPatient: {
+            _id: patientExists._id,
+            fullName: `${patientExists.firstName} ${patientExists.lastName}`,
+            contactPhone: patientExists.contactPhone,
+          },
+        });
+      }
+    }
+
+    // Step 1 (Auth): Create User document (Prompt 13.2)
     createdUser = await User.create({
-      name: name.trim(),
+      name: fullName,
       email: cleanEmail,
       phone: cleanPhone || undefined,
-      password: cleanPassword,
+      password: resolvedPassword, // hashed by pre-save hook
       role: 'Patient',
     });
 
-    // Parse firstName and lastName from name
-    const nameParts = name.trim().split(/\s+/);
-    const firstName = nameParts[0] || 'Patient';
-    const lastName = nameParts.slice(1).join(' ') || 'Citizen';
-
-    // 2. Immediately create Patient document linked to User._id (Prompt 12.1)
+    // Step 2 (Profile): Create Patient document with full form data (Prompt 13.2)
     const patient = await Patient.create({
       firstName,
       lastName,
@@ -65,10 +106,11 @@ export const registerPatient = async (req, res) => {
       contactPhone: cleanPhone || undefined,
       bloodGroup: bloodGroup || undefined,
       address: address || {},
+      abhaId: abhaId?.trim() || undefined,
       userId: createdUser._id,
     });
 
-    // Two-way binding (Prompt 12.1)
+    // Step 3 (Two-way Link): Update User with patientProfileId (Prompt 13.2)
     createdUser.patientProfileId = patient._id;
     await createdUser.save();
 
@@ -89,6 +131,15 @@ export const registerPatient = async (req, res) => {
     if (createdUser) {
       await User.findByIdAndDelete(createdUser._id).catch(() => null);
     }
+
+    // Handle Mongoose duplicate key
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0] || 'field';
+      return res.status(400).json({
+        message: `A patient with this ${field} already exists.`,
+      });
+    }
+
     res.status(500).json({ message: error.message });
   }
 };
