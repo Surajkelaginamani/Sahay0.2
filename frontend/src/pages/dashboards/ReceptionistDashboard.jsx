@@ -182,15 +182,15 @@ export default function ReceptionistDashboard() {
   };
 
   // ── Child callbacks ─────────────────────────────────────────────────────
-  const handlePatientRegistered = useCallback(({ type, patient, queueInfo }) => {
+  const handlePatientRegistered = useCallback(({ type, patient, queueInfo, message }) => {
     if (type === 'registered') {
+      const alertMsg = message || 'Patient registered. They can log in using their phone number and default password: Sahay@123';
       if (queueInfo) {
         const docText = queueInfo.doctorName ? ` for Dr. ${queueInfo.doctorName}` : '';
         showToast('success', 'Patient Registered & Queued',
-          `${patient.fullName} registered and queued as #${queueInfo.queueNumber}${docText}.`);
+          `${patient.fullName} queued as #${queueInfo.queueNumber}${docText}. Login: ${patient.contactPhone || 'Phone'} / Sahay@123`);
       } else {
-        showToast('success', 'Patient Registered',
-          `${patient.fullName} has been registered with a login account.`);
+        showToast('success', 'Patient Registered', alertMsg);
       }
       setActiveTab('queue');
       setQueueRefresh((n) => n + 1);

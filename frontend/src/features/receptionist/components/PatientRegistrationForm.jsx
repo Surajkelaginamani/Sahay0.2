@@ -54,6 +54,7 @@ export default function PatientRegistrationForm({ onSuccess }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
+  const [successAlert, setSuccessAlert] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [searchPhone, setSearchPhone] = useState('');
   const [searchResults, setSearchResults] = useState(null);
@@ -88,25 +89,34 @@ export default function PatientRegistrationForm({ onSuccess }) {
   }, []);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
-  const setField = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+  const setField = (key, val) => {
+    setForm((f) => ({ ...f, [key]: val }));
+    setSuccessAlert('');
+  };
   const setAddress = (key, val) =>
     setForm((f) => ({ ...f, address: { ...f.address, [key]: val } }));
 
-  // ── Validation ─────────────────────────────────────────────────────────────
+  // ── Validation (Prompt 12.1 & 12.2) ─────────────────────────────────────────
   const validate = () => {
     const e = {};
     if (!form.firstName.trim()) e.firstName = 'First name is required';
     if (!form.lastName.trim())  e.lastName  = 'Last name is required';
     if (!form.dob)              e.dob       = 'Date of birth is required';
     if (!form.gender)           e.gender    = 'Gender is required';
-    if (!form.email.trim())     e.email     = 'Email is required';
-    else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) e.email = 'Enter a valid email address';
-    if (!form.password)         e.password  = 'Password is required';
-    else if (form.password.length < 6) e.password = 'Minimum 6 characters';
-    if (form.contactPhone && !/^\d{10}$/.test(form.contactPhone.trim()))
+    if (!form.contactPhone.trim()) {
+      e.contactPhone = 'Phone number is required';
+    } else if (!/^\d{10}$/.test(form.contactPhone.trim())) {
       e.contactPhone = 'Must be a 10-digit number';
-    if (form.abhaId && !/^\d{2}-\d{4}-\d{4}-\d{4}$/.test(form.abhaId.trim()))
+    }
+    if (form.email && form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      e.email = 'Enter a valid email address';
+    }
+    if (form.password && form.password.length < 6) {
+      e.password = 'Minimum 6 characters';
+    }
+    if (form.abhaId && !/^\d{2}-\d{4}-\d{4}-\d{4}$/.test(form.abhaId.trim())) {
       e.abhaId = 'Format: XX-XXXX-XXXX-XXXX';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -132,14 +142,15 @@ export default function PatientRegistrationForm({ onSuccess }) {
     if (!validate()) return;
     setLoading(true);
     setApiError('');
+    setSuccessAlert('');
     try {
       const payload = {
         firstName:    form.firstName.trim(),
         lastName:     form.lastName.trim(),
         dob:          form.dob,
         gender:       form.gender,
-        email:        form.email.trim().toLowerCase(),
-        password:     form.password,
+        email:        form.email.trim().toLowerCase() || undefined,
+        password:     form.password ? form.password.trim() : 'Sahay@123',
         contactPhone: form.contactPhone.trim() || undefined,
         bloodGroup:   form.bloodGroup          || undefined,
         address:      form.address,
@@ -159,7 +170,15 @@ export default function PatientRegistrationForm({ onSuccess }) {
         }
       }
 
-      onSuccess?.({ type: 'registered', patient: newPatient, queueInfo });
+      const successMsg = 'Patient registered. They can log in using their phone number and default password: Sahay@123';
+      setSuccessAlert(successMsg);
+
+      onSuccess?.({
+        type: 'registered',
+        patient: newPatient,
+        queueInfo,
+        message: successMsg,
+      });
       setForm(EMPTY_FORM);
       setErrors({});
       setAutoQueue(false);
@@ -326,10 +345,23 @@ export default function PatientRegistrationForm({ onSuccess }) {
           These credentials allow the patient to log in to the SAHAY patient portal later.
         </p>
 
+        {/* Success Alert Banner (Prompt 12.2) */}
+        {successAlert && (
+          <div className="flex items-start gap-2.5 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-semibold shadow-xs animate-fadeIn">
+            <svg className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="font-bold text-emerald-900 text-sm">Registration Successful!</p>
+              <p className="mt-0.5 text-emerald-800">{successAlert}</p>
+            </div>
+          </div>
+        )}
+
         <div>
-          <Label required>Email Address</Label>
+          <Label>Email Address <span className="text-[10px] font-normal text-slate-400 normal-case">(Optional)</span></Label>
           <Input
-            type="email" placeholder="patient@example.com"
+            type="email" placeholder="patient@example.com (optional)"
             value={form.email}
             onChange={(e) => setField('email', e.target.value)}
             error={errors.email}
@@ -337,13 +369,13 @@ export default function PatientRegistrationForm({ onSuccess }) {
         </div>
 
         <div>
-          <Label required>Password
-            <span className="ml-1.5 text-[10px] font-normal text-slate-400 normal-case">(min. 6 characters)</span>
+          <Label>Password
+            <span className="ml-1.5 text-[10px] font-normal text-slate-400 normal-case">(Defaults to Sahay@123 if blank)</span>
           </Label>
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
-              placeholder="Create a password"
+              placeholder="Default: Sahay@123"
               value={form.password}
               onChange={(e) => setField('password', e.target.value)}
               className={`w-full px-3.5 py-2.5 pr-10 rounded-xl border text-sm focus:outline-none focus:ring-2
@@ -353,7 +385,7 @@ export default function PatientRegistrationForm({ onSuccess }) {
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
               tabIndex={-1}
             >
               {showPassword ? (

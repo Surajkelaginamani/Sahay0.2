@@ -97,6 +97,8 @@ patientSchema.virtual('fullName').get(function () {
 // ── Index for fast facility-level patient lookup ───────────────────────────────
 patientSchema.index({ registeredAtFacility: 1, createdAt: -1 });
 patientSchema.index({ contactPhone: 1 });
+patientSchema.index({ userId: 1 });
+patientSchema.index({ firstName: 1, lastName: 1 });
 
 const Patient = mongoose.model('Patient', patientSchema);
 
