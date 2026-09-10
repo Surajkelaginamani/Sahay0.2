@@ -718,6 +718,119 @@ export const getUpcomingAppointments = async (req, res) => {
   }
 };
 
+// ─── getPendingTeleconsults (Prompt 17.1) ─────────────────────────────────────
+// @route   GET /api/receptionist/teleconsults/pending
+// @access  Private (Receptionist)
+// Fetch all teleconsultation requests for this facility with status 'Teleconsult Requested'
+export const getPendingTeleconsults = async (req, res) => {
+  try {
+    const facilityId = req.user.hospitalId;
+
+    const teleconsults = await Appointment.find({
+      facilityId,
+      type:   'Teleconsultation',
+      status: 'Teleconsult Requested',
+    })
+      .populate('patientId',        'firstName lastName contactPhone gender dob abhaId')
+      .populate('assignedDoctorId', 'name email')
+      .populate('receptionistId',   'name firstName lastName role')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const enriched = teleconsults.map((appt) => ({
+      ...appt,
+      patientFullName: appt.patientId
+        ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
+        : 'Unknown',
+      bookedByName: appt.receptionistId?.name
+        || (appt.receptionistId?.firstName
+          ? `${appt.receptionistId.firstName} ${appt.receptionistId.lastName}`
+          : 'Field Worker'),
+      sourceLabel: appt.teleconsultSource
+        ? `${appt.teleconsultSource}: ${appt.receptionistId?.name || 'Worker'}`
+        : 'Self (Patient)',
+    }));
+
+    res.json({ count: enriched.length, teleconsults: enriched });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── confirmTeleconsult (Prompt 17.1) ─────────────────────────────────────────
+// @route   POST /api/receptionist/teleconsults/confirm
+// @access  Private (Receptionist)
+// Accepts appointmentId, assignedDoctorId, confirmed timeSlot.
+// Generates a unique room string (room-sahay-[appointmentId]-[timestamp]),
+// assigns teleconsultRoomId, and updates status to 'Teleconsult Scheduled'.
+export const confirmTeleconsult = async (req, res) => {
+  try {
+    const { appointmentId, assignedDoctorId, timeSlot } = req.body;
+
+    if (!appointmentId || !assignedDoctorId) {
+      return res.status(400).json({
+        message: 'appointmentId and assignedDoctorId are required.',
+      });
+    }
+
+    const facilityId = req.user.hospitalId;
+
+    // Verify appointment exists and belongs to this facility
+    const appointment = await Appointment.findOne({
+      _id:        appointmentId,
+      facilityId,
+      type:       'Teleconsultation',
+      status:     'Teleconsult Requested',
+    });
+
+    if (!appointment) {
+      return res.status(404).json({
+        message: 'Teleconsult request not found or already confirmed.',
+      });
+    }
+
+    // Verify the assigned doctor belongs to this facility
+    const doctor = await User.findOne({
+      _id:        assignedDoctorId,
+      role:       'Doctor',
+      hospitalId: facilityId,
+    }).select('name email');
+
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found in your facility.' });
+    }
+
+    // Generate a unique Jitsi room string
+    const teleconsultRoomId = `room-sahay-${appointment._id}-${Date.now()}`;
+
+    // Update appointment fields
+    appointment.assignedDoctorId = assignedDoctorId;
+    appointment.teleconsultRoomId = teleconsultRoomId;
+    appointment.status = 'Teleconsult Scheduled';
+    if (timeSlot?.trim()) {
+      appointment.timeSlot = timeSlot.trim();
+    }
+    appointment.receptionistId = req.user._id; // Receptionist who confirmed
+
+    await appointment.save();
+
+    await appointment.populate([
+      { path: 'patientId',        select: 'firstName lastName contactPhone gender dob abhaId' },
+      { path: 'assignedDoctorId', select: 'name email' },
+      { path: 'facilityId',       select: 'hospitalName name' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: `Teleconsult confirmed. Dr. ${doctor.name} assigned. Room ID generated.`,
+      teleconsultRoomId,
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // --- getIncomingReferrals ---
 // @route   GET /api/receptionist/referrals/incoming
 // @access  Private (Receptionist)

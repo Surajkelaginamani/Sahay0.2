@@ -11,6 +11,14 @@ function StatusPill({ status }) {
       </span>
     );
   }
+  if (status === 'Teleconsult Scheduled') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border bg-violet-100 text-violet-900 border-violet-300">
+        <span className="w-1.5 h-1.5 rounded-full bg-violet-600" />
+        📹 Scheduled
+      </span>
+    );
+  }
   if (status === 'In Teleconsult') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border bg-indigo-100 text-indigo-900 border-indigo-300">
@@ -156,6 +164,26 @@ function PatientCard({ appt, isSelected, onSelect }) {
         </div>
       )}
 
+      {/* Scheduled Teleconsult Date & Time Badges (Prompt 17.4) */}
+      {(appt.type === 'Teleconsultation' || appt.status === 'Teleconsult Scheduled') && !isInTeleconsult && !isTeleconsultRequested && (
+        <div className="mt-2 text-[11px] text-violet-900 bg-violet-50/90 px-2.5 py-1.5 rounded-xl border border-violet-200 flex items-center justify-between shadow-2xs">
+          <span className="flex items-center gap-1.5 font-bold">
+            <span>📅</span>
+            <span>
+              {appt.scheduledDate
+                ? new Date(appt.scheduledDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+                : 'Today'}
+            </span>
+            <span className="text-violet-300">·</span>
+            <span>⏰</span>
+            <span className="text-violet-700">{appt.timeSlot || 'Scheduled Slot'}</span>
+          </span>
+          <span className="text-[9px] font-black uppercase tracking-wider bg-violet-600 text-white px-2 py-0.5 rounded-md">
+            Virtual OPD
+          </span>
+        </div>
+      )}
+
       {/* Reports Ready Badge / Test Notice */}
       {isReportsReady && (
         <div className="mt-2 text-[11px] text-teal-800 bg-teal-100/70 px-2.5 py-1.5 rounded-xl border border-teal-200 flex items-center justify-between">
@@ -196,12 +224,13 @@ export default function DoctorQueue({
   const [queue, setQueue]                   = useState([]);
   const [activeQueue, setActiveQueue]       = useState([]);
   const [reviewQueue, setReviewQueue]       = useState([]);
-  const [summary, setSummary]               = useState({ total: 0, urgent: 0, waiting: 0, checkedIn: 0, active: 0, reportsReady: 0 });
+  const [teleconsultQueue, setTeleconsultQueue] = useState([]);
+  const [summary, setSummary]               = useState({ total: 0, urgent: 0, waiting: 0, checkedIn: 0, active: 0, reportsReady: 0, teleconsults: 0 });
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState('');
   const [searchQuery, setSearchQuery]       = useState('');
   const [filterPriority, setFilterPriority] = useState('ALL'); // 'ALL' | 'Urgent' | 'Routine'
-  const [queueTab, setQueueTab]             = useState('ALL'); // 'ALL' | 'ONGOING' | 'REPORTS_READY'
+  const [queueTab, setQueueTab]             = useState('ALL'); // 'ALL' | 'ONGOING' | 'REPORTS_READY' | 'TELECONSULT'
   
   // Accordion toggle states
   const [showReportsReady, setShowReportsReady] = useState(true);
@@ -213,13 +242,17 @@ export default function DoctorQueue({
     setError('');
     try {
       const res = await doctorApi.getQueue();
-      const rawActive = res.data?.activeQueue || (res.data?.queue || []).filter((a) => a.status !== 'Reports Ready');
+      const rawActive = res.data?.activeQueue || (res.data?.queue || []).filter((a) => a.status !== 'Reports Ready' && a.type !== 'Teleconsultation');
       const rawReview = res.data?.reviewQueue || (res.data?.queue || []).filter((a) => a.status === 'Reports Ready');
-      const rawQueue  = res.data?.queue || [...rawActive, ...rawReview];
+      const rawTeleconsult = res.data?.teleconsultQueue || (res.data?.queue || []).filter((a) =>
+        a.type === 'Teleconsultation' && ['Teleconsult Scheduled', 'In Teleconsult', 'Teleconsult Requested'].includes(a.status)
+      );
+      const rawQueue  = res.data?.queue || [...rawActive, ...rawReview, ...rawTeleconsult];
       const rawSummary = res.data?.summary || {
         total: rawQueue.length,
         active: rawActive.length,
         reportsReady: rawReview.length,
+        teleconsults: rawTeleconsult.length,
         urgent: rawQueue.filter((a) => a.priority === 'Urgent').length,
         routine: rawQueue.filter((a) => a.priority !== 'Urgent').length,
         checkedIn: rawQueue.filter((a) => a.status === 'CheckedIn').length,
@@ -229,8 +262,9 @@ export default function DoctorQueue({
       setQueue(rawQueue);
       setActiveQueue(rawActive);
       setReviewQueue(rawReview);
+      setTeleconsultQueue(rawTeleconsult);
       setSummary(rawSummary);
-      onQueueLoaded?.({ queue: rawQueue, activeQueue: rawActive, reviewQueue: rawReview, summary: rawSummary });
+      onQueueLoaded?.({ queue: rawQueue, activeQueue: rawActive, reviewQueue: rawReview, teleconsultQueue: rawTeleconsult, summary: rawSummary });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load patient queue.');
     } finally {
@@ -264,9 +298,10 @@ export default function DoctorQueue({
     [searchQuery, filterPriority]
   );
 
-  const filteredActiveQueue = useMemo(() => filterList(activeQueue), [filterList, activeQueue]);
-  const filteredReviewQueue = useMemo(() => filterList(reviewQueue), [filterList, reviewQueue]);
-  const totalFilteredCount  = filteredActiveQueue.length + filteredReviewQueue.length;
+  const filteredActiveQueue      = useMemo(() => filterList(activeQueue), [filterList, activeQueue]);
+  const filteredReviewQueue      = useMemo(() => filterList(reviewQueue), [filterList, reviewQueue]);
+  const filteredTeleconsultQueue = useMemo(() => filterList(teleconsultQueue), [filterList, teleconsultQueue]);
+  const totalFilteredCount       = filteredActiveQueue.length + filteredReviewQueue.length + filteredTeleconsultQueue.length;
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col h-full overflow-hidden">
@@ -347,6 +382,20 @@ export default function DoctorQueue({
             Reports Ready ({reviewQueue.length})
             {reviewQueue.length > 0 && queueTab !== 'REPORTS_READY' && (
               <span className="w-2 h-2 rounded-full bg-teal-500 absolute top-1 right-1 animate-ping" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setQueueTab('TELECONSULT')}
+            className={`flex-1 py-1 rounded-lg transition-all text-center relative ${
+              queueTab === 'TELECONSULT'
+                ? 'bg-violet-600 text-white shadow-xs'
+                : 'text-violet-700 hover:text-violet-900'
+            }`}
+          >
+            📹 Virtual ({teleconsultQueue.length})
+            {teleconsultQueue.length > 0 && queueTab !== 'TELECONSULT' && (
+              <span className="w-2 h-2 rounded-full bg-violet-500 absolute top-1 right-1 animate-ping" />
             )}
           </button>
         </div>
@@ -548,8 +597,41 @@ export default function DoctorQueue({
             </p>
           </div>
         )}
+
+        {/* ── SECTION 3: Virtual OPD / Teleconsult Queue (Prompt 17.4) ───────── */}
+        {!loading && (queueTab === 'ALL' || queueTab === 'TELECONSULT') && teleconsultQueue.length > 0 && (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5 text-xs font-extrabold text-violet-800">
+                <span>📹 Virtual OPD</span>
+                <span className="px-1.5 py-0.5 rounded-md bg-violet-100 text-violet-800 text-[10px]">{teleconsultQueue.length}</span>
+              </div>
+              <span className="text-[10px] text-violet-500 font-semibold">Scheduled Teleconsults</span>
+            </div>
+            <div className="space-y-2 pl-0.5">
+              {teleconsultQueue.map((appt) => (
+                <PatientCard
+                  key={appt._id}
+                  appt={appt}
+                  isSelected={selectedAppointmentId === appt._id}
+                  onSelect={onSelectPatient}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* If user selected TELECONSULT tab but there are none */}
+        {!loading && queueTab === 'TELECONSULT' && teleconsultQueue.length === 0 && (
+          <div className="p-8 text-center text-slate-400 border border-dashed border-violet-200 rounded-2xl bg-violet-50/30">
+            <span className="text-2xl">📹</span>
+            <p className="text-xs font-bold text-violet-900 mt-2">No Scheduled Teleconsults</p>
+            <p className="text-[11px] text-violet-600 mt-0.5">
+              Teleconsultation requests from ASHA workers and nurses will appear here once confirmed by the receptionist.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

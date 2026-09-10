@@ -10,15 +10,18 @@ import LabInvestigationOrder from '../../models/LabInvestigationOrder.js';
 // @route   GET /api/doctor/queue
 // @access  Private (Doctor)
 // Returns all waiting and checked-in patients assigned to the logged-in doctor,
-// separated into activeQueue ('Waiting', 'CheckedIn', 'Waiting for Doctor') and reviewQueue ('Reports Ready').
+// separated into activeQueue, reviewQueue, and teleconsultQueue.
 export const getDoctorQueue = async (req, res) => {
   try {
     const doctorId = req.user._id;
 
-    // Fetch appointments where assignedDoctorId is this doctor and status is Waiting, CheckedIn, Waiting for Doctor, Reports Ready, or Teleconsult
+    // Fetch appointments where assignedDoctorId is this doctor and status is active/teleconsult
     const appointments = await Appointment.find({
       assignedDoctorId: doctorId,
-      status: { $in: ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready', 'Teleconsult Requested', 'In Teleconsult'] },
+      status: { $in: [
+        'Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready',
+        'Teleconsult Requested', 'Teleconsult Scheduled', 'In Teleconsult',
+      ]},
     })
       .populate('patientId', 'firstName lastName contactPhone gender dob abhaId address bloodGroup emergencyContact')
       .populate('facilityId', 'hospitalName address')
@@ -43,9 +46,9 @@ export const getDoctorQueue = async (req, res) => {
       // Sequential queueNumber if available
       if (a.queueNumber && b.queueNumber) return a.queueNumber - b.queueNumber;
 
-      // Otherwise chronological by appointmentDate / createdAt
-      const dateA = new Date(a.appointmentDate || a.createdAt).getTime();
-      const dateB = new Date(b.appointmentDate || b.createdAt).getTime();
+      // Otherwise chronological by scheduledDate / appointmentDate / createdAt
+      const dateA = new Date(a.scheduledDate || a.appointmentDate || a.createdAt).getTime();
+      const dateB = new Date(b.scheduledDate || b.appointmentDate || b.createdAt).getTime();
       return dateA - dateB;
     });
 
@@ -64,13 +67,19 @@ export const getDoctorQueue = async (req, res) => {
       };
     });
 
-    // Prompt 8.4 & 16.1: Two distinct queues
-    // 1. Active ongoing queue (including teleconsultation requests)
+    // Prompt 8.4 & 16.1: Two distinct physical queues + one teleconsult queue
+    // 1. Active ongoing physical queue
     const activeQueue = enriched.filter((a) =>
       ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'In Progress', 'Teleconsult Requested', 'In Teleconsult'].includes(a.status)
+      && a.type !== 'Teleconsultation'
     );
     // 2. Review queue for patients whose lab tests are finished
     const reviewQueue = enriched.filter((a) => a.status === 'Reports Ready');
+    // 3. Prompt 17.4: Dedicated Teleconsult Queue (Virtual OPD)
+    const teleconsultQueue = enriched.filter((a) =>
+      a.type === 'Teleconsultation' &&
+      ['Teleconsult Scheduled', 'Teleconsult Requested', 'In Teleconsult'].includes(a.status)
+    );
 
     const waiting    = enriched.filter((a) => a.status === 'Waiting');
     const inProgress = enriched.filter((a) => ['CheckedIn', 'Waiting for Doctor', 'In Progress'].includes(a.status));
@@ -78,13 +87,14 @@ export const getDoctorQueue = async (req, res) => {
 
     // Calculate queue summary metrics
     const summary = {
-      total:        enriched.length,
-      active:       activeQueue.length,
-      reportsReady: reviewQueue.length,
-      urgent:       enriched.filter((a) => a.priority === 'Urgent').length,
-      routine:      enriched.filter((a) => a.priority !== 'Urgent').length,
-      checkedIn:    enriched.filter((a) => a.status === 'CheckedIn').length,
-      waiting:      waiting.length,
+      total:             enriched.length,
+      active:            activeQueue.length,
+      reportsReady:      reviewQueue.length,
+      teleconsults:      teleconsultQueue.length,
+      urgent:            enriched.filter((a) => a.priority === 'Urgent').length,
+      routine:           enriched.filter((a) => a.priority !== 'Urgent').length,
+      checkedIn:         enriched.filter((a) => a.status === 'CheckedIn').length,
+      waiting:           waiting.length,
     };
 
     res.status(200).json({
@@ -92,6 +102,7 @@ export const getDoctorQueue = async (req, res) => {
       summary,
       activeQueue,
       reviewQueue,
+      teleconsultQueue,
       queue: enriched,
       waiting,
       inProgress,
@@ -101,6 +112,7 @@ export const getDoctorQueue = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // ─── startAppointment ─────────────────────────────────────────────────────────
 // @route   PATCH /api/doctor/appointment/:appointmentId/start

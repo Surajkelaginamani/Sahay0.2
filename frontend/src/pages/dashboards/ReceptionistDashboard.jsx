@@ -7,6 +7,7 @@ import DoctorRoster            from '../../features/receptionist/components/Doct
 import AppointmentScheduler   from '../../features/receptionist/components/AppointmentScheduler';
 import UpcomingAppointments    from '../../features/receptionist/components/UpcomingAppointments';
 import receptionistApi         from '../../features/receptionist/services/receptionistApi';
+import axios                   from 'axios';
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ toast }) {
@@ -112,6 +113,18 @@ const TABS = [
       </svg>
     ),
   },
+  {
+    id: 'teleconsults',
+    label: 'Teleconsult Requests',
+    shortLabel: 'Teleconsult',
+    color: 'violet',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+          d="M15 10l4.553-2.069A1 1 0 0121 8.87V15.13a1 1 0 01-1.447.899L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
 ];
 
 const TAB_ACTIVE_CLASSES = {
@@ -136,6 +149,19 @@ export default function ReceptionistDashboard() {
   // Incoming ASHA referrals
   const [incomingReferrals, setIncomingReferrals] = useState([]);
   const [loadingReferrals, setLoadingReferrals]   = useState(false);
+  // Teleconsult requests (Prompt 17.3)
+  const [pendingTeleconsults, setPendingTeleconsults] = useState([]);
+  const [loadingTeleconsults, setLoadingTeleconsults] = useState(false);
+  const [facilityDoctors, setFacilityDoctors]         = useState([]);
+  const [confirming, setConfirming]                   = useState(null); // appointmentId being confirmed
+  const [confirmDoctorId, setConfirmDoctorId]         = useState({});   // { [apptId]: doctorId }
+  const [confirmTimeSlot, setConfirmTimeSlot]         = useState({});   // { [apptId]: timeSlot }
+
+  // ── Toast helper ────────────────────────────────────────────────────────
+  const showToast = useCallback((type, title, message) => {
+    setToast({ type, title, message });
+    setTimeout(() => setToast(null), 5000);
+  }, []);
 
   // ── Live clock ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -165,15 +191,63 @@ export default function ReceptionistDashboard() {
     }
   }, []);
 
+  // ── Load pending teleconsults (Prompt 17.3) ──────────────────────────────────
+  const loadPendingTeleconsults = useCallback(async () => {
+    setLoadingTeleconsults(true);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('sahay_token');
+      const res = await axios.get('/api/receptionist/teleconsults/pending', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPendingTeleconsults(res.data.teleconsults || []);
+    } catch {
+      // non-blocking
+    } finally {
+      setLoadingTeleconsults(false);
+    }
+  }, []);
+
+  const loadFacilityDoctors = useCallback(async () => {
+    try {
+      const res = await receptionistApi.getFacilityDoctors();
+      setFacilityDoctors(res.data.doctors || []);
+    } catch {
+      // non-blocking
+    }
+  }, []);
+
+  const handleConfirmTeleconsult = useCallback(async (appointmentId) => {
+    const doctorId = confirmDoctorId[appointmentId];
+    if (!doctorId) return;
+    setConfirming(appointmentId);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('sahay_token');
+      const res = await axios.post('/api/receptionist/teleconsults/confirm', {
+        appointmentId,
+        assignedDoctorId: doctorId,
+        timeSlot: confirmTimeSlot[appointmentId] || '',
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      showToast('success', '✅ Teleconsult Confirmed',
+        res.data.message || 'Doctor assigned and room ID generated.');
+      loadPendingTeleconsults();
+    } catch (err) {
+      showToast('error', 'Confirm Failed', err.response?.data?.message || 'Could not confirm teleconsult.');
+    } finally {
+      setConfirming(null);
+    }
+  }, [confirmDoctorId, confirmTimeSlot, showToast, loadPendingTeleconsults]);
+
   useEffect(() => {
     if (user) loadIncomingReferrals();
   }, [user, loadIncomingReferrals]);
 
-  // ── Toast helper ────────────────────────────────────────────────────────
-  const showToast = useCallback((type, title, message) => {
-    setToast({ type, title, message });
-    setTimeout(() => setToast(null), 5000);
-  }, []);
+  useEffect(() => {
+    if (user && activeTab === 'teleconsults') {
+      loadPendingTeleconsults();
+      loadFacilityDoctors();
+    }
+  }, [user, activeTab, loadPendingTeleconsults, loadFacilityDoctors]);
+
 
   // ── Logout ──────────────────────────────────────────────────────────────
   const handleLogout = () => {
@@ -308,6 +382,8 @@ export default function ReceptionistDashboard() {
             const isActive = activeTab === tab.id;
             const badge = tab.id === 'referrals' && incomingReferrals.length > 0
               ? incomingReferrals.length
+              : tab.id === 'teleconsults' && pendingTeleconsults.length > 0
+              ? pendingTeleconsults.length
               : null;
             return (
               <button
@@ -342,11 +418,12 @@ export default function ReceptionistDashboard() {
             {(() => {
               const tab = TABS.find((t) => t.id === activeTab);
               const colorMap = {
-                amber:  'bg-amber-100 text-amber-700',
-                rose:   'bg-rose-100 text-rose-700',
-                violet: 'bg-violet-100 text-violet-700',
-                sky:    'bg-sky-100 text-sky-700',
-                teal:   'bg-teal-100 text-teal-700',
+                amber:   'bg-amber-100 text-amber-700',
+                rose:    'bg-rose-100 text-rose-700',
+                violet:  'bg-violet-100 text-violet-700',
+                sky:     'bg-sky-100 text-sky-700',
+                teal:    'bg-teal-100 text-teal-700',
+                emerald: 'bg-emerald-100 text-emerald-700',
               };
               return (
                 <>
@@ -507,6 +584,134 @@ export default function ReceptionistDashboard() {
 
           </div>
         </div>
+
+        {/* ── Teleconsult Triage Desk (Prompt 17.3) ─────────────────────── */}
+        {activeTab === 'teleconsults' && (
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center shrink-0 text-base">📹</div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-800">Teleconsult Triage Desk</h2>
+                <p className="text-[11px] text-slate-400 mt-0.5">Review requests from ASHA workers, nurses &amp; patients — assign doctor &amp; generate room link</p>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-500 font-medium">
+                  {loadingTeleconsults ? 'Loading…' : `${pendingTeleconsults.length} pending request(s)`}
+                </p>
+                <button
+                  id="refresh-teleconsults-btn"
+                  onClick={loadPendingTeleconsults}
+                  disabled={loadingTeleconsults}
+                  className="text-xs font-semibold text-violet-600 hover:text-violet-800 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <svg className={`w-3.5 h-3.5 ${loadingTeleconsults ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+
+              {pendingTeleconsults.length === 0 && !loadingTeleconsults ? (
+                <div className="text-center py-12">
+                  <div className="w-14 h-14 rounded-2xl bg-violet-50 mx-auto flex items-center justify-center mb-3 text-3xl">📹</div>
+                  <p className="text-sm font-semibold text-slate-600">No pending teleconsult requests</p>
+                  <p className="text-xs text-slate-400 mt-1">Requests from ASHA workers, nurses, and patients will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingTeleconsults.map((tc) => (
+                    <div key={tc._id} className="border border-violet-200 rounded-2xl overflow-hidden bg-violet-50/30">
+                      <div className="h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
+                      <div className="p-4 space-y-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center font-bold shrink-0">
+                              {tc.patientId?.firstName?.[0]}{tc.patientId?.lastName?.[0]}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900 text-sm">{tc.patientFullName}</p>
+                              <p className="text-xs text-slate-500">{tc.patientId?.gender} · {tc.patientId?.contactPhone || '—'}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Awaiting Review
+                            </span>
+                            <span className="text-[10px] text-violet-700 font-bold bg-violet-100 px-2 py-0.5 rounded-full">
+                              {tc.teleconsultSource || 'External'} Request
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Requested Date</p>
+                            <p className="font-bold text-slate-800">
+                              {tc.scheduledDate ? new Date(tc.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                            </p>
+                          </div>
+                          <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Time Preference</p>
+                            <p className="font-bold text-slate-800">{tc.timeSlot || '—'}</p>
+                          </div>
+                        </div>
+
+                        {tc.chiefComplaint && (
+                          <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Chief Complaint</p>
+                            <p className="text-sm text-slate-800 font-medium">{tc.chiefComplaint}</p>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-slate-600 bg-white/70 px-3 py-2 rounded-xl border border-violet-100">
+                          👤 Booked by: <strong className="text-slate-800">{tc.bookedByName}</strong>
+                        </p>
+
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-slate-700">
+                            Assign Doctor <span className="text-rose-500">*</span>
+                          </label>
+                          <select
+                            value={confirmDoctorId[tc._id] || ''}
+                            onChange={(e) => setConfirmDoctorId((prev) => ({ ...prev, [tc._id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                          >
+                            <option value="">— Select a doctor —</option>
+                            {facilityDoctors.map((doc) => (
+                              <option key={doc._id} value={doc._id}>Dr. {doc.name}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            placeholder="Confirm time slot (e.g. 10:30 AM)"
+                            value={confirmTimeSlot[tc._id] || ''}
+                            onChange={(e) => setConfirmTimeSlot((prev) => ({ ...prev, [tc._id]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                          />
+                        </div>
+
+                        <button
+                          id={`confirm-teleconsult-${tc._id}`}
+                          onClick={() => handleConfirmTeleconsult(tc._id)}
+                          disabled={!confirmDoctorId[tc._id] || confirming === tc._id}
+                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-sm
+                            hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-200/50"
+                        >
+                          {confirming === tc._id ? (
+                            <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Confirming…</>
+                          ) : <>✅ Confirm &amp; Generate Room Link</>}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Footer info strip ────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

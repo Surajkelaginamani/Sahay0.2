@@ -15,8 +15,8 @@ const appointmentSchema = new mongoose.Schema(
     },
     receptionistId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', // User with role='Receptionist'
-      required: [true, 'Receptionist reference is required'],
+      ref: 'User', // User with role='Receptionist' (optional for teleconsult requests)
+      default: null,
     },
     assignedDoctorId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -50,7 +50,33 @@ const appointmentSchema = new mongoose.Schema(
       default: 'Routine',
     },
 
-    // ── Workflow Status (Prompt 6.1) ──────────────────────────────────────────
+    // ── Appointment Type (Prompt 17.1) ────────────────────────────────────────
+    type: {
+      type: String,
+      enum: {
+        values: ['Physical', 'Teleconsultation'],
+        message: '{VALUE} is not a valid appointment type.',
+      },
+      default: 'Physical',
+    },
+
+    // ── Teleconsultation Source (Prompt 17.1) ─────────────────────────────────
+    teleconsultSource: {
+      type: String,
+      enum: {
+        values: ['ASHA', 'Nurse', 'Patient'],
+        message: '{VALUE} is not a valid teleconsult source.',
+      },
+      default: null,
+    },
+
+    // ── Scheduled Date for Teleconsult (Prompt 17.1) ──────────────────────────
+    scheduledDate: {
+      type: Date,
+      default: null,
+    },
+
+    // ── Workflow Status (Prompt 6.1 + 16.1 + 17.1) ────────────────────────────
     status: {
       type: String,
       enum: {
@@ -61,6 +87,7 @@ const appointmentSchema = new mongoose.Schema(
           'Lab Pending',
           'Reports Ready',
           'Teleconsult Requested',
+          'Teleconsult Scheduled',
           'In Teleconsult',
           'Completed',
           // Backward-compatible statuses

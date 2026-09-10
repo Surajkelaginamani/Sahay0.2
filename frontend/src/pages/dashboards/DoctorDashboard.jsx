@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DoctorQueue from '../../features/doctor/components/DoctorQueue';
 import ConsultationPanel from '../../features/doctor/components/ConsultationPanel';
 import PatientHistory from '../../features/doctor/components/PatientHistory';
+import VideoRoom from '../../components/common/VideoRoom';
 
 function StatCard({ icon, label, value, sub, color }) {
   return (
@@ -187,60 +188,88 @@ export default function DoctorDashboard() {
           />
         </div>
 
-        {/* ── Main Workspace: Queue Sidebar + 2-Tab Clinical Panel ─────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Doctor Queue */}
-          <div className="lg:col-span-4 xl:col-span-4 sticky top-6">
-            <DoctorQueue
-              selectedAppointmentId={selectedAppointment?._id}
-              onSelectPatient={handleSelectPatient}
-              refreshTrigger={queueRefresh}
-              onQueueLoaded={handleQueueLoaded}
-            />
-          </div>
+        {/* ── Main Workspace: Queue Sidebar + Clinical Panel ─────────── */}
+        {selectedAppointment && (selectedAppointment.type === 'Teleconsultation' || selectedAppointment.teleconsultRoomId) ? (
+          /* ── Side-by-Side Teleconsultation Workspace (Prompt 17.4) ────────── */
+          <div className="space-y-4">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-violet-900 via-purple-900 to-indigo-950 text-white p-4 sm:p-5 rounded-3xl flex flex-wrap items-center justify-between gap-4 shadow-xl border border-violet-700/50">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-violet-500/20 text-violet-300 border border-violet-400/40 flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                  📹
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-extrabold text-white">Virtual OPD Teleconsultation Session</h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-emerald-950 uppercase tracking-wider animate-pulse">
+                      Live Teleconsult Active
+                    </span>
+                  </div>
+                  <p className="text-xs text-violet-200 mt-0.5">
+                    Patient: <strong className="text-white">{selectedAppointment.patientFullName}</strong>
+                    {selectedAppointment.patientId?.gender && ` (${selectedAppointment.patientId.gender})`}
+                    {selectedAppointment.timeSlot && ` · Slot: ${selectedAppointment.timeSlot}`}
+                    {selectedAppointment.teleconsultSource && ` · Via ${selectedAppointment.teleconsultSource}`}
+                  </p>
+                </div>
+              </div>
 
-          {/* Right Column: 2-Tab Clinical Workspace (Prompt 7.3) */}
-          <div className="lg:col-span-8 xl:col-span-8 space-y-4">
-            {selectedAppointment ? (
-              <>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedAppointment(null)}
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-violet-200 text-xs font-bold transition-all border border-white/10"
+                >
+                  ✕ Exit Video Session
+                </button>
+              </div>
+            </div>
+
+            {/* 50% Left (Video) / 50% Right (ABDM Panel) Split */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+              {/* Left Panel (50%): Live Jitsi Video Conference */}
+              <div className="xl:col-span-6 space-y-3">
+                <div className="bg-slate-950 rounded-3xl p-3 border border-slate-800 shadow-2xl overflow-hidden">
+                  <VideoRoom
+                    roomName={selectedAppointment.teleconsultRoomId || `room-sahay-${selectedAppointment._id}`}
+                    displayName={`Dr. ${user.name}`}
+                    onClose={() => setSelectedAppointment(null)}
+                  />
+                </div>
+              </div>
+
+              {/* Right Panel (50%): Standard ABDM Clinical Consultation Station */}
+              <div className="xl:col-span-6 space-y-4">
                 {/* 2-Tab Navigation Bar */}
                 <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setWorkspaceTab('consultation')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
                         workspaceTab === 'consultation'
                           ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
                           : 'text-slate-600 hover:bg-slate-50'
                       }`}
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
                       <span>Current Consultation</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setWorkspaceTab('history')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
                         workspaceTab === 'history'
                           ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
                           : 'text-slate-600 hover:bg-slate-50'
                       }`}
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
                       <span>Medical History</span>
                     </button>
                   </div>
 
                   <span className="text-[11px] text-slate-400 font-semibold pr-3 hidden sm:inline">
-                    Doctor Clinical Station
+                    ABDM Consultation Station
                   </span>
                 </div>
 
@@ -258,17 +287,93 @@ export default function DoctorDashboard() {
                     patient={selectedAppointment.patientId}
                   />
                 )}
-              </>
-            ) : (
-              <ConsultationPanel
-                appointment={null}
-                onConsultationSaved={handleConsultationSaved}
-                onLabRequested={handleLabRequested}
-                onCancel={() => setSelectedAppointment(null)}
-              />
-            )}
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* ── Standard Physical OPD Layout: Queue (4 cols) + Workspace (8 cols) ── */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Column: Doctor Queue */}
+            <div className="lg:col-span-4 xl:col-span-4 sticky top-6">
+              <DoctorQueue
+                selectedAppointmentId={selectedAppointment?._id}
+                onSelectPatient={handleSelectPatient}
+                refreshTrigger={queueRefresh}
+                onQueueLoaded={handleQueueLoaded}
+              />
+            </div>
+
+            {/* Right Column: 2-Tab Clinical Workspace (Prompt 7.3) */}
+            <div className="lg:col-span-8 xl:col-span-8 space-y-4">
+              {selectedAppointment ? (
+                <>
+                  {/* 2-Tab Navigation Bar */}
+                  <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setWorkspaceTab('consultation')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                          workspaceTab === 'consultation'
+                            ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Current Consultation</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setWorkspaceTab('history')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                          workspaceTab === 'history'
+                            ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Medical History</span>
+                      </button>
+                    </div>
+
+                    <span className="text-[11px] text-slate-400 font-semibold pr-3 hidden sm:inline">
+                      Doctor Clinical Station
+                    </span>
+                  </div>
+
+                  {/* Active Tab View */}
+                  {workspaceTab === 'consultation' ? (
+                    <ConsultationPanel
+                      appointment={selectedAppointment}
+                      onConsultationSaved={handleConsultationSaved}
+                      onLabRequested={handleLabRequested}
+                      onCancel={() => setSelectedAppointment(null)}
+                    />
+                  ) : (
+                    <PatientHistory
+                      patientId={selectedAppointment.patientId?._id || selectedAppointment.patientId}
+                      patient={selectedAppointment.patientId}
+                    />
+                  )}
+                </>
+              ) : (
+                <ConsultationPanel
+                  appointment={null}
+                  onConsultationSaved={handleConsultationSaved}
+                  onLabRequested={handleLabRequested}
+                  onCancel={() => setSelectedAppointment(null)}
+                />
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

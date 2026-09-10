@@ -14,6 +14,7 @@ import nurseRoutes from './src/modules/nurse/nurseRoutes.js';
 import pharmacyRoutes from './src/modules/pharmacy/pharmacyRoutes.js';
 import ashaRoutes from './src/modules/asha/ashaRoutes.js';
 import referralRoutes from './src/routes/referralRoutes.js';
+import teleconsultRoutes from './src/routes/teleconsultRoutes.js';
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use('/api/pharmacy', pharmacyRoutes);
 app.use('/api/asha', ashaRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/referral', referralRoutes);
+app.use('/api/teleconsult', teleconsultRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import TriageQueue from '../../features/nurse/components/TriageQueue';
 import VitalsForm from '../../features/nurse/components/VitalsForm';
 import LabCoordination from '../../features/nurse/components/LabCoordination';
 import CreateReferralForm from '../../components/common/CreateReferralForm';
 import VideoRoom from '../../components/common/VideoRoom';
+import BookTeleconsultModal from '../../components/common/BookTeleconsultModal';
 import nurseApi from '../../features/nurse/services/nurseApi';
 
 function StatCard({ icon, label, value, sub, color }) {
@@ -44,6 +46,28 @@ export default function NurseDashboard() {
   const [selectedDoctorId, setSelectedDoctorId]       = useState('');
   const [requestingTeleconsult, setRequestingTeleconsult] = useState(false);
   const [activeVideoRoom, setActiveVideoRoom]         = useState(null);
+
+  // ── Scheduled Teleconsult Booking modal (Prompt 17.2) ────────────────────────
+  const [showBookTeleconsultModal, setShowBookTeleconsultModal] = useState(false);
+
+  // ── My Teleconsults State & Fetcher (Prompt 17.4) ─────────────────────────────
+  const [myTeleconsults, setMyTeleconsults]             = useState([]);
+  const [loadingTeleconsults, setLoadingTeleconsults]   = useState(false);
+
+  const loadMyTeleconsults = useCallback(async () => {
+    setLoadingTeleconsults(true);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('sahay_token');
+      const res = await axios.get('/api/teleconsult/my', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMyTeleconsults(res.data.teleconsults || []);
+    } catch {
+      // non-blocking
+    } finally {
+      setLoadingTeleconsults(false);
+    }
+  }, []);
 
   // Live time ticker
   useEffect(() => {
@@ -159,6 +183,12 @@ export default function NurseDashboard() {
     }
   };
 
+  useEffect(() => {
+    if (user && activeTab === 'teleconsults') {
+      loadMyTeleconsults();
+    }
+  }, [user, activeTab, loadMyTeleconsults]);
+
   if (!user) return null;
 
   return (
@@ -177,6 +207,18 @@ export default function NurseDashboard() {
           </div>
         </div>
       )}
+
+
+      {/* ── Book Scheduled Teleconsult Modal (Prompt 17.2) ── */}
+      <BookTeleconsultModal
+        isOpen={showBookTeleconsultModal}
+        onClose={() => setShowBookTeleconsultModal(false)}
+        callerRole={user?.role}
+        onSuccess={(appt) => {
+          showToast('success', '📹 Teleconsult Scheduled!', 'Request submitted for hospital review. The patient will be notified once confirmed.');
+          setShowBookTeleconsultModal(false);
+        }}
+      />
 
       <div className="max-w-7xl mx-auto space-y-6">
 
@@ -225,6 +267,15 @@ export default function NurseDashboard() {
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               <span className="hidden sm:inline">Refresh</span>
+            </button>
+
+            {/* Schedule Teleconsult (Prompt 17.2) */}
+            <button
+              id="schedule-teleconsult-btn"
+              onClick={() => setShowBookTeleconsultModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white text-xs font-bold shadow-sm shadow-violet-200 hover:opacity-90 transition-all"
+            >
+              📹 <span className="hidden sm:inline">Schedule Teleconsult</span>
             </button>
 
             {/* Logout */}
@@ -365,6 +416,28 @@ export default function NurseDashboard() {
                 Transfer
               </span>
             </button>
+
+            {/* Prompt 17.4: My Teleconsults Tab */}
+            <button
+              type="button"
+              id="tab-nurse-teleconsults"
+              onClick={() => setActiveTab('teleconsults')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                activeTab === 'teleconsults'
+                  ? 'bg-teal-600 text-white shadow-sm shadow-teal-200'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <span className="text-sm">📹</span>
+              <span>My Teleconsults</span>
+              {myTeleconsults.length > 0 && (
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  activeTab === 'teleconsults' ? 'bg-teal-700 text-white' : 'bg-violet-100 text-violet-800'
+                }`}>
+                  {myTeleconsults.length}
+                </span>
+              )}
+            </button>
           </div>
 
           <span className="text-[11px] text-slate-400 font-semibold pr-3 hidden sm:inline">
@@ -403,8 +476,8 @@ export default function NurseDashboard() {
             </div>
 
             <VideoRoom
-              roomName={activeVideoRoom.roomName}
-              displayName={`${user?.name || 'Nurse'} (Nurse / Triage)`}
+              roomName={activeVideoRoom.roomName || activeVideoRoom.roomId}
+              displayName={activeVideoRoom.displayName || `${user?.name || 'Nurse'} (Nurse / Triage)`}
               onClose={() => {
                 setActiveVideoRoom(null);
                 setRefreshTrigger((r) => r + 1);
@@ -471,6 +544,161 @@ export default function NurseDashboard() {
                 );
               }}
             />
+          </div>
+        )}
+
+        {/* Tab 4: My Teleconsults (Prompt 17.4) */}
+        {activeTab === 'teleconsults' && (
+          <div className="max-w-4xl mx-auto space-y-4">
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 text-white flex items-center justify-center text-xl shadow-md shadow-violet-200 shrink-0">
+                  📹
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-900">Virtual OPD Teleconsultations</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Track and join scheduled specialist video consultations booked from this triage station.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  id="nurse-refresh-teleconsults-btn"
+                  onClick={loadMyTeleconsults}
+                  disabled={loadingTeleconsults}
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 flex items-center gap-1.5 transition-all"
+                >
+                  <svg className={`w-3.5 h-3.5 ${loadingTeleconsults ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  </svg>
+                  <span>Refresh</span>
+                </button>
+                <button
+                  id="nurse-book-teleconsult-action-btn"
+                  onClick={() => setShowBookTeleconsultModal(true)}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white text-xs font-extrabold shadow-sm shadow-violet-200 hover:opacity-90 transition-all flex items-center gap-1.5"
+                >
+                  <span>+</span>
+                  <span>Schedule Teleconsult</span>
+                </button>
+              </div>
+            </div>
+
+            {loadingTeleconsults && (
+              <div className="text-center py-12 bg-white rounded-3xl border border-slate-100">
+                <div className="w-8 h-8 border-3 border-violet-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-xs text-slate-500 font-semibold">Loading teleconsultations…</p>
+              </div>
+            )}
+
+            {!loadingTeleconsults && myTeleconsults.length === 0 && (
+              <div className="text-center py-12 bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+                <div className="w-14 h-14 rounded-2xl bg-violet-50 mx-auto flex items-center justify-center mb-3 text-3xl">📹</div>
+                <p className="text-sm font-bold text-slate-700">No teleconsultations scheduled yet</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                  Use "Schedule Teleconsult" to book a specialist video consult for patients needing secondary review.
+                </p>
+                <button
+                  onClick={() => setShowBookTeleconsultModal(true)}
+                  className="mt-4 px-5 py-2.5 rounded-xl bg-violet-600 text-white font-bold text-xs hover:bg-violet-700 transition-colors shadow-md shadow-violet-200"
+                >
+                  Schedule Teleconsult Now
+                </button>
+              </div>
+            )}
+
+            {!loadingTeleconsults && myTeleconsults.length > 0 && (
+              <div className="space-y-3">
+                {myTeleconsults.map((tc) => {
+                  const isScheduled = tc.status === 'Teleconsult Scheduled';
+                  const isRequested = tc.status === 'Teleconsult Requested';
+                  return (
+                    <div
+                      key={tc._id}
+                      className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all
+                        ${isScheduled ? 'border-violet-300 ring-1 ring-violet-200' : 'border-slate-200'}`}
+                    >
+                      <div className={`h-1.5 w-full ${isScheduled ? 'bg-gradient-to-r from-violet-500 to-purple-600' : isRequested ? 'bg-amber-400' : 'bg-emerald-500'}`} />
+                      <div className="p-5 space-y-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-sm shrink-0">
+                              {tc.patientId?.firstName?.[0] || 'P'}{tc.patientId?.lastName?.[0] || ''}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900 text-sm">{tc.patientFullName}</p>
+                              <p className="text-xs text-slate-500">
+                                {tc.patientId?.gender || '—'} · {tc.patientId?.contactPhone || 'No phone'}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border
+                            ${isScheduled ? 'bg-violet-100 text-violet-800 border-violet-200' :
+                              isRequested ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                              'bg-emerald-100 text-emerald-800 border-emerald-200'}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isScheduled ? 'bg-violet-600' : isRequested ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                            {tc.status}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                          <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Facility</p>
+                            <p className="font-bold text-slate-800 truncate">{tc.facilityName}</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Doctor</p>
+                            <p className="font-bold text-slate-800 truncate">{tc.doctorName}</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Date</p>
+                            <p className="font-bold text-slate-800">
+                              {tc.scheduledDate ? new Date(tc.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                            </p>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Time Slot</p>
+                            <p className="font-bold text-slate-800 truncate">{tc.timeSlot || '—'}</p>
+                          </div>
+                        </div>
+
+                        {tc.chiefComplaint && (
+                          <div className="bg-violet-50/50 rounded-xl px-3.5 py-2 border border-violet-100 text-xs">
+                            <span className="font-bold text-violet-900 uppercase text-[10px] mr-1">Chief Complaint:</span>
+                            <span className="text-slate-700">{tc.chiefComplaint}</span>
+                          </div>
+                        )}
+
+                        {isScheduled && tc.teleconsultRoomId && (
+                          <button
+                            id={`nurse-join-teleconsult-${tc._id}`}
+                            onClick={() => setActiveVideoRoom({
+                              roomName: tc.teleconsultRoomId,
+                              patientName: tc.patientFullName,
+                              appointmentId: tc._id,
+                            })}
+                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-xs
+                              hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md shadow-violet-200"
+                          >
+                            <span>📹</span>
+                            <span>Join Doctor Call</span>
+                          </button>
+                        )}
+
+                        {isRequested && (
+                          <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-xs text-amber-700">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                            Awaiting hospital review and doctor assignment…
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

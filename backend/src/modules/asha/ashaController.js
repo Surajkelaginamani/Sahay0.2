@@ -32,40 +32,64 @@ export const getHigherLevelHospitals = async (req, res) => {
 // ─── searchPatients ────────────────────────────────────────────────────────────
 // @route   GET /api/asha/patients/search?q=<name|phone>
 // @access  Private (ASHA, AshaWorker)
-// Searches all patients system-wide by name or phone number.
+// Searches all patients system-wide by name, phone number, or ABHA ID.
 export const searchPatients = async (req, res) => {
   try {
     const { q } = req.query;
 
     if (!q || q.trim().length < 2) {
-      return res.status(400).json({
-        message: 'Search query must be at least 2 characters.',
-      });
+      return res.json({ count: 0, patients: [] });
     }
 
     const term = q.trim();
     const isPhone = /^\d+$/.test(term);
+    const tokens = term.split(/\s+/).filter(Boolean);
 
-    const filter = isPhone
-      ? { contactPhone: { $regex: term, $options: 'i' } }
-      : {
-          $or: [
-            { firstName: { $regex: term, $options: 'i' } },
-            { lastName:  { $regex: term, $options: 'i' } },
-          ],
-        };
+    let filter;
+    if (isPhone) {
+      filter = { contactPhone: { $regex: term, $options: 'i' } };
+    } else if (tokens.length > 1) {
+      filter = {
+        $or: [
+          {
+            $and: [
+              { firstName: { $regex: tokens[0], $options: 'i' } },
+              { lastName:  { $regex: tokens[1], $options: 'i' } },
+            ],
+          },
+          {
+            $and: [
+              { firstName: { $regex: tokens[1], $options: 'i' } },
+              { lastName:  { $regex: tokens[0], $options: 'i' } },
+            ],
+          },
+          { firstName: { $regex: term, $options: 'i' } },
+          { lastName:  { $regex: term, $options: 'i' } },
+          { abhaId:    { $regex: term, $options: 'i' } },
+        ],
+      };
+    } else {
+      filter = {
+        $or: [
+          { firstName: { $regex: term, $options: 'i' } },
+          { lastName:  { $regex: term, $options: 'i' } },
+          { contactPhone: { $regex: term, $options: 'i' } },
+          { abhaId:    { $regex: term, $options: 'i' } },
+        ],
+      };
+    }
 
     const patients = await Patient.find(filter)
       .select('firstName lastName dob gender contactPhone abhaId')
       .sort({ createdAt: -1 })
-      .limit(15)
+      .limit(20)
       .lean();
 
     res.json({
       count: patients.length,
       patients: patients.map((p) => ({
         ...p,
-        fullName: `${p.firstName} ${p.lastName}`,
+        fullName: `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Citizen',
       })),
     });
   } catch (error) {

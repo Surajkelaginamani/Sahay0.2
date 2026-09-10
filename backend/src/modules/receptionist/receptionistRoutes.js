@@ -12,6 +12,8 @@ import {
   scheduleAppointment,
   getUpcomingAppointments,
   getIncomingReferrals,
+  getPendingTeleconsults,
+  confirmTeleconsult,
 } from './receptionistController.js';
 
 const router = express.Router();
@@ -52,5 +54,11 @@ router.get('/queue/today',   getTodayQueue);
 // ── Referral routes ───────────────────────────────────────────────────────────
 // GET    /api/receptionist/referrals/incoming  → all pending ASHA referrals to this facility
 router.get('/referrals/incoming', getIncomingReferrals);
+
+// ── Teleconsult Triage routes (Prompt 17.1) ───────────────────────────────────
+// GET    /api/receptionist/teleconsults/pending   → all Teleconsult Requested at this facility
+// POST   /api/receptionist/teleconsults/confirm   → assign doctor, generate room, mark Teleconsult Scheduled
+router.get('/teleconsults/pending',  getPendingTeleconsults);
+router.post('/teleconsults/confirm', confirmTeleconsult);
 
 export default router;

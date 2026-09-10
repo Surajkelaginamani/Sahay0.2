@@ -9,15 +9,22 @@ import {
 
 const router = express.Router();
 
-// Allow ASHA and Nurse roles to access referral routes
-router.use(protect, authorize('ASHA', 'AshaWorker', 'Nurse'));
-
-// ── Hospital & Patient lookup routes for referral creation ────────────────────
-router.get('/hospitals', getHigherLevelHospitals);
-router.get('/patients/search', searchPatients);
+// ── Hospital & Patient lookup routes for referral creation & teleconsult ──────
+router.get(
+  '/hospitals',
+  protect,
+  authorize('ASHA', 'AshaWorker', 'Nurse', 'Patient', 'Receptionist', 'Doctor', 'HospitalAdmin'),
+  getHigherLevelHospitals
+);
+router.get(
+  '/patients/search',
+  protect,
+  authorize('ASHA', 'AshaWorker', 'Nurse', 'Patient', 'Receptionist', 'Doctor', 'HospitalAdmin'),
+  searchPatients
+);
 
 // ── Shared Referral routes (Prompt 15.1) ──────────────────────────────────────
-router.post('/', createReferral);
-router.get('/', getMyReferrals);
+router.post('/', protect, authorize('ASHA', 'AshaWorker', 'Nurse', 'Doctor'), createReferral);
+router.get('/', protect, authorize('ASHA', 'AshaWorker', 'Nurse', 'Doctor'), getMyReferrals);
 
 export default router;
