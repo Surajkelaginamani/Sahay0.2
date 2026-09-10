@@ -161,6 +161,28 @@ export default function AshaDashboard() {
     }
   }, []);
 
+  // ── Enter Waiting Room / Start Call (Prompt 18.2) ──────────────────────────
+  const handleStartCall = async (tc) => {
+    try {
+      await fetch(`/api/teleconsult/${tc._id}/start`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token') || localStorage.getItem('sahay_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (err) {
+      console.error('Failed to notify waiting room:', err);
+    }
+    setActiveVideoRoom({
+      roomId: tc.teleconsultRoomId || `sahay-room-${tc._id}`,
+      patientName: tc.patientFullName,
+      doctorName: tc.doctorName || 'Doctor',
+      appointmentId: tc._id,
+    });
+    loadMyTeleconsults();
+  };
+
   useEffect(() => {
     if (user && activeTab === 'teleconsults') loadMyTeleconsults();
   }, [user, activeTab, loadMyTeleconsults]);
@@ -698,14 +720,14 @@ export default function AshaDashboard() {
                           </div>
                         )}
 
-                        {isScheduled && tc.teleconsultRoomId && (
+                        {['Teleconsult Confirmed', 'Patient Waiting in Room', 'Teleconsult Scheduled'].includes(tc.status) && tc.teleconsultRoomId && (
                           <button
                             id={`join-teleconsult-${tc._id}`}
-                            onClick={() => setActiveVideoRoom({ roomId: tc.teleconsultRoomId, patientName: tc.patientFullName })}
-                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-sm
-                              hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md shadow-violet-200/60"
+                            onClick={() => handleStartCall(tc)}
+                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white font-extrabold text-sm
+                              hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-200"
                           >
-                            📹 Join Doctor Call
+                            📹 Enter Waiting Room / Start Call
                           </button>
                         )}
 
@@ -728,6 +750,23 @@ export default function AshaDashboard() {
             >
               + Book Another Teleconsult
             </button>
+          </div>
+        )}
+
+        {/* ── Jitsi Video Room Modal (Prompt 18.2) ────────────────────────── */}
+        {activeVideoRoom && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-slate-900 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl border border-slate-800">
+              <VideoRoom
+                roomName={activeVideoRoom.roomId}
+                displayName={`ASHA (${user?.name || 'Worker'}) - for ${activeVideoRoom.patientName}`}
+                waitingBanner={`Waiting for ${activeVideoRoom.doctorName} to connect... Your connection is live.`}
+                onClose={() => {
+                  setActiveVideoRoom(null);
+                  loadMyTeleconsults();
+                }}
+              />
+            </div>
           </div>
         )}
 

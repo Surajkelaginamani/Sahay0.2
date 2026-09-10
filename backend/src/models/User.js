@@ -26,7 +26,6 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
-      sparse: true,
     },
     patientProfileId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -757,15 +757,15 @@ export const getPendingTeleconsults = async (req, res) => {
   }
 };
 
-// ─── confirmTeleconsult (Prompt 17.1) ─────────────────────────────────────────
+// ─── confirmTeleconsult (Prompt 17.1 & 18.1) ─────────────────────────────────
 // @route   POST /api/receptionist/teleconsults/confirm
 // @access  Private (Receptionist)
-// Accepts appointmentId, assignedDoctorId, confirmed timeSlot.
-// Generates a unique room string (room-sahay-[appointmentId]-[timestamp]),
-// assigns teleconsultRoomId, and updates status to 'Teleconsult Scheduled'.
+// Accepts appointmentId, assignedDoctorId, scheduledDate, and confirmed timeSlot.
+// Generates a unique room string: "sahay-room-" + appointmentId,
+// assigns teleconsultRoomId, and updates status to 'Teleconsult Confirmed'.
 export const confirmTeleconsult = async (req, res) => {
   try {
-    const { appointmentId, assignedDoctorId, timeSlot } = req.body;
+    const { appointmentId, assignedDoctorId, scheduledDate, timeSlot } = req.body;
 
     if (!appointmentId || !assignedDoctorId) {
       return res.status(400).json({
@@ -780,12 +780,12 @@ export const confirmTeleconsult = async (req, res) => {
       _id:        appointmentId,
       facilityId,
       type:       'Teleconsultation',
-      status:     'Teleconsult Requested',
+      status:     { $in: ['Teleconsult Requested', 'Teleconsult Scheduled'] },
     });
 
     if (!appointment) {
       return res.status(404).json({
-        message: 'Teleconsult request not found or already confirmed.',
+        message: 'Teleconsult request not found or already processed.',
       });
     }
 
@@ -800,13 +800,22 @@ export const confirmTeleconsult = async (req, res) => {
       return res.status(404).json({ message: 'Doctor not found in your facility.' });
     }
 
-    // Generate a unique Jitsi room string
-    const teleconsultRoomId = `room-sahay-${appointment._id}-${Date.now()}`;
+    // Generate unique Jitsi room string (Prompt 18.1)
+    const teleconsultRoomId = `sahay-room-${appointment._id}`;
 
     // Update appointment fields
     appointment.assignedDoctorId = assignedDoctorId;
     appointment.teleconsultRoomId = teleconsultRoomId;
-    appointment.status = 'Teleconsult Scheduled';
+    appointment.status = 'Teleconsult Confirmed';
+
+    if (scheduledDate) {
+      const parsedDate = new Date(scheduledDate);
+      if (!isNaN(parsedDate.getTime())) {
+        appointment.scheduledDate = parsedDate;
+        appointment.appointmentDate = parsedDate;
+      }
+    }
+
     if (timeSlot?.trim()) {
       appointment.timeSlot = timeSlot.trim();
     }
@@ -816,7 +825,7 @@ export const confirmTeleconsult = async (req, res) => {
 
     await appointment.populate([
       { path: 'patientId',        select: 'firstName lastName contactPhone gender dob abhaId' },
-      { path: 'assignedDoctorId', select: 'name email' },
+      { path: 'assignedDoctorId', select: 'name email specialization' },
       { path: 'facilityId',       select: 'hospitalName name' },
     ]);
 

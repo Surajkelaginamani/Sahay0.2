@@ -3,6 +3,22 @@ import doctorApi from '../services/doctorApi';
 
 // ─── Status pill ───────────────────────────────────────────────────────────────
 function StatusPill({ status }) {
+  if (status === 'Patient Waiting in Room') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border bg-emerald-100 text-emerald-900 border-emerald-300 shadow-xs animate-pulse">
+        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
+        Patient Waiting in Call
+      </span>
+    );
+  }
+  if (status === 'Teleconsult Confirmed') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-teal-50 text-teal-800 border-teal-300">
+        <span className="w-1.5 h-1.5 rounded-full bg-teal-600" />
+        Confirmed
+      </span>
+    );
+  }
   if (status === 'Teleconsult Requested') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border bg-purple-100 text-purple-900 border-purple-300 shadow-xs animate-pulse">
@@ -54,6 +70,7 @@ function StatusPill({ status }) {
 function PatientCard({ appt, isSelected, onSelect }) {
   const isUrgent                 = appt.priority === 'Urgent';
   const isReportsReady           = appt.status === 'Reports Ready';
+  const isPatientWaiting         = appt.status === 'Patient Waiting in Room';
   const isTeleconsultRequested   = appt.status === 'Teleconsult Requested';
   const isInTeleconsult          = appt.status === 'In Teleconsult';
   const patient                  = appt.patientId;
@@ -71,6 +88,8 @@ function PatientCard({ appt, isSelected, onSelect }) {
       className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
         isSelected
           ? 'border-sky-500 bg-sky-50/80 shadow-sm ring-2 ring-sky-400/40'
+          : isPatientWaiting
+          ? 'border-emerald-500 border-l-4 border-l-emerald-600 bg-gradient-to-r from-emerald-50/90 to-teal-50/70 ring-2 ring-emerald-400 shadow-md animate-pulse'
           : isTeleconsultRequested
           ? 'border-purple-400 border-l-4 border-l-purple-600 bg-gradient-to-r from-purple-50/90 to-fuchsia-50/60 ring-2 ring-purple-400/40 shadow-md animate-pulse'
           : isInTeleconsult
@@ -88,7 +107,9 @@ function PatientCard({ appt, isSelected, onSelect }) {
           {appt.queueNumber ? (
             <span
               className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
-                isTeleconsultRequested
+                isPatientWaiting
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : isTeleconsultRequested
                   ? 'bg-purple-600 text-white shadow-xs'
                   : isReportsReady
                   ? 'bg-teal-200 text-teal-900'
@@ -101,7 +122,7 @@ function PatientCard({ appt, isSelected, onSelect }) {
             </span>
           ) : (
             <span className="w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0">
-              —
+              {isPatientWaiting ? '📹' : '—'}
             </span>
           )}
 
@@ -139,8 +160,21 @@ function PatientCard({ appt, isSelected, onSelect }) {
         </div>
       </div>
 
-      {/* Teleconsult Requested Flashing Notice (Prompt 16.3) */}
-      {isTeleconsultRequested && (
+      {/* Patient Waiting in Call Live Banner (Prompt 18.3) */}
+      {isPatientWaiting && (
+        <div className="mt-2 text-[11px] text-emerald-950 bg-emerald-100/90 px-2.5 py-1.5 rounded-xl border border-emerald-300 flex items-center justify-between shadow-xs">
+          <span className="flex items-center gap-1.5 font-extrabold">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
+            <span>Patient Waiting in Call</span>
+          </span>
+          <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white px-2 py-0.5 rounded-md shadow-xs">
+            Connect
+          </span>
+        </div>
+      )}
+
+      {/* Teleconsult Requested Flashing Notice */}
+      {!isPatientWaiting && isTeleconsultRequested && (
         <div className="mt-2 text-[11px] text-purple-900 bg-purple-100/90 px-2.5 py-1.5 rounded-xl border border-purple-300 flex items-center justify-between shadow-xs">
           <span className="flex items-center gap-1.5 font-extrabold">
             <span className="text-xs animate-bounce">📹</span>
@@ -245,8 +279,25 @@ export default function DoctorQueue({
       const rawActive = res.data?.activeQueue || (res.data?.queue || []).filter((a) => a.status !== 'Reports Ready' && a.type !== 'Teleconsultation');
       const rawReview = res.data?.reviewQueue || (res.data?.queue || []).filter((a) => a.status === 'Reports Ready');
       const rawTeleconsult = res.data?.teleconsultQueue || (res.data?.queue || []).filter((a) =>
-        a.type === 'Teleconsultation' && ['Teleconsult Scheduled', 'In Teleconsult', 'Teleconsult Requested'].includes(a.status)
+        a.type === 'Teleconsultation' &&
+        [
+          'Teleconsult Confirmed',
+          'Patient Waiting in Room',
+          'In Teleconsult',
+          'Teleconsult Scheduled',
+          'Teleconsult Requested',
+        ].includes(a.status)
       );
+
+      // Prompt 18.1: Sort Patient Waiting in Room to top
+      rawTeleconsult.sort((a, b) => {
+        const aWaiting = a.status === 'Patient Waiting in Room';
+        const bWaiting = b.status === 'Patient Waiting in Room';
+        if (aWaiting && !bWaiting) return -1;
+        if (!aWaiting && bWaiting) return 1;
+        return new Date(a.scheduledDate || a.createdAt) - new Date(b.scheduledDate || b.createdAt);
+      });
+
       const rawQueue  = res.data?.queue || [...rawActive, ...rawReview, ...rawTeleconsult];
       const rawSummary = res.data?.summary || {
         total: rawQueue.length,
@@ -319,6 +370,12 @@ export default function DoctorQueue({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {teleconsultQueue.some((a) => a.status === 'Patient Waiting in Room') && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300 animate-pulse shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
+                <span>Patient Waiting in Call</span>
+              </span>
+            )}
             {summary.reportsReady > 0 && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-extrabold border border-teal-200 animate-pulse">
                 <span>🔬</span>
@@ -394,9 +451,11 @@ export default function DoctorQueue({
             }`}
           >
             📹 Virtual ({teleconsultQueue.length})
-            {teleconsultQueue.length > 0 && queueTab !== 'TELECONSULT' && (
+            {teleconsultQueue.some((a) => a.status === 'Patient Waiting in Room') ? (
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 absolute top-1 right-1 animate-ping" />
+            ) : teleconsultQueue.length > 0 && queueTab !== 'TELECONSULT' ? (
               <span className="w-2 h-2 rounded-full bg-violet-500 absolute top-1 right-1 animate-ping" />
-            )}
+            ) : null}
           </button>
         </div>
 
@@ -598,18 +657,25 @@ export default function DoctorQueue({
           </div>
         )}
 
-        {/* ── SECTION 3: Virtual OPD / Teleconsult Queue (Prompt 17.4) ───────── */}
+        {/* ── SECTION 3: Teleconsultations (Virtual OPD) (Prompt 17.4 & 18.3) ───────── */}
         {!loading && (queueTab === 'ALL' || queueTab === 'TELECONSULT') && teleconsultQueue.length > 0 && (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-1.5 text-xs font-extrabold text-violet-800">
-                <span>📹 Virtual OPD</span>
+              <div className="flex items-center gap-1.5 text-xs font-extrabold text-violet-900">
+                <span>📹 Teleconsultations (Virtual OPD)</span>
                 <span className="px-1.5 py-0.5 rounded-md bg-violet-100 text-violet-800 text-[10px]">{teleconsultQueue.length}</span>
               </div>
-              <span className="text-[10px] text-violet-500 font-semibold">Scheduled Teleconsults</span>
+              {teleconsultQueue.some((a) => a.status === 'Patient Waiting in Room') ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  Patient Waiting in Call
+                </span>
+              ) : (
+                <span className="text-[10px] text-violet-500 font-semibold">Virtual Queue</span>
+              )}
             </div>
             <div className="space-y-2 pl-0.5">
-              {teleconsultQueue.map((appt) => (
+              {filteredTeleconsultQueue.map((appt) => (
                 <PatientCard
                   key={appt._id}
                   appt={appt}

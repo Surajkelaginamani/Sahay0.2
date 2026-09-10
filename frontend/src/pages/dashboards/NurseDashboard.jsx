@@ -69,6 +69,25 @@ export default function NurseDashboard() {
     }
   }, []);
 
+  // ── Enter Waiting Room / Start Call (Prompt 18.2) ──────────────────────────
+  const handleStartCall = async (tc) => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('sahay_token');
+      await axios.post(`/api/teleconsult/${tc._id}/start`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      console.error('Failed to notify waiting room:', err);
+    }
+    setActiveVideoRoom({
+      roomName: tc.teleconsultRoomId || `sahay-room-${tc._id}`,
+      patientName: tc.patientFullName,
+      doctorName: tc.doctorName || 'Doctor',
+      appointmentId: tc._id,
+    });
+    loadMyTeleconsults();
+  };
+
   // Live time ticker
   useEffect(() => {
     const timer = setInterval(() => {
@@ -478,9 +497,11 @@ export default function NurseDashboard() {
             <VideoRoom
               roomName={activeVideoRoom.roomName || activeVideoRoom.roomId}
               displayName={activeVideoRoom.displayName || `${user?.name || 'Nurse'} (Nurse / Triage)`}
+              waitingBanner={activeVideoRoom.doctorName ? `Waiting for ${activeVideoRoom.doctorName} to connect... Your connection is live.` : undefined}
               onClose={() => {
                 setActiveVideoRoom(null);
                 setRefreshTrigger((r) => r + 1);
+                loadMyTeleconsults();
               }}
             />
           </div>
@@ -671,19 +692,15 @@ export default function NurseDashboard() {
                           </div>
                         )}
 
-                        {isScheduled && tc.teleconsultRoomId && (
+                        {['Teleconsult Confirmed', 'Patient Waiting in Room', 'Teleconsult Scheduled'].includes(tc.status) && tc.teleconsultRoomId && (
                           <button
                             id={`nurse-join-teleconsult-${tc._id}`}
-                            onClick={() => setActiveVideoRoom({
-                              roomName: tc.teleconsultRoomId,
-                              patientName: tc.patientFullName,
-                              appointmentId: tc._id,
-                            })}
-                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-xs
-                              hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-md shadow-violet-200"
+                            onClick={() => handleStartCall(tc)}
+                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white font-extrabold text-xs
+                              hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-200"
                           >
                             <span>📹</span>
-                            <span>Join Doctor Call</span>
+                            <span>Enter Waiting Room / Start Call</span>
                           </button>
                         )}
 

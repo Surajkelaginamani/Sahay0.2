@@ -76,7 +76,7 @@ const appointmentSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ── Workflow Status (Prompt 6.1 + 16.1 + 17.1) ────────────────────────────
+    // ── Workflow Status (Prompt 6.1 + 16.1 + 17.1 + 18.1) ──────────────────────
     status: {
       type: String,
       enum: {
@@ -88,6 +88,8 @@ const appointmentSchema = new mongoose.Schema(
           'Reports Ready',
           'Teleconsult Requested',
           'Teleconsult Scheduled',
+          'Teleconsult Confirmed',
+          'Patient Waiting in Room',
           'In Teleconsult',
           'Completed',
           // Backward-compatible statuses
@@ -100,10 +102,19 @@ const appointmentSchema = new mongoose.Schema(
       default: 'Scheduled',
     },
 
-    // ── Teleconsultation Room (Prompt 16.1) ────────────────────────────────────
+    // ── Teleconsultation Room & Initiator (Prompt 16.1 + 18.1) ─────────────────
     teleconsultRoomId: {
       type: String,
       trim: true,
+      default: null,
+    },
+    teleconsultInitiatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    teleconsultWaitingSince: {
+      type: Date,
       default: null,
     },
 

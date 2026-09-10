@@ -75,6 +75,7 @@ export const bookTeleconsult = async (req, res) => {
       chiefComplaint:   chiefComplaint?.trim() || undefined,
       type:             'Teleconsultation',
       teleconsultSource,
+      teleconsultInitiatedBy: req.user._id,
       status:           'Teleconsult Requested',
       priority:         'Routine',
     });
@@ -98,7 +99,56 @@ export const bookTeleconsult = async (req, res) => {
   }
 };
 
-// ─── getMyTeleconsults (Prompt 17.4 — Village/Patient side) ─────────────────
+// ─── startTeleconsultWaiting (Prompt 18.1) ─────────────────────────────────
+// @route   POST /api/teleconsult/:appointmentId/start
+// @access  Private (ASHA, Nurse, Patient, Doctor)
+// Called by ASHA, Nurse, or Patient to check into the virtual waiting room.
+// Updates status to 'Patient Waiting in Room' and records timestamps.
+export const startTeleconsultWaiting = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const userId = req.user._id;
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    if (appointment.type !== 'Teleconsultation') {
+      return res.status(400).json({ message: 'Appointment is not a teleconsultation.' });
+    }
+
+    // Ensure room ID is set
+    if (!appointment.teleconsultRoomId) {
+      appointment.teleconsultRoomId = `sahay-room-${appointment._id}`;
+    }
+
+    appointment.status = 'Patient Waiting in Room';
+    appointment.teleconsultWaitingSince = new Date();
+    if (!appointment.teleconsultInitiatedBy) {
+      appointment.teleconsultInitiatedBy = userId;
+    }
+
+    await appointment.save();
+
+    await appointment.populate([
+      { path: 'patientId',        select: 'firstName lastName contactPhone gender dob abhaId' },
+      { path: 'assignedDoctorId', select: 'name email specialization' },
+      { path: 'facilityId',       select: 'hospitalName name address' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Patient entered virtual waiting room.',
+      appointment,
+      teleconsultRoomId: appointment.teleconsultRoomId,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── getMyTeleconsults (Prompt 17.4 & 18.2 — Village/Patient side) ──────────
 // @route   GET /api/teleconsult/my
 // @access  Private (ASHA, Nurse, Patient)
 // Returns all teleconsultation appointments booked by the logged-in worker/patient.
@@ -109,7 +159,16 @@ export const getMyTeleconsults = async (req, res) => {
 
     let filter = {
       type:   'Teleconsultation',
-      status: { $in: ['Teleconsult Requested', 'Teleconsult Scheduled', 'In Teleconsult', 'Completed'] },
+      status: {
+        $in: [
+          'Teleconsult Requested',
+          'Teleconsult Scheduled',
+          'Teleconsult Confirmed',
+          'Patient Waiting in Room',
+          'In Teleconsult',
+          'Completed',
+        ],
+      },
     };
 
     if (userRole === 'Patient') {
@@ -120,19 +179,29 @@ export const getMyTeleconsults = async (req, res) => {
         if (patient) resolvedPid = patient._id;
       }
       if (resolvedPid) {
-        filter.$or = [{ patientId: resolvedPid }, { receptionistId: userId }];
+        filter.$or = [
+          { patientId: resolvedPid },
+          { receptionistId: userId },
+          { teleconsultInitiatedBy: userId },
+        ];
       } else {
-        filter.receptionistId = userId;
+        filter.$or = [
+          { receptionistId: userId },
+          { teleconsultInitiatedBy: userId },
+        ];
       }
     } else {
-      // ASHA / Nurse see appointments they booked (as receptionistId)
-      filter.receptionistId = userId;
+      // ASHA / Nurse see appointments they booked or initiated
+      filter.$or = [
+        { receptionistId: userId },
+        { teleconsultInitiatedBy: userId },
+      ];
     }
 
     const teleconsults = await Appointment.find(filter)
-      .populate('patientId',        'firstName lastName contactPhone gender dob')
+      .populate('patientId',        'firstName lastName contactPhone gender dob abhaId')
       .populate('facilityId',       'hospitalName name address')
-      .populate('assignedDoctorId', 'name email')
+      .populate('assignedDoctorId', 'name email specialization')
       .sort({ scheduledDate: 1, createdAt: -1 })
       .lean();
 
@@ -142,8 +211,8 @@ export const getMyTeleconsults = async (req, res) => {
         ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
         : 'Unknown',
       facilityName: appt.facilityId?.hospitalName || appt.facilityId?.name || 'Unknown Facility',
-      doctorName:   appt.assignedDoctorId?.name || 'TBD (Pending Assignment)',
-      canJoin:      appt.status === 'Teleconsult Scheduled' && !!appt.teleconsultRoomId,
+      doctorName:   appt.assignedDoctorId?.name ? `Dr. ${appt.assignedDoctorId.name}` : 'TBD (Pending Assignment)',
+      canJoin:      ['Teleconsult Confirmed', 'Patient Waiting in Room', 'Teleconsult Scheduled', 'In Teleconsult'].includes(appt.status) && !!appt.teleconsultRoomId,
     }));
 
     res.json({ count: enriched.length, teleconsults: enriched });

@@ -18,9 +18,6 @@ import teleconsultRoutes from './src/routes/teleconsultRoutes.js';
 
 dotenv.config();
 
-// Connect to MongoDB
-connectDB();
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -57,8 +54,18 @@ app.get('/', (req, res) => {
   res.send('SAHAY Backend API is running');
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`SAHAY backend server running on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(`SAHAY backend server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 export default app;

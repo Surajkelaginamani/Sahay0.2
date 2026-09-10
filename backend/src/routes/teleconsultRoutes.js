@@ -1,6 +1,10 @@
 import express from 'express';
 import { protect, authorize } from '../middlewares/authMiddleware.js';
-import { bookTeleconsult, getMyTeleconsults } from '../controllers/appointmentController.js';
+import {
+  bookTeleconsult,
+  getMyTeleconsults,
+  startTeleconsultWaiting,
+} from '../controllers/appointmentController.js';
 import { getPendingTeleconsults, confirmTeleconsult } from '../modules/receptionist/receptionistController.js';
 import { getHigherLevelHospitals, searchPatients } from '../modules/asha/ashaController.js';
 
@@ -32,13 +36,22 @@ router.post(
   bookTeleconsult
 );
 
-// ── My Teleconsults (Prompt 17.4) ─────────────────────────────────────────────
+// ── My Teleconsults (Prompt 17.4 & 18.2) ──────────────────────────────────────
 // GET /api/teleconsult/my → list all teleconsults booked by this worker/patient
 router.get(
   '/my',
   protect,
   authorize('ASHA', 'AshaWorker', 'Nurse', 'Patient'),
   getMyTeleconsults
+);
+
+// ── Patient/ASHA Check-In & Enter Waiting Room (Prompt 18.1) ─────────────────
+// POST /api/teleconsult/:appointmentId/start → updates status to 'Patient Waiting in Room'
+router.post(
+  '/:appointmentId/start',
+  protect,
+  authorize('ASHA', 'AshaWorker', 'Nurse', 'Patient', 'Doctor', 'HospitalAdmin'),
+  startTeleconsultWaiting
 );
 
 // ── Receptionist Triage Endpoints (Prompt 17.1 & 17.3) ────────────────────────

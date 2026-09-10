@@ -20,7 +20,8 @@ export const getDoctorQueue = async (req, res) => {
       assignedDoctorId: doctorId,
       status: { $in: [
         'Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready',
-        'Teleconsult Requested', 'Teleconsult Scheduled', 'In Teleconsult',
+        'Teleconsult Requested', 'Teleconsult Scheduled', 'Teleconsult Confirmed',
+        'Patient Waiting in Room', 'In Teleconsult',
       ]},
     })
       .populate('patientId', 'firstName lastName contactPhone gender dob abhaId address bloodGroup emergencyContact')
@@ -67,19 +68,42 @@ export const getDoctorQueue = async (req, res) => {
       };
     });
 
-    // Prompt 8.4 & 16.1: Two distinct physical queues + one teleconsult queue
+    // Prompt 8.4 & 16.1 & 18.1: Physical queues + teleconsult queue pipeline
     // 1. Active ongoing physical queue
     const activeQueue = enriched.filter((a) =>
-      ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'In Progress', 'Teleconsult Requested', 'In Teleconsult'].includes(a.status)
+      ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'In Progress'].includes(a.status)
       && a.type !== 'Teleconsultation'
     );
     // 2. Review queue for patients whose lab tests are finished
     const reviewQueue = enriched.filter((a) => a.status === 'Reports Ready');
-    // 3. Prompt 17.4: Dedicated Teleconsult Queue (Virtual OPD)
+    // 3. Prompt 17.4 & 18.1: Dedicated Teleconsult Queue (Virtual OPD)
     const teleconsultQueue = enriched.filter((a) =>
       a.type === 'Teleconsultation' &&
-      ['Teleconsult Scheduled', 'Teleconsult Requested', 'In Teleconsult'].includes(a.status)
+      [
+        'Teleconsult Confirmed',
+        'Patient Waiting in Room',
+        'In Teleconsult',
+        'Teleconsult Scheduled',
+        'Teleconsult Requested',
+      ].includes(a.status)
     );
+
+    // Prompt 18.1: Sort those with 'Patient Waiting in Room' to the top of teleconsultQueue
+    teleconsultQueue.sort((a, b) => {
+      const aWaiting = a.status === 'Patient Waiting in Room';
+      const bWaiting = b.status === 'Patient Waiting in Room';
+      if (aWaiting && !bWaiting) return -1;
+      if (!aWaiting && bWaiting) return 1;
+
+      const aInCall = a.status === 'In Teleconsult';
+      const bInCall = b.status === 'In Teleconsult';
+      if (aInCall && !bInCall) return -1;
+      if (!aInCall && bInCall) return 1;
+
+      const dateA = new Date(a.scheduledDate || a.appointmentDate || a.createdAt).getTime();
+      const dateB = new Date(b.scheduledDate || b.appointmentDate || b.createdAt).getTime();
+      return dateA - dateB;
+    });
 
     const waiting    = enriched.filter((a) => a.status === 'Waiting');
     const inProgress = enriched.filter((a) => ['CheckedIn', 'Waiting for Doctor', 'In Progress'].includes(a.status));
@@ -91,6 +115,7 @@ export const getDoctorQueue = async (req, res) => {
       active:            activeQueue.length,
       reportsReady:      reviewQueue.length,
       teleconsults:      teleconsultQueue.length,
+      patientWaitingInCall: teleconsultQueue.filter((a) => a.status === 'Patient Waiting in Room').length,
       urgent:            enriched.filter((a) => a.priority === 'Urgent').length,
       routine:           enriched.filter((a) => a.priority !== 'Urgent').length,
       checkedIn:         enriched.filter((a) => a.status === 'CheckedIn').length,

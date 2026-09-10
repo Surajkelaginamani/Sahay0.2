@@ -64,6 +64,11 @@ export default function DoctorDashboard() {
     setSelectedAppointment(appt);
     if (appt) {
       setWorkspaceTab('consultation');
+      // Prompt 18.3: Automatically fetch patient's full longitudinal records
+      const patientId = appt.patientId?._id || appt.patientId;
+      if (patientId) {
+        doctorApi.getPatientHistory(patientId).catch(() => {});
+      }
     }
   }, []);
 
@@ -201,9 +206,16 @@ export default function DoctorDashboard() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-base font-extrabold text-white">Virtual OPD Teleconsultation Session</h2>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-emerald-950 uppercase tracking-wider animate-pulse">
-                      Live Teleconsult Active
-                    </span>
+                    {selectedAppointment.status === 'Patient Waiting in Room' ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-emerald-950 uppercase tracking-wider animate-pulse flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-950 animate-ping" />
+                        Patient Waiting in Call
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-violet-400 text-violet-950 uppercase tracking-wider">
+                        Virtual OPD Active
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-violet-200 mt-0.5">
                     Patient: <strong className="text-white">{selectedAppointment.patientFullName}</strong>
@@ -231,7 +243,7 @@ export default function DoctorDashboard() {
               <div className="xl:col-span-6 space-y-3">
                 <div className="bg-slate-950 rounded-3xl p-3 border border-slate-800 shadow-2xl overflow-hidden">
                   <VideoRoom
-                    roomName={selectedAppointment.teleconsultRoomId || `room-sahay-${selectedAppointment._id}`}
+                    roomName={selectedAppointment.teleconsultRoomId || `sahay-room-${selectedAppointment._id}`}
                     displayName={`Dr. ${user.name}`}
                     onClose={() => setSelectedAppointment(null)}
                   />
@@ -252,7 +264,7 @@ export default function DoctorDashboard() {
                           : 'text-slate-600 hover:bg-slate-50'
                       }`}
                     >
-                      <span>Current Consultation</span>
+                      <span>Active Consultation</span>
                     </button>
 
                     <button

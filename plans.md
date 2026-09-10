@@ -1,93 +1,80 @@
-# Prompt 17.1: Appointment Schema & Teleconsult Controllers
-Task: Upgrade the Appointment model and backend controllers to support scheduled, multi-source teleconsultations.
+# Prompt 18.1: Backend - Teleconsultation Statuses & Queue Pipeline
+Task: Update the backend to support the virtual waiting room state and integrate teleconsultations directly into the assigned Doctor's queue.
 
 Requirements:
 
-Schema Updates (backend/src/models/Appointment.js):
+Schema Update (backend/src/models/Appointment.js):
 
-type: Enum ['Physical', 'Teleconsultation'] (Default: 'Physical').
-
-teleconsultSource: Enum ['ASHA', 'Nurse', 'Patient'].
+type: Enum ['Physical', 'Teleconsultation'] (default: 'Physical').
 
 scheduledDate: Date.
 
-timeSlot: String (e.g., "10:00 AM - 10:30 AM").
+timeSlot: String (e.g., "10:30 AM - 11:00 AM").
 
-teleconsultRoomId: String (nullable).
+teleconsultRoomId: String.
 
-status: Add 'Teleconsult Requested', 'Teleconsult Scheduled', 'In Teleconsult'.
+teleconsultInitiatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }.
 
-Booking Controller (appointmentController.js):
+status: Add 'Teleconsult Confirmed', 'Patient Waiting in Room', 'In Teleconsult'.
 
-bookTeleconsult(req, res): Accepts patientId, facilityId, departmentId/doctorId, scheduledDate, timeSlot, chiefComplaint, and determines teleconsultSource from req.user.role.
+Receptionist Assignment (receptionistController.js):
 
-Sets status = 'Teleconsult Requested'.
+Endpoint confirmTeleconsult: Accepts appointmentId, assignedDoctorId, scheduledDate, and timeSlot. Generates a unique teleconsultRoomId = "sahay-room-" + appointmentId. Sets status = 'Teleconsult Confirmed'.
 
-Receptionist Confirmation Controller (receptionistController.js):
+Patient/ASHA Check-In (appointmentController.js):
 
-getPendingTeleconsults(req, res): Fetch all appointments for the facility with status 'Teleconsult Requested'.
+Endpoint POST /api/teleconsult/:appointmentId/start: Can be called by ASHA Worker, Nurse, or Patient. Updates the status to 'Patient Waiting in Room' and records timestamps.
 
-confirmTeleconsult(req, res): Accepts appointmentId, assignedDoctorId, and confirmed timeSlot. Generates a unique room string (room-sahay-[appointmentId]-[timestamp]), assigns it to teleconsultRoomId, and updates status to 'Teleconsult Scheduled'.
+Doctor Queue Controller (doctorController.js):
 
-Mount and protect these routes under /api/teleconsult.
+In getDoctorQueue, return a third categorized array: teleconsultQueue.
 
-# Prompt 17.2: Booking Modals (ASHA, Nurse, and Patient Dashboards)
-Task: Build unified teleconsultation booking forms for village health workers and self-service patients.
+Query: assignedDoctorId === req.user.id, type === 'Teleconsultation', and status in ['Teleconsult Confirmed', 'Patient Waiting in Room', 'In Teleconsult']. Sort those with 'Patient Waiting in Room' to the top.
 
-Requirements:
-
-Component (frontend/src/components/common/BookTeleconsultModal.jsx):
-
-Modal containing inputs: Facility Selector (Dropdown of District/Higher-level Hospitals), Department/Specialty, Preferred Date (HTML datepicker, min today), Time Slot Selector (Pill selections: 10:00 AM, 11:30 AM, 02:00 PM, etc.), and Chief Complaint textarea.
-
-If triggered by Nurse/ASHA, include a Patient Search input to select which villager the appointment is for.
-
-If triggered by Patient, automatically lock the patient ID to the logged-in user.
-
-On submit: Calls POST /api/teleconsult/book and displays a confirmation toast: "Teleconsult request submitted for hospital review."
-
-Integration:
-
-AshaDashboard.jsx: Add a "Book Video Consult for Villager" quick action.
-
-NurseDashboard.jsx: Add a "Schedule Teleconsult" button in the action bar.
-
-PatientDashboard.jsx: Add a prominent card on the home screen: "Schedule Doctor Video Call".
-
-# Prompt 17.3: Receptionist Teleconsult Triage Desk
-Task: Create the incoming teleconsult verification interface in the Receptionist Dashboard.
+# Prompt 18.2: ASHA, Nurse & Patient "Enter Waiting Room" Interface
+Task: Add the patient-side teleconsultation launcher so the ASHA worker or patient can initiate the call and notify the hospital.
 
 Requirements:
 
-Update ReceptionistDashboard.jsx: Add a dedicated tab: Teleconsult Requests.
+In AshaDashboard.jsx, NurseDashboard.jsx, and PatientDashboard.jsx, add a Teleconsultations panel listing appointments where type === 'Teleconsultation'.
 
-Data Display: Render a table listing: Patient Name, Age, Booking Source (e.g., "ASHA: Sakib" or "Self (Patient)"), Requested Hospital Department, Requested Date & Slot, and Chief Complaint.
+Display appointment cards showing: Target Hospital, Assigned Doctor, Scheduled Date & Time Slot, and Status Badge.
 
-Action:
+The Call Launcher Button:
 
-"Assign Doctor & Confirm" dropdown + button.
+If status is 'Teleconsult Confirmed', render an active button: "Enter Waiting Room / Start Call".
 
-On confirmation, call /api/teleconsult/confirm. The row updates to "Confirmed" with the assigned doctor's name, and the patient/worker receives the confirmed slot status.
+Clicking this button:
 
-# Prompt 17.4: Doctor Dashboard Teleconsult Queue & Video Workspace
-Task: Add an isolated Teleconsultation Queue and Jitsi video conference screen to the Doctor Dashboard.
+Calls POST /api/teleconsult/:appointmentId/start (updating status to 'Patient Waiting in Room').
+
+Opens a modal rendering the <JitsiMeeting/> iframe with room name set to appointment.teleconsultRoomId.
+
+Shows a banner above the video: "Waiting for Dr. [Doctor Name] to connect... Your connection is live."
+
+# Prompt 18.3: Doctor Dashboard - Live Alert & Split Consultation Screen
+Task: Upgrade the Doctor Dashboard to display the Virtual Queue with waiting alerts and render the video feed alongside full medical records.
 
 Requirements:
 
-Update doctorController.js (getDoctorQueue): Return a third queue section: teleconsultQueue containing appointments assigned to this doctor where type === 'Teleconsultation' and status is 'Teleconsult Scheduled'.
+Queue Sidebar Upgrade (DoctorQueue.jsx):
 
-Update DoctorDashboard.jsx:
+Add a section: Teleconsultations (Virtual OPD) alongside the existing "Ongoing Queue" and "Reports Ready" queues.
 
-Render a secondary sidebar section: Scheduled Teleconsults (Virtual OPD) with date and time badges.
+If any appointment has status === 'Patient Waiting in Room', show a pulsing green indicator with a label: "Patient Waiting in Call".
 
-When the doctor clicks a teleconsult patient, show a side-by-side interface:
+Integration into Existing Doctor Workspace (DoctorDashboard.jsx & ConsultationPanel.jsx):
 
-Left Panel (50%): The live Jitsi video room connecting to appointment.teleconsultRoomId.
+When the Doctor clicks a teleconsultation patient from the queue:
 
-Right Panel (50%): Standard ABDM consultation panel (Patient Medical History, Diagnosis, Lab Order Requests, and Digital Prescription).
+Automatically fetch the patient's full longitudinal records using the existing getPatientHistory API.
 
-Joining from Village/Patient Side:
+Replace the single-column form with a 50/50 Split Screen:
 
-In AshaDashboard.jsx, NurseDashboard.jsx, and PatientDashboard.jsx, render a "My Teleconsults" section.
+Left Column: Render <JitsiMeeting displayName="{doctorName}" roomName="{appointment.teleconsultRoomId}"/> with controls to hang up.
 
-If an appointment has status 'Teleconsult Scheduled', display a Join Doctor Call button that launches the video modal using the same teleconsultRoomId.
+Right Column: Render the existing clinical consultation tabs: "Medical History" (past visits, old prescriptions, past lab reports) and "Active Consultation" (symptoms, diagnosis, custom lab requests, digital prescription).
+
+The Doctor can view past records and prescribe medicines while maintaining eye contact and speaking with the patient/ASHA worker.
+
+Completion: When the doctor submits the consultation form, update the appointment status to 'Completed', which closes the call for both participants and writes to the patient's global record.

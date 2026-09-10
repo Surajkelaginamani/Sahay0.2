@@ -2,7 +2,7 @@ import React from 'react';
 import { JitsiMeeting } from '@jitsi/react-sdk';
 
 /**
- * Shared VideoRoom Component (Prompt 16.2)
+ * Shared VideoRoom Component (Prompt 16.2 & 18.2)
  *
  * Reusable WebRTC video component using Jitsi React SDK.
  * Configured with lightweight controls (hiding screen sharing, invite, etc.)
@@ -12,8 +12,9 @@ import { JitsiMeeting } from '@jitsi/react-sdk';
  * - roomName (String): the generated teleconsultation room ID
  * - displayName (String): logged-in user name
  * - onClose (Function): callback when call ends or is dismissed
+ * - waitingBanner (String): optional waiting notice e.g. "Waiting for Dr. [Name] to connect... Your connection is live."
  */
-export default function VideoRoom({ roomName, displayName, onClose }) {
+export default function VideoRoom({ roomName, displayName, onClose, waitingBanner }) {
   if (!roomName) return null;
 
   return (
@@ -44,6 +45,19 @@ export default function VideoRoom({ roomName, displayName, onClose }) {
           <span>End / Close</span>
         </button>
       </div>
+
+      {/* Waiting Room Notification Banner (Prompt 18.2) */}
+      {waitingBanner && (
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white px-5 py-2.5 text-xs font-bold flex items-center justify-between shadow-sm z-10 border-b border-emerald-500/40">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
+            <span className="font-semibold">{waitingBanner}</span>
+          </div>
+          <span className="hidden sm:inline-block text-[10px] bg-white/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+            Waiting Room Active
+          </span>
+        </div>
+      )}
 
       {/* Jitsi Meeting View */}
       <div className="flex-1 w-full h-full relative">
