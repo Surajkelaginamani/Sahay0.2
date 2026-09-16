@@ -197,6 +197,25 @@ const consultationSchema = new mongoose.Schema(
       type: Date,
     },
 
+    // ── Prompt 5.3: Clinical Allergy Override Protocol ──────────────────────
+    allergyOverride: {
+      acknowledged: { type: Boolean, default: false },
+      reason: { type: String, trim: true, default: '' },
+      overriddenAt: { type: Date, default: null },
+      matchedAllergies: { type: [String], default: [] },
+    },
+
+    // ── Prompt 11.1: Clinical Tags & Voice Note Transcript ─────────────────
+    clinicalTags: {
+      type: [String],
+      default: [],
+    },
+    voiceNoteTranscript: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
     // ── Workflow Status ─────────────────────────────────────────────────────
     status: {
       type: String,

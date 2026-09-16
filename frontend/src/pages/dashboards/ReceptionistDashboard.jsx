@@ -4,8 +4,9 @@ import PatientRegistrationForm from '../../features/receptionist/components/Pati
 import PatientSearch           from '../../features/receptionist/components/PatientSearch';
 import TodayQueue              from '../../features/receptionist/components/TodayQueue';
 import DoctorRoster            from '../../features/receptionist/components/DoctorRoster';
-import AppointmentScheduler   from '../../features/receptionist/components/AppointmentScheduler';
+import AppointmentScheduler    from '../../features/receptionist/components/AppointmentScheduler';
 import UpcomingAppointments    from '../../features/receptionist/components/UpcomingAppointments';
+import MergeResolution         from '../../features/receptionist/components/MergeResolution';
 import receptionistApi         from '../../features/receptionist/services/receptionistApi';
 import axios                   from 'axios';
 
@@ -125,6 +126,18 @@ const TABS = [
       </svg>
     ),
   },
+  {
+    id: 'conflicts',
+    label: 'Data Conflicts',
+    shortLabel: 'Conflicts',
+    color: 'orange',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    ),
+  },
 ];
 
 const TAB_ACTIVE_CLASSES = {
@@ -134,6 +147,7 @@ const TAB_ACTIVE_CLASSES = {
   sky:     'bg-sky-600   text-white shadow-sm shadow-sky-200',
   teal:    'bg-teal-600  text-white shadow-sm shadow-teal-200',
   emerald: 'bg-emerald-600 text-white shadow-sm shadow-emerald-200',
+  orange:  'bg-orange-500 text-white shadow-sm shadow-orange-200',
 };
 
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
@@ -149,6 +163,8 @@ export default function ReceptionistDashboard() {
   // Incoming ASHA referrals
   const [incomingReferrals, setIncomingReferrals] = useState([]);
   const [loadingReferrals, setLoadingReferrals]   = useState(false);
+  // Data conflicts count (Prompt 2.2)
+  const [conflictsCount, setConflictsCount] = useState(0);
   // Teleconsult requests (Prompt 17.3)
   const [pendingTeleconsults, setPendingTeleconsults] = useState([]);
   const [loadingTeleconsults, setLoadingTeleconsults] = useState(false);
@@ -247,6 +263,20 @@ export default function ReceptionistDashboard() {
       loadFacilityDoctors();
     }
   }, [user, activeTab, loadPendingTeleconsults, loadFacilityDoctors]);
+
+  // ── Load conflicts count for badge (Prompt 2.2) ─────────────────────────
+  const loadConflictsCount = useCallback(async () => {
+    try {
+      const res = await receptionistApi.getPendingConflicts();
+      setConflictsCount((res.data.conflicts || []).length);
+    } catch {
+      // non-blocking — badge just won't show
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) loadConflictsCount();
+  }, [user, loadConflictsCount]);
 
 
   // ── Logout ──────────────────────────────────────────────────────────────
@@ -384,6 +414,8 @@ export default function ReceptionistDashboard() {
               ? incomingReferrals.length
               : tab.id === 'teleconsults' && pendingTeleconsults.length > 0
               ? pendingTeleconsults.length
+              : tab.id === 'conflicts' && conflictsCount > 0
+              ? conflictsCount
               : null;
             return (
               <button
@@ -424,6 +456,7 @@ export default function ReceptionistDashboard() {
                 sky:     'bg-sky-100 text-sky-700',
                 teal:    'bg-teal-100 text-teal-700',
                 emerald: 'bg-emerald-100 text-emerald-700',
+                orange:  'bg-orange-100 text-orange-700',
               };
               return (
                 <>
@@ -433,11 +466,12 @@ export default function ReceptionistDashboard() {
                   <div>
                     <h2 className="text-sm font-bold text-slate-800">{tab.label}</h2>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      {activeTab === 'queue'    && "All of today's patient appointments"}
-                      {activeTab === 'register' && 'Register a new walk-in patient with login credentials'}
-                      {activeTab === 'search'   && 'Find an existing patient and add them to the queue'}
-                      {activeTab === 'book'     && 'Schedule a future appointment with a specific doctor'}
-                      {activeTab === 'upcoming' && 'View and manage all future scheduled appointments beyond today'}
+                      {activeTab === 'queue'     && "All of today's patient appointments"}
+                      {activeTab === 'register'  && 'Register a new walk-in patient with login credentials'}
+                      {activeTab === 'search'    && 'Find an existing patient and add them to the queue'}
+                      {activeTab === 'book'      && 'Schedule a future appointment with a specific doctor'}
+                      {activeTab === 'upcoming'  && 'View and manage all future scheduled appointments beyond today'}
+                      {activeTab === 'conflicts' && 'Review flagged duplicate records from offline ASHA syncs and merge or create as new'}  
                     </p>
                   </div>
                 </>
@@ -582,6 +616,11 @@ export default function ReceptionistDashboard() {
               </div>
             )}
 
+            {/* Tab 8: Data Conflicts (Prompt 2.2) */}
+            {activeTab === 'conflicts' && (
+              <MergeResolution />
+            )}
+
           </div>
         </div>
 
@@ -710,6 +749,11 @@ export default function ReceptionistDashboard() {
                 </div>
               )}
             </div>
+            {/* Tab 8: Data Conflicts (Prompt 2.2) */}
+            {activeTab === 'conflicts' && (
+              <MergeResolution />
+            )}
+
           </div>
         )}
 

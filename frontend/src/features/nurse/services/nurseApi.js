@@ -17,6 +17,10 @@ const nurseApi = {
   captureVitals: (data) =>
     axios.post(`${BASE_URL}/vitals`, data, { headers: getAuthHeader() }),
 
+  /** Prompt 4.1 & 4.2: Forward a triage patient to Doctor queue with specified urgency level. */
+  forwardToDoctor: (data) =>
+    axios.post(`${BASE_URL}/forward-to-doctor`, data, { headers: getAuthHeader() }),
+
   /** Prompt 8.2: Fetch appointments in 'Lab Pending' or 'Reports Ready' state. */
   getLabQueue: () =>
     axios.get(`${BASE_URL}/lab-queue`, { headers: getAuthHeader() }),
@@ -36,6 +40,10 @@ const nurseApi = {
   /** Prompt 16.1: Fetch specialist doctors available for teleconsultation. */
   getDoctors: () =>
     axios.get(`${BASE_URL}/doctors`, { headers: getAuthHeader() }),
+
+  /** Prompt 5.1 & 5.2: Update patient allergies */
+  updatePatientAllergies: (patientId, allergies) =>
+    axios.patch(`/api/patients/${patientId}/allergies`, { allergies }, { headers: getAuthHeader() }),
 };
 
 export default nurseApi;

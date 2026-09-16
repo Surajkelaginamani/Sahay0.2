@@ -20,6 +20,7 @@ export default function PatientRegistrationForm({ onSuccess }) {
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [autoQueue, setAutoQueue]         = useState(false);
   const [assignedDoctorId, setAssignedDoctorId] = useState('');
+  const [urgency, setUrgency]             = useState('Routine');
 
   // ── Fetch facility doctors on mount ────────────────────────────────────────
   useEffect(() => {
@@ -65,13 +66,17 @@ export default function PatientRegistrationForm({ onSuccess }) {
     setSuccessAlert('');
     try {
       const res = await receptionistApi.registerPatient(payload);
+      if (res.data?.requiresConfirmation) {
+        return res.data;
+      }
       const newPatient = res.data.patient;
       let queueInfo = null;
 
       // Optional immediate walk-in queue assignment
       if (autoQueue && assignedDoctorId) {
         try {
-          const queueRes = await receptionistApi.addToQueue(newPatient._id, assignedDoctorId);
+          const priority = urgency === 'Emergency' || urgency === 'Urgent' ? 'Urgent' : 'Routine';
+          const queueRes = await receptionistApi.addToQueue(newPatient._id, assignedDoctorId, undefined, priority, undefined, urgency);
           queueInfo = queueRes.data.appointment;
         } catch {
           // If queue addition fails after registration, still proceed with registration success
@@ -164,6 +169,14 @@ export default function PatientRegistrationForm({ onSuccess }) {
       <SharedPatientForm
         isSelfRegister={false}
         onSubmit={handleFormSubmit}
+        onUseExisting={(match) => {
+          if (match?.uhid) {
+            setSearchPhone(match.uhid);
+            receptionistApi.searchPatients(match.uhid).then((res) => {
+              setSearchResults(res.data.patients || []);
+            }).catch(() => {});
+          }
+        }}
         loading={loading}
         apiError={apiError}
         successAlert={successAlert}
@@ -185,31 +198,58 @@ export default function PatientRegistrationForm({ onSuccess }) {
         </label>
 
         {autoQueue && (
-          <div className="mt-3 pt-3 border-t border-amber-200/60 space-y-2">
-            <label className="block text-[11px] font-bold text-amber-900">
-              Select Consulting Doctor <span className="text-rose-500">*</span>
-            </label>
-            {loadingDoctors ? (
-              <p className="text-xs text-slate-500">Loading facility doctors…</p>
-            ) : doctors.length === 0 ? (
-              <p className="text-xs text-rose-600">
-                No doctors registered at this facility.
-              </p>
-            ) : (
+          <div className="mt-3 pt-3 border-t border-amber-200/60 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex-1 space-y-1">
+              <label className="block text-[11px] font-bold text-amber-900">
+                Select Consulting Doctor <span className="text-rose-500">*</span>
+              </label>
+              {loadingDoctors ? (
+                <p className="text-xs text-slate-500">Loading facility doctors…</p>
+              ) : doctors.length === 0 ? (
+                <p className="text-xs text-rose-600">
+                  No doctors registered at this facility.
+                </p>
+              ) : (
+                <select
+                  id="auto-queue-doctor-select"
+                  value={assignedDoctorId}
+                  onChange={(e) => setAssignedDoctorId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-amber-200 text-xs bg-white text-slate-800
+                    focus:outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                  {doctors.map((doc) => (
+                    <option key={doc._id} value={doc._id}>
+                      Dr. {doc.name} ({doc.email})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Urgency Level dropdown right next to Select Consulting Doctor (Prompt 4.2) */}
+            <div className="sm:w-44 space-y-1">
+              <label className="block text-[11px] font-bold text-amber-900">
+                Urgency Level
+              </label>
               <select
-                id="auto-queue-doctor-select"
-                value={assignedDoctorId}
-                onChange={(e) => setAssignedDoctorId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-amber-200 text-xs bg-white text-slate-800
-                  focus:outline-none focus:ring-2 focus:ring-amber-400"
+                id="auto-queue-urgency-select"
+                value={urgency}
+                onChange={(e) => setUrgency(e.target.value)}
+                className={`w-full px-3 py-2 rounded-xl border text-xs font-bold
+                  focus:outline-none focus:ring-2 focus:ring-amber-400
+                  ${
+                    urgency === 'Emergency'
+                      ? 'border-red-500 bg-red-50 text-red-700'
+                      : urgency === 'Urgent'
+                      ? 'border-amber-400 bg-amber-50 text-amber-800'
+                      : 'border-amber-200 bg-white text-slate-700'
+                  }`}
               >
-                {doctors.map((doc) => (
-                  <option key={doc._id} value={doc._id}>
-                    Dr. {doc.name} ({doc.email})
-                  </option>
-                ))}
+                <option value="Routine">Routine (Standard)</option>
+                <option value="Urgent">⚠️ Urgent (Priority)</option>
+                <option value="Emergency">🚨 Emergency (Critical)</option>
               </select>
-            )}
+            </div>
           </div>
         )}
       </div>

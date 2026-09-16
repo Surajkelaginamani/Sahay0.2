@@ -3,6 +3,7 @@ import { protect, authorize } from '../../middlewares/authMiddleware.js';
 import {
   getTriageQueue,
   captureVitals,
+  forwardToDoctor,
   getLabQueue,
   forwardToLab,
   notifyDoctor,
@@ -21,7 +22,9 @@ router.use(protect, authorize('Nurse'));
 router.get('/queue',        getTriageQueue);
 router.get('/triage/queue', getTriageQueue);
 
-// ── Vitals capture routes ─────────────────────────────────────────────────────
+// ── Forward to Doctor & Vitals routes (Prompt 4.1 & 6.2) ──────────────────────
+// POST /api/nurse/forward-to-doctor → triage forward directly to doctor with urgency
+router.post('/forward-to-doctor', forwardToDoctor);
 // POST /api/nurse/vitals          → capture vitals and push to 'Waiting for Doctor'
 // POST /api/nurse/capture-vitals  → alias
 router.post('/vitals',         captureVitals);

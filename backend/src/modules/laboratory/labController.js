@@ -2,6 +2,7 @@ import DiagnosticOrder from '../../models/DiagnosticOrder.js';
 import DiagnosticReport from '../../models/DiagnosticReport.js';
 import LabOrder from '../../models/LabOrder.js';
 import Appointment from '../../models/Appointment.js';
+import labCatalog, { findCatalogTest } from '../../utils/labCatalog.js';
 
 // @desc    Aggregates counts of DiagnosticOrders grouped by status for user's facilityId
 // @route   GET /api/lab/metrics
@@ -57,7 +58,7 @@ export const getTestQueue = async (req, res) => {
     }
 
     const queue = await DiagnosticOrder.find(query)
-      .populate('patientId', 'name email')
+      .populate('patientId', 'firstName lastName uhid contactPhone email')
       .populate('doctorId', 'name email')
       .sort({ orderDate: -1, createdAt: -1 });
 
@@ -162,7 +163,7 @@ export const getPendingTests = async (req, res) => {
     };
 
     const pendingTests = await LabOrder.find(query)
-      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId bloodGroup')
+      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId bloodGroup uhid')
       .populate('doctorId', 'name email')
       .populate('appointmentId', 'appointmentDate queueNumber priority visitType status')
       .sort({ createdAt: -1 })
@@ -178,35 +179,92 @@ export const getPendingTests = async (req, res) => {
   }
 };
 
+// Helper function to extract first numeric value from result text (Prompt 6.1)
+export const parseNumericResult = (text) => {
+  if (typeof text === 'number') return text;
+  if (!text || typeof text !== 'string') return null;
+  const match = text.match(/[-+]?\d*\.?\d+/);
+  if (!match) return null;
+  const num = parseFloat(match[0]);
+  return isNaN(num) ? null : num;
+};
+
 // @desc    Upload test report, mark LabOrder as Completed, and transition Appointment to 'Reports Ready'
-// @route   POST /api/lab/upload-report
+// @route   POST /api/lab/upload-report or POST /api/lab/complete-order
 // @access  Private (LabHead)
 export const uploadReport = async (req, res) => {
   try {
     const facilityId = req.user.hospitalId;
-    const { labOrderId, resultText, resultURL, notes } = req.body;
+    const { labOrderId, orderId, resultText, result, resultURL, notes } = req.body;
+    const targetId = labOrderId || orderId;
 
-    if (!labOrderId) {
+    if (!targetId) {
       return res.status(400).json({ message: 'Lab Order ID is required.' });
     }
 
-    const labOrder = await LabOrder.findOne({ _id: labOrderId, facilityId });
+    const labOrder = await LabOrder.findOne({ _id: targetId, facilityId });
     if (!labOrder) {
       return res.status(404).json({ message: 'Lab order not found for this facility.' });
     }
 
-    // 1. Update LabOrder to 'Completed' (Prompt 8.3)
+    const findingsText = String(resultText || result || resultURL || '').trim();
+
+    // Prompt 6.1: Check if submitted resultText falls outside catalog min and max
+    const testName = labOrder.testName || '';
+    const catalogItem = findCatalogTest(testName) || labCatalog.find(
+      (t) => (typeof t === 'string' ? t : t.name).toLowerCase() === testName.toLowerCase()
+    );
+
+    let isCritical = false;
+    let criticalReason = '';
+
+    if (catalogItem) {
+      const min = catalogItem.normalRange?.min ?? catalogItem.min;
+      const max = catalogItem.normalRange?.max ?? catalogItem.max;
+      const unit = catalogItem.normalRange?.unit || catalogItem.unit || '';
+
+      if (typeof min === 'number' && typeof max === 'number') {
+        const numVal = parseNumericResult(findingsText);
+        if (numVal !== null) {
+          if (numVal < min) {
+            isCritical = true;
+            criticalReason = `Result ${numVal} ${unit} is below normal reference range (${min} - ${max} ${unit})`;
+          } else if (numVal > max) {
+            isCritical = true;
+            criticalReason = `Result ${numVal} ${unit} exceeds normal reference range (${min} - ${max} ${unit})`;
+          }
+        }
+      }
+    }
+
+    // 1. Update LabOrder to 'Completed' (Prompt 8.3 & Prompt 6.1)
     labOrder.status = 'Completed';
-    labOrder.resultURL = resultURL || resultText || '';
+    labOrder.result = findingsText;
+    labOrder.resultText = findingsText;
+    labOrder.resultURL = resultURL || findingsText;
+    labOrder.isCritical = isCritical;
+    labOrder.criticalReason = criticalReason;
     if (notes) labOrder.notes = notes.trim();
     await labOrder.save();
 
-    // 2. Update associated Appointment to 'Reports Ready' (Prompt 8.3)
+    // 2. Update associated Appointment to 'Reports Ready' (Prompt 8.3 & Prompt 6.1)
     let appointment = null;
     if (labOrder.appointmentId) {
       appointment = await Appointment.findById(labOrder.appointmentId);
       if (appointment) {
         appointment.status = 'Reports Ready';
+        if (isCritical) {
+          appointment.isCriticalLab = true;
+        } else {
+          const otherCritical = await LabOrder.exists({
+            appointmentId: labOrder.appointmentId,
+            _id: { $ne: labOrder._id },
+            isCritical: true,
+          });
+          if (otherCritical) {
+            appointment.isCriticalLab = true;
+          }
+        }
         if (appointment.investigationAdvice && appointment.investigationAdvice.length > 0) {
           appointment.investigationAdvice.forEach((inv) => {
             if (inv.testName === labOrder.testName || !inv.status || inv.status === 'Ordered') {
@@ -220,12 +278,30 @@ export const uploadReport = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Lab report uploaded successfully and appointment updated to Reports Ready.',
+      message: isCritical
+        ? 'Lab report uploaded. CRITICAL VALUE FLAGGED: Test result is outside normal reference range.'
+        : 'Lab report uploaded successfully and appointment updated to Reports Ready.',
       labOrder,
       appointment,
+      isCritical,
+      criticalReason,
     });
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error uploading lab report.' });
+  }
+};
+
+// Prompt 6.1: completeLabOrder alias
+export const completeLabOrder = uploadReport;
+
+// @desc    Returns the standardized list of diagnostic tests with normal ranges
+// @route   GET /api/labs/catalog or GET /api/lab/catalog
+// @access  Public / Authenticated (Doctor, Nurse, LabHead)
+export const getLabCatalog = async (req, res) => {
+  try {
+    res.status(200).json(labCatalog);
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Server error fetching lab catalog' });
   }
 };
 

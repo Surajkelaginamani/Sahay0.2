@@ -43,8 +43,12 @@ router.post('/lab/request', requestLabTest); // alias
 
 // ── Consultation & Prescription routes ────────────────────────────────────────
 // POST /api/doctor/consultation/close                → Prompt 7.2 close consultation, create prescription, mark Completed
+// POST /api/doctor/appointment/:appointmentId/complete → Prompt 11.1 complete appointment with clinical tags & voice note
 router.post('/consultation/close', closeConsultation);
 router.post('/close-consultation', closeConsultation); // alias
+router.post('/appointment/:appointmentId/complete', closeConsultation); // Prompt 11.1
+router.post('/appointment/complete', closeConsultation); // Prompt 11.1
+router.post('/complete-appointment', closeConsultation); // Prompt 11.1
 
 // POST /api/doctor/consultation                      → save ABDM clinical consultation & complete appointment
 router.post('/consultation', submitConsultation);

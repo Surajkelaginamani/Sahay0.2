@@ -29,7 +29,7 @@ export const getTodayQueue = async (req, res) => {
       appointmentDate: { $gte: startOfDay, $lte: endOfDay },
       status: { $in: ['Waiting', 'In Progress', 'Completed'] },
     })
-      .populate('patient', 'name dateOfBirth gender abhaId contactPhone')
+      .populate('patient', 'name dateOfBirth gender abhaId contactPhone uhid')
       .sort({ tokenNumber: 1 });
 
     const waiting = appointments.filter((a) => a.status === 'Waiting');
@@ -57,12 +57,12 @@ export const startAppointment = async (req, res) => {
       },
       { status: 'In Progress' },
       { new: true }
-    ).populate('patient', 'name dateOfBirth gender abhaId contactPhone');
+    ).populate('patient', 'name dateOfBirth gender abhaId contactPhone uhid');
 
     if (!appointment) {
       // Either not found, not theirs, or already past "Waiting" — return gracefully
       const existing = await Appointment.findById(req.params.appointmentId)
-        .populate('patient', 'name dateOfBirth gender abhaId contactPhone');
+        .populate('patient', 'name dateOfBirth gender abhaId contactPhone uhid');
       return res.status(200).json(existing || { message: 'Appointment not found' });
     }
 
@@ -143,7 +143,7 @@ export const saveConsultation = async (req, res) => {
     // Verify the appointment belongs to this doctor
     const appointment = await Appointment.findOne({
       _id: appointmentId,
-      doctor: req.user._id,
+      $or: [{ assignedDoctorId: req.user._id }, { doctor: req.user._id }],
     });
 
     if (!appointment) {
@@ -181,7 +181,7 @@ export const saveConsultation = async (req, res) => {
     if (normalizedOrders.length > 0) {
       const labDocs = normalizedOrders.map((order) => ({
         consultation: consultation._id,
-        patient: appointment.patient,
+        patient: appointment.patientId || appointment.patient,
         orderedBy: req.user._id,
         hospital: req.user.hospitalId,
         testName: order.testName,
@@ -228,5 +228,6 @@ export {
   getPatientHistory,
   requestLabTest,
   closeConsultation,
+  completeAppointment,
 } from '../modules/doctor/doctorController.js';
 

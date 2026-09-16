@@ -50,6 +50,16 @@ const appointmentSchema = new mongoose.Schema(
       default: 'Routine',
     },
 
+    // ── Urgency Level (Prompt 4.1) ─────────────────────────────────────────────
+    urgency: {
+      type: String,
+      enum: {
+        values: ['Emergency', 'Urgent', 'Routine'],
+        message: '{VALUE} is not a valid urgency level. Use Emergency, Urgent, or Routine.',
+      },
+      default: 'Routine',
+    },
+
     // ── Appointment Type (Prompt 17.1) ────────────────────────────────────────
     type: {
       type: String,
@@ -131,6 +141,11 @@ const appointmentSchema = new mongoose.Schema(
     labForwardedAt: {
       type: Date,
     },
+    // Prompt 6.1 & 6.2: High-priority flag when lab results are out of bounds
+    isCriticalLab: {
+      type: Boolean,
+      default: false,
+    },
 
     // ── Visit Details ─────────────────────────────────────────────────────────
     visitType: {
@@ -162,6 +177,19 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+
+    // ── Prompt 11.1: Clinical Tags & Voice Transcript ─────────────────────────
+    // One-click outcome tags selected by the doctor at visit closure
+    clinicalTags: {
+      type: [String],
+      default: [],
+    },
+    // Optional voice-scribed note transcribed via browser SpeechRecognition API
+    voiceNoteTranscript: {
+      type: String,
+      trim: true,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -177,6 +205,8 @@ appointmentSchema.index({ assignedDoctorId: 1, appointmentDate: 1 });
 appointmentSchema.index({ receptionistId: 1, createdAt: -1 });
 // Priority triage index: Urgent first, then Routine, within a facility day
 appointmentSchema.index({ facilityId: 1, appointmentDate: 1, priority: 1, queueNumber: 1 });
+// Urgency triage index: Doctor queue sorting by urgency & creation
+appointmentSchema.index({ assignedDoctorId: 1, status: 1, urgency: 1, createdAt: 1 });
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);
 

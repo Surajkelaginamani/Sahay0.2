@@ -18,6 +18,11 @@ export default function VitalsForm({
   const [pulse, setPulse]                 = useState('');
   const [spO2, setSpO2]                   = useState('98');
   const [notes, setNotes]                 = useState('');
+  const [urgency, setUrgency]             = useState('Routine');
+
+  // ── Prompt 5.2: Known Allergies Tag-Input State ─────────────────────────────
+  const [allergies, setAllergies]         = useState([]);
+  const [newAllergyInput, setNewAllergyInput] = useState('');
 
   // ── Pre-fill when appointment changes ───────────────────────────────────────
   useEffect(() => {
@@ -31,8 +36,26 @@ export default function VitalsForm({
       setPulse('');
       setSpO2('98');
       setNotes('');
+      setUrgency(appointment.urgency || (appointment.priority === 'Urgent' ? 'Urgent' : 'Routine'));
+      const existingAllergies = appointment.patientId?.allergies || [];
+      setAllergies(Array.isArray(existingAllergies) ? [...existingAllergies] : []);
+      setNewAllergyInput('');
     }
   }, [appointment]);
+
+  const handleAddAllergy = (e) => {
+    if (e) e.preventDefault();
+    const trimmed = newAllergyInput.trim();
+    if (!trimmed) return;
+    if (!allergies.some((a) => a.toLowerCase() === trimmed.toLowerCase())) {
+      setAllergies((prev) => [...prev, trimmed]);
+    }
+    setNewAllergyInput('');
+  };
+
+  const handleRemoveAllergy = (indexToRemove) => {
+    setAllergies((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
 
   // ── Real-time BMI Calculation ───────────────────────────────────────────────
   const bmiInfo = useMemo(() => {
@@ -81,9 +104,21 @@ export default function VitalsForm({
       pulse:         pulse.trim() || undefined,
       spO2:          spO2.trim() || undefined,
       notes:         notes.trim() || undefined,
+      urgency,
+      allergies,
     };
 
     try {
+      // Prompt 5.2: Save allergies via PATCH /api/patients/:id/allergies endpoint
+      const patientId = appointment.patientId?._id || appointment.patientId;
+      if (patientId) {
+        try {
+          await nurseApi.updatePatientAllergies(patientId, allergies);
+        } catch (alErr) {
+          console.warn('Could not save patient allergies via PATCH endpoint:', alErr);
+        }
+      }
+
       const res = await nurseApi.captureVitals(payload);
       onSuccess?.(res.data);
     } catch (err) {
@@ -351,6 +386,111 @@ export default function VitalsForm({
             className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50
               focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white resize-none"
           />
+        </div>
+
+        {/* Set Urgency Level (Prompt 4.2) */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-slate-700 flex items-center justify-between">
+            <span>Set Urgency Level</span>
+            <span className="text-[10px] text-slate-400 font-normal">Controls queue priority</span>
+          </label>
+          <select
+            id="vitals-urgency-select"
+            value={urgency}
+            onChange={(e) => setUrgency(e.target.value)}
+            className={`w-full px-3 py-2 rounded-xl border text-xs font-bold
+              focus:outline-none focus:ring-2 focus:ring-teal-500
+              ${
+                urgency === 'Emergency'
+                  ? 'border-red-500 bg-red-50 text-red-700'
+                  : urgency === 'Urgent'
+                  ? 'border-amber-400 bg-amber-50 text-amber-800'
+                  : 'border-slate-200 bg-white text-slate-800'
+              }`}
+          >
+            <option value="Routine">Routine (Standard)</option>
+            <option value="Urgent">⚠️ Urgent (Priority)</option>
+            <option value="Emergency">🚨 Emergency (Immediate Doctor Attention)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* ── Prompt 5.2: Known Allergies Tag-Input Section ────────────────────── */}
+      <div className="space-y-3 pt-3 border-t border-slate-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Known Allergies
+            </h4>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">
+              {allergies.length} Recorded
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">Critical Clinical Alert</span>
+        </div>
+
+        <p className="text-[11px] text-slate-500">
+          Document any drug, food, or substance allergies. These are permanently saved to the patient profile and will trigger safety warnings during doctor prescription.
+        </p>
+
+        {/* Existing Allergies Pills/Tags */}
+        {allergies.length > 0 ? (
+          <div className="flex flex-wrap gap-2 p-2.5 rounded-2xl bg-rose-50/60 border border-rose-100">
+            {allergies.map((allergy, idx) => (
+              <span
+                key={`${allergy}-${idx}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold shadow-xs transition-all"
+              >
+                <span>🏷️ {allergy}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAllergy(idx)}
+                  title={`Remove ${allergy}`}
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-rose-600 hover:text-white hover:bg-rose-600 transition-colors cursor-pointer text-xs"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="p-2.5 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">
+            No allergies documented yet. Type below and press Enter to record.
+          </div>
+        )}
+
+        {/* Tag Input Field */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              id="nurse-allergy-input"
+              value={newAllergyInput}
+              onChange={(e) => setNewAllergyInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddAllergy(e);
+                }
+              }}
+              placeholder="Type allergy (e.g. Penicillin, Sulfa Drugs, Aspirin) and press Enter..."
+              className="w-full pl-3 pr-16 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white bg-slate-50/50 font-medium transition-all"
+            />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-semibold pointer-events-none hidden sm:inline">
+              ↵ Enter
+            </span>
+          </div>
+
+          <button
+            type="button"
+            id="nurse-add-allergy-btn"
+            onClick={handleAddAllergy}
+            disabled={!newAllergyInput.trim()}
+            className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm shadow-rose-200 transition-all disabled:opacity-40 cursor-pointer shrink-0"
+          >
+            + Add
+          </button>
         </div>
       </div>
 

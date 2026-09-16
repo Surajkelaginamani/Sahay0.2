@@ -38,6 +38,7 @@ function StatusPill({ status }) {
 export default function TriageQueue({
   selectedAppointmentId,
   onEnterVitals,
+  onForwardToDoctor,
   onRequestTeleconsult,
   refreshTrigger,
   onQueueLoaded,
@@ -87,9 +88,10 @@ export default function TriageQueue({
       if (q) {
         const name = (appt.patientFullName || '').toLowerCase();
         const phone = (appt.patientId?.contactPhone || '').toLowerCase();
+        const uhid = (appt.patientId?.uhid || '').toLowerCase();
         const complaint = (appt.chiefComplaint || '').toLowerCase();
         const token = String(appt.queueNumber || '');
-        return name.includes(q) || phone.includes(q) || complaint.includes(q) || token.includes(q);
+        return name.includes(q) || phone.includes(q) || uhid.includes(q) || complaint.includes(q) || token.includes(q);
       }
       return true;
     });
@@ -302,6 +304,11 @@ export default function TriageQueue({
                       <p className="font-bold text-slate-900 text-xs leading-tight">
                         {appt.patientFullName}
                       </p>
+                      {patient?.uhid && (
+                        <span className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
+                          🪪 {patient.uhid}
+                        </span>
+                      )}
                       <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
                         {patient?.gender && <span>{patient.gender}</span>}
                         {age !== null && (
@@ -332,18 +339,18 @@ export default function TriageQueue({
                       {patient?.contactPhone || '—'}
                     </td>
 
-                    {/* Priority */}
+                    {/* Priority / Urgency (Prompt 4.3) */}
                     <td className="py-3 px-3.5 whitespace-nowrap">
-                      {isUrgent ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-black border border-rose-200">
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5"
-                              d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Urgent
+                      {appt.urgency === 'Emergency' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-xs animate-pulse">
+                          🚨 Emergency
+                        </span>
+                      ) : appt.urgency === 'Urgent' || appt.priority === 'Urgent' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                          ⚠️ Urgent
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-medium border border-slate-200">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-medium">
                           Routine
                         </span>
                       )}
@@ -361,9 +368,22 @@ export default function TriageQueue({
                       <StatusPill status={appt.status} />
                     </td>
 
-                    {/* Action: Enter Vitals & Teleconsult (Prompt 16.3) */}
+                    {/* Action: Forward to Doctor (Prompt 4.2), Enter Vitals & Teleconsult */}
                     <td className="py-3 px-3.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
+                        {/* Prompt 4.2: Forward to Doctor */}
+                        <button
+                          type="button"
+                          onClick={() => onForwardToDoctor?.(appt)}
+                          title="Forward directly to Doctor queue with Urgency"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs shadow-emerald-200 transition-colors cursor-pointer"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                          </svg>
+                          <span>Forward to Doctor</span>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => onRequestTeleconsult?.(appt)}
@@ -383,7 +403,7 @@ export default function TriageQueue({
                         <button
                           type="button"
                           onClick={() => onEnterVitals?.(appt)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs shadow-teal-200 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs shadow-teal-200 transition-colors cursor-pointer"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"

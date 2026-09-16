@@ -39,6 +39,14 @@ export default function NurseDashboard() {
   const [toast, setToast]                             = useState(null);
   const [currentTime, setCurrentTime]                 = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
+  // ── Prompt 4.2 & 5.2: Forward to Doctor Confirmation Modal State ────────────
+  const [forwardModalAppt, setForwardModalAppt]         = useState(null);
+  const [forwardUrgency, setForwardUrgency]             = useState('Routine');
+  const [forwardNotes, setForwardNotes]                 = useState('');
+  const [forwardSubmitting, setForwardSubmitting]       = useState(false);
+  const [forwardAllergies, setForwardAllergies]         = useState([]);
+  const [forwardNewAllergy, setForwardNewAllergy]       = useState('');
+
   // ── Teleconsultation state (Prompt 16.3) ───────────────────────────────────
   const [teleconsultAppt, setTeleconsultAppt]         = useState(null);
   const [teleconsultDoctors, setTeleconsultDoctors]   = useState([]);
@@ -53,6 +61,25 @@ export default function NurseDashboard() {
   // ── My Teleconsults State & Fetcher (Prompt 17.4) ─────────────────────────────
   const [myTeleconsults, setMyTeleconsults]             = useState([]);
   const [loadingTeleconsults, setLoadingTeleconsults]   = useState(false);
+
+  // ── Prompt 6.2: Critical Lab Alerts State ─────────────────────────────────
+  const [criticalLabCount, setCriticalLabCount]         = useState(0);
+  const [criticalLabPatients, setCriticalLabPatients]   = useState([]);
+
+  const fetchLabQueueStats = useCallback(async () => {
+    try {
+      const res = await nurseApi.getLabQueue();
+      const reportsReady = res.data?.reportsReady || [];
+      const critical = reportsReady.filter(
+        (a) => a.isCriticalLab || a.labOrders?.some((o) => o.isCritical) || a.latestLabOrder?.isCritical
+      );
+      setCriticalLabPatients(critical);
+      const count = res.data?.counts?.criticalLabs ?? critical.length;
+      setCriticalLabCount(count);
+    } catch {
+      // non-blocking
+    }
+  }, []);
 
   const loadMyTeleconsults = useCallback(async () => {
     setLoadingTeleconsults(true);
@@ -88,13 +115,21 @@ export default function NurseDashboard() {
     loadMyTeleconsults();
   };
 
-  // Live time ticker
+  // Live time ticker & critical lab alert interval
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     }, 10000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchLabQueueStats();
+      const interval = setInterval(fetchLabQueueStats, 20000);
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchLabQueueStats, refreshTrigger]);
 
   // Auth & role check
   useEffect(() => {
@@ -147,6 +182,63 @@ export default function NurseDashboard() {
     setVitalsCapturedCount((c) => c + 1);
     setRefreshTrigger((r) => r + 1);
   }, [showToast, selectedAppointment]);
+
+  // ── Prompt 4.2 & 5.2: Forward to Doctor Handlers ───────────────────────────
+  const handleOpenForwardModal = useCallback((appt) => {
+    setForwardModalAppt(appt);
+    setForwardUrgency(appt.urgency || (appt.priority === 'Urgent' ? 'Urgent' : 'Routine'));
+    setForwardNotes(appt.chiefComplaint || '');
+    const existing = appt.patientId?.allergies || [];
+    setForwardAllergies(Array.isArray(existing) ? [...existing] : []);
+    setForwardNewAllergy('');
+  }, []);
+
+  const handleAddForwardAllergy = (e) => {
+    if (e) e.preventDefault();
+    const trimmed = forwardNewAllergy.trim();
+    if (!trimmed) return;
+    if (!forwardAllergies.some((a) => a.toLowerCase() === trimmed.toLowerCase())) {
+      setForwardAllergies((prev) => [...prev, trimmed]);
+    }
+    setForwardNewAllergy('');
+  };
+
+  const handleRemoveForwardAllergy = (idxToRemove) => {
+    setForwardAllergies((prev) => prev.filter((_, i) => i !== idxToRemove));
+  };
+
+  const handleConfirmForwardToDoctor = async () => {
+    if (!forwardModalAppt) return;
+    setForwardSubmitting(true);
+    try {
+      const patientId = forwardModalAppt.patientId?._id || forwardModalAppt.patientId;
+      if (patientId) {
+        try {
+          await nurseApi.updatePatientAllergies(patientId, forwardAllergies);
+        } catch (alErr) {
+          console.warn('Could not update patient allergies via PATCH endpoint:', alErr);
+        }
+      }
+
+      const res = await nurseApi.forwardToDoctor({
+        appointmentId: forwardModalAppt._id,
+        urgency: forwardUrgency,
+        triageNotes: forwardNotes,
+        allergies: forwardAllergies,
+      });
+      showToast(
+        'success',
+        'Forwarded to Doctor',
+        res.data?.message || `${forwardModalAppt.patientFullName || 'Patient'} forwarded to doctor queue with "${forwardUrgency}" priority.`
+      );
+      setForwardModalAppt(null);
+      setRefreshTrigger((r) => r + 1);
+    } catch (err) {
+      showToast('error', 'Forward Failed', err.response?.data?.message || 'Failed to forward patient to doctor.');
+    } finally {
+      setForwardSubmitting(false);
+    }
+  };
 
   // ── Teleconsultation Handlers (Prompt 16.3) ─────────────────────────────────
   const handleOpenTeleconsultModal = useCallback(async (appt) => {
@@ -207,6 +299,15 @@ export default function NurseDashboard() {
       loadMyTeleconsults();
     }
   }, [user, activeTab, loadMyTeleconsults]);
+
+  // Prompt 6.2: Periodically poll and refresh critical lab stats for high-priority alerts
+  useEffect(() => {
+    if (user) {
+      fetchLabQueueStats();
+      const interval = setInterval(fetchLabQueueStats, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [user, refreshTrigger, fetchLabQueueStats]);
 
   if (!user) return null;
 
@@ -366,6 +467,37 @@ export default function NurseDashboard() {
           />
         </div>
 
+        {/* ── Prompt 6.2: High-Priority Critical Lab Banner ─────────────── */}
+        {criticalLabCount > 0 && (
+          <div className="bg-rose-50 border-2 border-rose-500 rounded-2xl p-4 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-pulse">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center text-lg shrink-0 shadow-sm">
+                🚨
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-black text-rose-900 tracking-wide uppercase">
+                    High Priority: Critical Lab Result{criticalLabCount > 1 ? 's' : ''} Detected ({criticalLabCount})
+                  </h4>
+                  <span className="px-2 py-0.5 bg-rose-600 text-white text-[10px] font-black rounded-full uppercase">
+                    Immediate Action
+                  </span>
+                </div>
+                <p className="text-xs text-rose-700 mt-0.5">
+                  One or more laboratory findings fall outside physiological normal ranges. Please notify the doctor immediately.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('labCoordination')}
+              className="shrink-0 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all text-center"
+            >
+              Review Critical Labs ({criticalLabCount}) →
+            </button>
+          </div>
+        )}
+
         {/* ── Nurse Workspace Tabs (Prompt 8.2) ─────────────────────────── */}
         <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
           <div className="flex items-center gap-1.5">
@@ -406,11 +538,18 @@ export default function NurseDashboard() {
                   d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
               </svg>
               <span>Lab Coordination</span>
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                activeTab === 'labCoordination' ? 'bg-teal-700 text-white' : 'bg-amber-100 text-amber-800'
-              }`}>
-                Step 4.2 / 4.4
-              </span>
+              {criticalLabCount > 0 ? (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse flex items-center gap-1 shadow-sm">
+                  <span>🚨</span>
+                  <span>{criticalLabCount} Critical</span>
+                </span>
+              ) : (
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  activeTab === 'labCoordination' ? 'bg-teal-700 text-white' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  Step 4.2 / 4.4
+                </span>
+              )}
             </button>
 
             {/* Prompt 15.2: Outbound Referrals Tab */}
@@ -510,11 +649,93 @@ export default function NurseDashboard() {
         {/* ── Active Tab View ─────────────────────────────────────────────── */}
         {activeTab === 'triage' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Left Column: Triage Queue Table */}
-            <div className="lg:col-span-7 xl:col-span-7">
+            {/* Left Column: Critical Lab Alerts & Triage Queue Table */}
+            <div className="lg:col-span-7 xl:col-span-7 space-y-4">
+              {/* Prompt 6.2: Critical Lab Results Sorted to Very Top of Nurse's Queue */}
+              {criticalLabPatients.length > 0 && (
+                <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white rounded-3xl p-4 sm:p-5 shadow-xl border-2 border-red-500 animate-pulse space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-8 h-8 rounded-xl bg-white text-red-700 font-black text-sm flex items-center justify-center shadow-xs">
+                        🚨
+                      </span>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                          CRITICAL LAB RESULTS AWAITING REVIEW ({criticalLabPatients.length})
+                        </h3>
+                        <p className="text-[11px] text-red-100">
+                          Out-of-bounds findings detected. Immediate escalation to doctor required.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('labCoordination')}
+                      className="text-[11px] font-bold bg-white text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+                    >
+                      Open Lab Desk →
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {criticalLabPatients.map((appt) => {
+                      const pName = appt.patientFullName || `${appt.patientId?.firstName || 'Patient'} ${appt.patientId?.lastName || ''}`;
+                      const testName = appt.latestLabOrder?.testName || appt.labOrders?.find((o) => o.isCritical)?.testName || 'Diagnostic Test';
+                      const reason = appt.latestLabOrder?.criticalReason || appt.labOrders?.find((o) => o.isCritical)?.criticalReason || 'Out of physiological normal range';
+                      const docName = appt.assignedDoctorId?.name || 'Assigned Doctor';
+
+                      return (
+                        <div
+                          key={appt._id}
+                          className="bg-white text-slate-900 rounded-2xl p-3.5 border border-red-200 shadow-sm flex flex-wrap items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-xs text-slate-900">{pName}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white font-black text-[9px] uppercase tracking-wider animate-pulse">
+                                🚨 CRITICAL LAB RESULT
+                              </span>
+                              {appt.queueNumber && (
+                                <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                                  #{appt.queueNumber}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] font-bold text-red-700 mt-0.5">
+                              {testName}: <span className="font-medium text-slate-700">{reason}</span>
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              Assigned: Dr. {docName} · Phone: {appt.patientId?.contactPhone || '—'}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await nurseApi.notifyDoctor(appt._id);
+                                showToast('success', 'Doctor Notified', `${pName}'s critical lab forwarded to Doctor's Review Queue.`);
+                                fetchLabQueueStats();
+                                setRefreshTrigger((r) => r + 1);
+                              } catch (err) {
+                                showToast('error', 'Notification Failed', err.response?.data?.message || 'Could not notify doctor.');
+                              }
+                            }}
+                            className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                          >
+                            <span>🚨 Escalate to Dr. {docName}</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <TriageQueue
                 selectedAppointmentId={selectedAppointment?._id}
                 onEnterVitals={setSelectedAppointment}
+                onForwardToDoctor={handleOpenForwardModal}
                 onRequestTeleconsult={handleOpenTeleconsultModal}
                 refreshTrigger={refreshTrigger}
                 onQueueLoaded={handleQueueLoaded}
@@ -534,7 +755,10 @@ export default function NurseDashboard() {
 
         {activeTab === 'labCoordination' && (
           <LabCoordination
-            onActionSuccess={(msg) => showToast('success', 'Lab Coordination', msg)}
+            onActionSuccess={(msg) => {
+              showToast('success', 'Lab Coordination', msg);
+              fetchLabQueueStats();
+            }}
           />
         )}
 
@@ -692,7 +916,7 @@ export default function NurseDashboard() {
                           </div>
                         )}
 
-                        {['Teleconsult Confirmed', 'Patient Waiting in Room', 'Teleconsult Scheduled'].includes(tc.status) && tc.teleconsultRoomId && (
+                        {['Teleconsult Confirmed', 'Patient Waiting in Room', 'Teleconsult Scheduled', 'In Teleconsult'].includes(tc.status) && (
                           <button
                             id={`nurse-join-teleconsult-${tc._id}`}
                             onClick={() => handleStartCall(tc)}
@@ -804,6 +1028,189 @@ export default function NurseDashboard() {
                     <>
                       <span>📹</span>
                       <span>Start Video Room</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Prompt 4.2: Forward to Doctor Confirmation Modal ──────── */}
+        {forwardModalAppt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg shrink-0">
+                    🩺
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">Forward to Doctor OPD</h3>
+                    <p className="text-xs text-slate-400">Confirm transition & triage urgency</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForwardModalAppt(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-sm font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Patient Banner */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  {forwardModalAppt.patientId?.firstName?.[0] || 'P'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-900 truncate">
+                    {forwardModalAppt.patientFullName}
+                  </p>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                    {forwardModalAppt.patientId?.uhid && (
+                      <span className="font-mono text-teal-800 font-semibold">🪪 {forwardModalAppt.patientId.uhid}</span>
+                    )}
+                    {forwardModalAppt.queueNumber && (
+                      <span>Token: #{forwardModalAppt.queueNumber}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Set Urgency Dropdown (Prompt 4.2) */}
+              <div className="space-y-1.5">
+                <label htmlFor="forward-urgency-select" className="block text-xs font-bold text-slate-700">
+                  Set Urgency Level <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    id="forward-urgency-select"
+                    value={forwardUrgency}
+                    onChange={(e) => setForwardUrgency(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-bold focus:outline-none focus:ring-2 transition-all ${
+                      forwardUrgency === 'Emergency'
+                        ? 'bg-red-50 border-red-300 text-red-700 focus:ring-red-400'
+                        : forwardUrgency === 'Urgent'
+                        ? 'bg-amber-50 border-amber-300 text-amber-900 focus:ring-amber-400'
+                        : 'bg-white border-slate-200 text-slate-700 focus:ring-teal-400'
+                    }`}
+                  >
+                    <option value="Routine">Routine — Standard priority</option>
+                    <option value="Urgent">Urgent — Expedited doctor review</option>
+                    <option value="Emergency">🚨 Emergency — Immediate doctor attention (Top of queue)</option>
+                  </select>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Emergency patients will be sorted to the very top of the doctor's queue.
+                </p>
+              </div>
+
+              {/* Triage / Handover Notes */}
+              <div className="space-y-1.5">
+                <label htmlFor="forward-triage-notes" className="block text-xs font-bold text-slate-700">
+                  Triage Handover Remarks <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  id="forward-triage-notes"
+                  rows={2}
+                  value={forwardNotes}
+                  onChange={(e) => setForwardNotes(e.target.value)}
+                  placeholder="e.g. Severe chest pain, vitals unstable, rapid escalation required..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 text-slate-700"
+                />
+              </div>
+
+              {/* Prompt 5.2: Known Allergies Tag-Input Section in Forward Modal */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    <span>Known Allergies</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                      {forwardAllergies.length}
+                    </span>
+                  </label>
+                  <span className="text-[10px] text-slate-400">Press Enter to add</span>
+                </div>
+
+                {/* Existing Allergies Pills */}
+                {forwardAllergies.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-rose-50/50 border border-rose-100">
+                    {forwardAllergies.map((allergy, idx) => (
+                      <span
+                        key={`${allergy}-${idx}`}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-bold shadow-xs"
+                      >
+                        <span>🏷️ {allergy}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveForwardAllergy(idx)}
+                          className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-rose-600 hover:text-white hover:bg-rose-600 transition-colors cursor-pointer text-[10px]"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic">No allergies recorded yet.</p>
+                )}
+
+                {/* Allergy Input */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={forwardNewAllergy}
+                    onChange={(e) => setForwardNewAllergy(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddForwardAllergy(e);
+                      }
+                    }}
+                    placeholder="Type allergy (e.g. Penicillin) & hit Enter..."
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-slate-50 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddForwardAllergy}
+                    disabled={!forwardNewAllergy.trim()}
+                    className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition-all disabled:opacity-40 cursor-pointer"
+                  >
+                    + Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setForwardModalAppt(null)}
+                  disabled={forwardSubmitting}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="confirm-forward-to-doctor-btn"
+                  type="button"
+                  onClick={handleConfirmForwardToDoctor}
+                  disabled={forwardSubmitting}
+                  className={`flex-1 py-2.5 rounded-xl text-white text-xs font-extrabold shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 ${
+                    forwardUrgency === 'Emergency'
+                      ? 'bg-red-600 hover:bg-red-700 shadow-red-200'
+                      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+                  }`}
+                >
+                  {forwardSubmitting ? (
+                    <span>Forwarding…</span>
+                  ) : (
+                    <>
+                      <span>Confirm & Forward</span>
+                      <span>→</span>
                     </>
                   )}
                 </button>

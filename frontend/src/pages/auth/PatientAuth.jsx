@@ -3,17 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { patientAPI } from '../../services/api';
 import { getStoredAuth } from '../../utils/auth';
 import SharedPatientForm from '../../components/common/SharedPatientForm';
+import PatientLogin from './PatientLogin';
 
 export default function PatientAuth() {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState('');
   const [regSuccess, setRegSuccess] = useState('');
@@ -53,52 +46,6 @@ export default function PatientAuth() {
     }
   }, [navigate]);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError('');
-  };
-
-  // ── Login handler ──────────────────────────────────────────────────────────
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await patientAPI.login({
-        identifier: formData.email,
-        email: formData.email,
-        phone: formData.email,
-        password: formData.password,
-      });
-
-      // Save credentials in local storage (Prompt 12.2)
-      localStorage.setItem('sahay_token', response.data.token);
-      localStorage.setItem(
-        'sahay_user',
-        JSON.stringify({
-          _id: response.data._id,
-          name: response.data.name,
-          email: response.data.email,
-          phone: response.data.phone,
-          patientId: response.data.patientId,
-          role: response.data.role,
-        })
-      );
-      if (response.data.patientId) {
-        localStorage.setItem('patient_id', response.data.patientId);
-      }
-
-      navigate('/dashboard/patient');
-    } catch (err) {
-      setError(
-        err.response?.data?.message || 'Authentication failed. Please check your credentials.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // ── Self-registration handler (SharedPatientForm) ─────────────────────────
   const handleSelfRegister = async (payload, resetForm) => {
     setRegLoading(true);
@@ -107,6 +54,9 @@ export default function PatientAuth() {
 
     try {
       const response = await patientAPI.register(payload);
+      if (response.data?.requiresConfirmation) {
+        return response.data;
+      }
 
       // Save credentials in local storage
       localStorage.setItem('sahay_token', response.data.token);
@@ -195,72 +145,20 @@ export default function PatientAuth() {
           </button>
         </div>
 
-        {/* ── Login Tab ──────────────────────────────────────────────────── */}
+        {/* ── Login Tab (Prompt 7.1 PatientLogin with 4-Digit PIN) ─────────── */}
         {isLogin ? (
-          <>
-            {/* Error Alert */}
-            {error && (
-              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">
-                <svg className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{error}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Phone Number or Email Address
-                </label>
-                <input
-                  type="text"
-                  name="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="e.g. 9876543210 or patient@example.com"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  minLength={6}
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="••••••••"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500 focus:border-mint-500 transition-all"
-                />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Minimum 6 characters with secure hashing
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 px-4 rounded-xl bg-mint-600 hover:bg-mint-700 text-white font-semibold text-sm shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {loading ? (
-                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                ) : (
-                  'Sign In to Health Portal'
-                )}
-              </button>
-            </form>
-          </>
+          <PatientLogin onSwitchToRegister={() => setIsLogin(false)} />
         ) : (
           /* ── Registration Tab (SharedPatientForm) ──────────────────── */
           <SharedPatientForm
             isSelfRegister={true}
             onSubmit={handleSelfRegister}
+            onUseExisting={(match) => {
+              setIsLogin(true);
+              if (match?.contactPhone) {
+                setFormData((prev) => ({ ...prev, email: match.contactPhone }));
+              }
+            }}
             loading={regLoading}
             apiError={regError}
             successAlert={regSuccess}

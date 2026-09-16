@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import doctorApi from '../services/doctorApi';
+import AiClinicalInsightCard from './AiClinicalInsightCard';
 
 export default function PatientHistory({ patientId, patient: initialPatient }) {
   const [loading, setLoading] = useState(true);
@@ -57,6 +58,8 @@ export default function PatientHistory({ patientId, patient: initialPatient }) {
       title: item.diagnosis ? `Diagnosis: ${item.diagnosis}` : 'OPD Consultation',
       facility: item.facilityId?.hospitalName || item.hospital?.hospitalName || 'Hospital Clinic',
       provider: item.doctorId?.name || item.doctor?.name || 'Treating Doctor',
+      clinicalTags: item.clinicalTags || item.appointmentId?.clinicalTags || [],
+      voiceNoteTranscript: item.voiceNoteTranscript || item.appointmentId?.voiceNoteTranscript || '',
       raw: item,
     });
   });
@@ -142,6 +145,9 @@ export default function PatientHistory({ patientId, patient: initialPatient }) {
 
   return (
     <div className="space-y-6">
+      {/* ── Prompt 6.3: Gemini AI Clinical Insights Card (Top of Medical History Tab) ── */}
+      <AiClinicalInsightCard patientId={patientId} />
+
       {/* ── Patient Demographics Banner ─────────────────────────────────── */}
       {activePatient && (
         <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm">
@@ -341,6 +347,55 @@ export default function PatientHistory({ patientId, patient: initialPatient }) {
                           </span>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Prompt 11.2: Clinical Tags (Pill-Badges) */}
+                  {((event.clinicalTags && event.clinicalTags.length > 0) ||
+                    (event.raw.clinicalTags && event.raw.clinicalTags.length > 0) ||
+                    (event.raw.appointmentId?.clinicalTags && event.raw.appointmentId.clinicalTags.length > 0)) && (
+                    <div className="pt-2 border-t border-slate-100/80">
+                      <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                        Clinical Outcome Tags
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(
+                          (event.clinicalTags && event.clinicalTags.length > 0
+                            ? event.clinicalTags
+                            : event.raw.clinicalTags && event.raw.clinicalTags.length > 0
+                            ? event.raw.clinicalTags
+                            : event.raw.appointmentId?.clinicalTags) || []
+                        ).map((tag, tIdx) => (
+                          <span
+                            key={tIdx}
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold shadow-xs hover:bg-indigo-100 transition-colors"
+                          >
+                            <span className="text-[10px]">🏷️</span>
+                            <span>{tag}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Prompt 11.2: Voice Note Transcript (Text Block) */}
+                  {(event.voiceNoteTranscript ||
+                    event.raw.voiceNoteTranscript ||
+                    event.raw.appointmentId?.voiceNoteTranscript) && (
+                    <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-cyan-50/90 via-sky-50/70 to-blue-50/60 border border-cyan-200/80 shadow-xs">
+                      <div className="flex items-center gap-1.5 text-cyan-900 font-extrabold text-[11px] mb-1">
+                        <span className="p-1 rounded-lg bg-cyan-100/80 text-xs">🎙️</span>
+                        <span>Voice Scribe Note</span>
+                        <span className="text-[10px] font-normal text-cyan-700 bg-cyan-100/50 px-2 py-0.5 rounded-full ml-auto font-mono">
+                          ABDM Scribed
+                        </span>
+                      </div>
+                      <p className="text-slate-700 italic text-xs leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-cyan-400/80 ml-0.5">
+                        "{event.voiceNoteTranscript ||
+                          event.raw.voiceNoteTranscript ||
+                          event.raw.appointmentId?.voiceNoteTranscript}"
+                      </p>
                     </div>
                   )}
                 </div>

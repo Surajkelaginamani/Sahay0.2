@@ -6,12 +6,17 @@ import {
   submitReport,
   getPendingTests,
   uploadReport,
+  completeLabOrder,
+  getLabCatalog,
 } from './labController.js';
 import { protect, authorize } from '../../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Restrict all laboratory routes to authenticated users with LabHead role
+// GET /api/labs/catalog or /api/lab/catalog - Public / Authenticated catalog of standardized tests
+router.get('/catalog', getLabCatalog);
+
+// Restrict subsequent laboratory routes to authenticated users with LabHead role
 router.use(protect, authorize('LabHead'));
 
 // GET /api/lab/metrics - Aggregated metrics grouped by status
@@ -26,6 +31,8 @@ router.get('/pending-tests', getPendingTests);
 
 // POST /api/lab/upload-report   - Upload report, complete LabOrder, update Appointment to 'Reports Ready'
 router.post('/upload-report', uploadReport);
+router.post('/complete-order', completeLabOrder);
+router.post('/complete-lab-order', completeLabOrder);
 
 // PUT /api/lab/orders/:id/status - Update status of an order
 router.put('/orders/:id/status', updateOrderStatus);

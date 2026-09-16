@@ -243,7 +243,9 @@ export default function AshaDashboard() {
     : referrals.filter((r) => r.status === referralFilter);
 
   const pendingCount = referrals.filter((r) => r.status === 'Pending').length;
-  const scheduledTeleconsults = myTeleconsults.filter((t) => t.status === 'Teleconsult Scheduled');
+  const scheduledTeleconsults = myTeleconsults.filter((t) =>
+    ['Teleconsult Scheduled', 'Teleconsult Confirmed', 'Patient Waiting in Room', 'In Teleconsult'].includes(t.status)
+  );
 
   if (!user) return null;
 
@@ -263,19 +265,6 @@ export default function AshaDashboard() {
           setActiveTab('teleconsults');
         }}
       />
-
-      {/* ── Active video room overlay ── */}
-      {activeVideoRoom && (
-        <div className="fixed inset-0 z-50 bg-slate-900/80 flex items-center justify-center p-4">
-          <div className="w-full max-w-4xl bg-white rounded-3xl overflow-hidden shadow-2xl" style={{ height: '80vh' }}>
-            <VideoRoom
-              roomName={activeVideoRoom.roomId}
-              displayName={`${user.name} (ASHA)`}
-              onClose={() => setActiveVideoRoom(null)}
-            />
-          </div>
-        </div>
-      )}
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-sm border-b border-slate-100 shadow-sm">
@@ -375,7 +364,7 @@ export default function AshaDashboard() {
                       value={patientQuery}
                       onChange={(e) => setPatientQuery(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder="Name or phone number…"
+                      placeholder="Name, phone, or UHID…"
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400"
                     />
                   </div>
@@ -397,6 +386,11 @@ export default function AshaDashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-emerald-900 text-sm truncate">{selectedPatient.fullName}</p>
+                      {selectedPatient.uhid && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white border border-emerald-300 text-[9px] font-bold text-emerald-800 font-mono tracking-wide">
+                          🪪 {selectedPatient.uhid}
+                        </span>
+                      )}
                       <p className="text-xs text-emerald-700">{selectedPatient.gender} · {selectedPatient.contactPhone || 'No phone'}</p>
                     </div>
                     <button
@@ -427,6 +421,12 @@ export default function AshaDashboard() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-slate-900 text-sm truncate">{p.fullName}</p>
+                              {/* UHID (Prompt 1.2) */}
+                              {p.uhid && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
+                                  🪪 {p.uhid}
+                                </span>
+                              )}
                               <p className="text-xs text-slate-500">{p.gender} · {p.contactPhone || '—'} · {p.abhaId ? `ABHA: ${p.abhaId}` : 'No ABHA'}</p>
                             </div>
                             <svg className="w-4 h-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
@@ -720,7 +720,7 @@ export default function AshaDashboard() {
                           </div>
                         )}
 
-                        {['Teleconsult Confirmed', 'Patient Waiting in Room', 'Teleconsult Scheduled'].includes(tc.status) && tc.teleconsultRoomId && (
+                        {['Teleconsult Confirmed', 'Patient Waiting in Room', 'Teleconsult Scheduled', 'In Teleconsult'].includes(tc.status) && (
                           <button
                             id={`join-teleconsult-${tc._id}`}
                             onClick={() => handleStartCall(tc)}

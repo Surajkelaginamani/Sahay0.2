@@ -19,10 +19,10 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Patient API
+// Patient API (Prompt 7.1 - 4-digit PIN authentication)
 export const patientAPI = {
-  register: (data) => api.post('/patients/register', data),
-  login: (data) => api.post('/patients/login', data),
+  register: (data) => api.post('/auth/patient/register', data).catch(() => api.post('/patients/register', data)),
+  login: (data) => api.post('/auth/patient/login', data),
 };
 
 // Hospital Admin API

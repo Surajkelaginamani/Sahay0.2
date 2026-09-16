@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Appointment from '../../models/Appointment.js';
 import Consultation from '../../models/Consultation.js';
 import Patient from '../../models/Patient.js';
@@ -5,6 +6,7 @@ import Prescription from '../../models/Prescription.js';
 import LabOrder from '../../models/LabOrder.js';
 import Vitals from '../../models/Vitals.js';
 import LabInvestigationOrder from '../../models/LabInvestigationOrder.js';
+import labCatalog from '../../utils/labCatalog.js';
 
 // ─── getDoctorQueue ───────────────────────────────────────────────────────────
 // @route   GET /api/doctor/queue
@@ -15,18 +17,45 @@ export const getDoctorQueue = async (req, res) => {
   try {
     const doctorId = req.user._id;
 
-    // Fetch appointments where assignedDoctorId is this doctor and status is active/teleconsult
-    const appointments = await Appointment.find({
-      assignedDoctorId: doctorId,
-      status: { $in: [
-        'Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready',
-        'Teleconsult Requested', 'Teleconsult Scheduled', 'Teleconsult Confirmed',
-        'Patient Waiting in Room', 'In Teleconsult',
-      ]},
-    })
-      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId address bloodGroup emergencyContact')
-      .populate('facilityId', 'hospitalName address')
-      .lean();
+    // Prompt 4.1: Modify MongoDB query with custom sort for urgency (Emergency: 0, Urgent: 1, Routine: 2, tie-break by createdAt)
+    const rawAppointments = await Appointment.aggregate([
+      {
+        $match: {
+          assignedDoctorId: doctorId,
+          status: { $in: [
+            'Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready',
+            'Teleconsult Requested', 'Teleconsult Scheduled', 'Teleconsult Confirmed',
+            'Patient Waiting in Room', 'In Teleconsult',
+          ]},
+        },
+      },
+      {
+        $addFields: {
+          urgencyOrder: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$urgency', 'Emergency'] }, then: 0 },
+                { case: { $eq: ['$urgency', 'Urgent'] }, then: 1 },
+                { case: { $eq: ['$priority', 'Urgent'] }, then: 1 },
+                { case: { $eq: ['$urgency', 'Routine'] }, then: 2 },
+              ],
+              default: 2,
+            },
+          },
+        },
+      },
+      {
+        $sort: {
+          urgencyOrder: 1,
+          createdAt: 1,
+        },
+      },
+    ]);
+
+    const appointments = await Appointment.populate(rawAppointments, [
+      { path: 'patientId', select: 'firstName lastName contactPhone gender dob abhaId address bloodGroup emergencyContact uhid allergies' },
+      { path: 'facilityId', select: 'hospitalName address' },
+    ]);
 
     // Fetch related LabOrders to attach to reviewQueue items
     const apptIds = appointments.map((a) => a._id);
@@ -36,30 +65,34 @@ export const getDoctorQueue = async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-    // Explicit JS sort to guarantee Urgent first, then chronological
+    // Prompt 4.1: Explicit sort guarantee: Emergency (0) -> Urgent (1) -> Routine (2), tie-break by createdAt ascending (oldest first)
+    const getUrgencyRank = (item) => {
+      if (item.urgency === 'Emergency') return 0;
+      if (item.urgency === 'Urgent') return 1;
+      if (item.priority === 'Urgent') return 1;
+      return 2;
+    };
+
     appointments.sort((a, b) => {
-      // Urgent first
-      const aUrgent = a.priority === 'Urgent';
-      const bUrgent = b.priority === 'Urgent';
-      if (aUrgent && !bUrgent) return -1;
-      if (!aUrgent && bUrgent) return 1;
+      const rankA = getUrgencyRank(a);
+      const rankB = getUrgencyRank(b);
+      if (rankA !== rankB) return rankA - rankB;
 
-      // Sequential queueNumber if available
-      if (a.queueNumber && b.queueNumber) return a.queueNumber - b.queueNumber;
-
-      // Otherwise chronological by scheduledDate / appointmentDate / createdAt
-      const dateA = new Date(a.scheduledDate || a.appointmentDate || a.createdAt).getTime();
-      const dateB = new Date(b.scheduledDate || b.appointmentDate || b.createdAt).getTime();
+      // If two patients have the same urgency, sort them by createdAt (oldest first)
+      const dateA = new Date(a.createdAt || a.scheduledDate || a.appointmentDate).getTime();
+      const dateB = new Date(b.createdAt || b.scheduledDate || b.appointmentDate).getTime();
       return dateA - dateB;
     });
 
-    // Enrich with computed patientFullName and attached LabOrders
+    // Enrich with computed patientFullName, attached LabOrders, and critical lab status (Prompt 6.1 & 6.2)
     const enriched = appointments.map((appt) => {
       const orders = labOrders.filter(
         (lo) => lo.appointmentId.toString() === appt._id.toString()
       );
+      const hasCritical = orders.some((o) => o.isCritical) || appt.isCriticalLab || false;
       return {
         ...appt,
+        isCriticalLab: hasCritical,
         patientFullName: appt.patientId
           ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
           : 'Unknown Patient',
@@ -74,8 +107,14 @@ export const getDoctorQueue = async (req, res) => {
       ['Waiting', 'CheckedIn', 'Waiting for Doctor', 'In Progress'].includes(a.status)
       && a.type !== 'Teleconsultation'
     );
-    // 2. Review queue for patients whose lab tests are finished
+    // 2. Review queue for patients whose lab tests are finished (Prompt 6.2: Critical labs at the very top)
     const reviewQueue = enriched.filter((a) => a.status === 'Reports Ready');
+    reviewQueue.sort((a, b) => {
+      const aCrit = a.isCriticalLab || a.labOrders?.some((o) => o.isCritical) ? 1 : 0;
+      const bCrit = b.isCriticalLab || b.labOrders?.some((o) => o.isCritical) ? 1 : 0;
+      if (aCrit !== bCrit) return bCrit - aCrit; // Critical first
+      return 0;
+    });
     // 3. Prompt 17.4 & 18.1: Dedicated Teleconsult Queue (Virtual OPD)
     const teleconsultQueue = enriched.filter((a) =>
       a.type === 'Teleconsultation' &&
@@ -114,10 +153,12 @@ export const getDoctorQueue = async (req, res) => {
       total:             enriched.length,
       active:            activeQueue.length,
       reportsReady:      reviewQueue.length,
+      criticalLabs:      reviewQueue.filter((a) => a.isCriticalLab || a.labOrders?.some((o) => o.isCritical)).length,
       teleconsults:      teleconsultQueue.length,
       patientWaitingInCall: teleconsultQueue.filter((a) => a.status === 'Patient Waiting in Room').length,
-      urgent:            enriched.filter((a) => a.priority === 'Urgent').length,
-      routine:           enriched.filter((a) => a.priority !== 'Urgent').length,
+      emergency:         enriched.filter((a) => a.urgency === 'Emergency').length,
+      urgent:            enriched.filter((a) => a.urgency === 'Urgent' || (a.priority === 'Urgent' && a.urgency !== 'Emergency')).length,
+      routine:           enriched.filter((a) => (!a.urgency || a.urgency === 'Routine') && a.priority !== 'Urgent').length,
       checkedIn:         enriched.filter((a) => a.status === 'CheckedIn').length,
       waiting:           waiting.length,
     };
@@ -151,7 +192,7 @@ export const startAppointment = async (req, res) => {
       },
       { status: 'CheckedIn' },
       { new: true }
-    ).populate('patientId', 'firstName lastName contactPhone gender dob abhaId');
+    ).populate('patientId', 'firstName lastName contactPhone gender dob abhaId uhid allergies');
 
     if (!appointment) {
       return res.status(404).json({ message: 'Appointment not found.' });
@@ -225,6 +266,8 @@ export const submitConsultation = async (req, res) => {
       referral,
       followUpDate,
       status = 'Finalized',
+      allergyOverride,
+      overrideReason,
     } = req.body;
 
     if (!appointmentId) {
@@ -288,14 +331,31 @@ export const submitConsultation = async (req, res) => {
       referral: referral || undefined,
       followUpDate: followUpDate ? new Date(followUpDate) : undefined,
       status: ['Draft', 'Finalized'].includes(status) ? status : 'Finalized',
+      allergyOverride: allergyOverride || (overrideReason ? { acknowledged: true, reason: overrideReason.trim(), overriddenAt: new Date() } : undefined),
     });
 
     // Populate patient & doctor references on the returned consultation
     await consultation.populate([
-      { path: 'patientId', select: 'firstName lastName contactPhone gender dob abhaId' },
+      { path: 'patientId', select: 'firstName lastName contactPhone gender dob abhaId allergies' },
       { path: 'doctorId',  select: 'name email' },
       { path: 'facilityId', select: 'hospitalName' },
     ]);
+
+    // Create Prescription record if medications are present to dispatch to Pharmacy queue
+    let prescription = null;
+    if (formattedMedications.length > 0) {
+      prescription = await Prescription.create({
+        consultationId: consultation._id,
+        patientId: targetPatientId,
+        doctorId,
+        facilityId,
+        hospital: facilityId,
+        status: 'Pending',
+        medications: formattedMedications,
+        instructions: clinicalNotes?.trim() || '',
+        allergyOverride: allergyOverride || (overrideReason ? { acknowledged: true, reason: overrideReason.trim(), overriddenAt: new Date() } : undefined),
+      });
+    }
 
     // Update the associated Appointment status to 'Completed' (Prompt 5.2 requirement)
     appointment.status = 'Completed';
@@ -304,6 +364,7 @@ export const submitConsultation = async (req, res) => {
     res.status(201).json({
       message: 'Consultation saved successfully and appointment marked Completed.',
       consultation,
+      prescription,
       appointment,
     });
   } catch (error) {
@@ -320,6 +381,10 @@ export const getPatientHistory = async (req, res) => {
   try {
     const { patientId } = req.params;
 
+    if (!patientId || patientId === '[object Object]' || !mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ message: 'Valid Patient ID is required.' });
+    }
+
     const patient = await Patient.findById(patientId).lean();
     if (!patient) {
       return res.status(404).json({ message: 'Patient not found.' });
@@ -329,6 +394,7 @@ export const getPatientHistory = async (req, res) => {
       Consultation.find({ patientId })
         .populate('doctorId', 'name email')
         .populate('facilityId', 'hospitalName address')
+        .populate('appointmentId', 'clinicalTags voiceNoteTranscript')
         .sort({ createdAt: -1 })
         .lean(),
       Prescription.find({ patientId })
@@ -347,10 +413,21 @@ export const getPatientHistory = async (req, res) => {
         .lean(),
     ]);
 
+    // Prompt 11.1 & 11.2: Ensure clinicalTags and voiceNoteTranscript are attached to consultations
+    const enrichedConsultations = consultations.map((c) => ({
+      ...c,
+      clinicalTags:
+        Array.isArray(c.clinicalTags) && c.clinicalTags.length > 0
+          ? c.clinicalTags
+          : c.appointmentId?.clinicalTags || [],
+      voiceNoteTranscript:
+        c.voiceNoteTranscript || c.appointmentId?.voiceNoteTranscript || '',
+    }));
+
     res.status(200).json({
       success: true,
       patient,
-      consultations,
+      consultations: enrichedConsultations,
       prescriptions,
       labOrders,
       vitals,
@@ -385,6 +462,15 @@ export const requestLabTest = async (req, res) => {
     if (!appointmentId || cleanTestNames.length === 0) {
       return res.status(400).json({
         message: 'Appointment ID and at least one valid test name are required.',
+      });
+    }
+
+    // Prompt 3.1: Enforce standardized list of allowed diagnostic tests
+    const invalidTests = cleanTestNames.filter((name) => !labCatalog.includes(name));
+    if (invalidTests.length > 0) {
+      return res.status(400).json({
+        message: `The following test(s) are not in the standardized catalog: ${invalidTests.join(', ')}. Free-text entries are rejected.`,
+        invalidTests,
       });
     }
 
@@ -463,7 +549,7 @@ export const requestLabTest = async (req, res) => {
 export const closeConsultation = async (req, res) => {
   try {
     const {
-      appointmentId,
+      appointmentId: bodyApptId,
       patientId,
       chiefComplaint,
       chiefComplaints,
@@ -475,10 +561,25 @@ export const closeConsultation = async (req, res) => {
       instructions,
       medicalHistory,
       followUpDate,
+      // Prompt 11.1: Clinical Tags & Voice Transcript
+      clinicalTags,
+      voiceNoteTranscript,
     } = req.body;
+
+    const appointmentId = bodyApptId || req.params.appointmentId;
 
     if (!appointmentId) {
       return res.status(400).json({ message: 'Appointment ID is required.' });
+    }
+
+    // Prompt 11.1: Validation — at least one clinical tag or a voice transcript is required
+    const hasTags       = Array.isArray(clinicalTags) && clinicalTags.length > 0;
+    const hasTranscript = typeof voiceNoteTranscript === 'string' && voiceNoteTranscript.trim().length > 0;
+    if (!hasTags && !hasTranscript) {
+      return res.status(400).json({
+        message:
+          'Please select at least one clinical tag or provide a brief voice note to close this visit.',
+      });
     }
 
     const appointment = await Appointment.findById(appointmentId);
@@ -509,7 +610,7 @@ export const closeConsultation = async (req, res) => {
           }))
       : [];
 
-    // 1. Create Consultation record with status 'Closed' (Prompt 7.1 & 7.2)
+    // 1. Create Consultation record with status 'Closed' (Prompt 7.1 & 7.2, 11.1)
     const consultation = await Consultation.create({
       appointmentId,
       appointment: appointmentId,
@@ -529,6 +630,9 @@ export const closeConsultation = async (req, res) => {
       prescription: formattedMedications,
       followUpDate: followUpDate ? new Date(followUpDate) : undefined,
       status: 'Closed',
+      clinicalTags: Array.isArray(clinicalTags) ? clinicalTags : [],
+      voiceNoteTranscript: typeof voiceNoteTranscript === 'string' ? voiceNoteTranscript.trim() : undefined,
+      allergyOverride: req.body.allergyOverride || (req.body.overrideReason ? { acknowledged: true, reason: req.body.overrideReason.trim(), overriddenAt: new Date() } : undefined),
     });
 
     // 2. Create Prescription record if medications/instructions are present
@@ -543,11 +647,18 @@ export const closeConsultation = async (req, res) => {
         status: 'Pending',
         medications: formattedMedications,
         instructions: instructions?.trim() || '',
+        allergyOverride: req.body.allergyOverride || (req.body.overrideReason ? { acknowledged: true, reason: req.body.overrideReason.trim(), overriddenAt: new Date() } : undefined),
       });
     }
 
-    // 3. Mark Appointment as 'Completed'
+    // 3. Mark Appointment as 'Completed' and persist clinical tags & transcript
     appointment.status = 'Completed';
+    if (Array.isArray(clinicalTags) && clinicalTags.length > 0) {
+      appointment.clinicalTags = clinicalTags;
+    }
+    if (typeof voiceNoteTranscript === 'string' && voiceNoteTranscript.trim()) {
+      appointment.voiceNoteTranscript = voiceNoteTranscript.trim();
+    }
     await appointment.save();
 
     res.status(201).json({
@@ -585,7 +696,7 @@ export const joinTeleconsult = async (req, res) => {
     await appointment.save();
 
     await appointment.populate([
-      { path: 'patientId', select: 'firstName lastName contactPhone gender dob abhaId' },
+      { path: 'patientId', select: 'firstName lastName contactPhone gender dob abhaId allergies' },
       { path: 'assignedDoctorId', select: 'name email' },
       { path: 'facilityId', select: 'hospitalName address' },
     ]);
@@ -600,3 +711,7 @@ export const joinTeleconsult = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── completeAppointment (Prompt 11.1 alias) ──────────────────────────────────
+export const completeAppointment = closeConsultation;
+

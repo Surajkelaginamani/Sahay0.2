@@ -14,6 +14,8 @@ import {
   getIncomingReferrals,
   getPendingTeleconsults,
   confirmTeleconsult,
+  getPendingConflicts,
+  resolveConflict,
 } from './receptionistController.js';
 
 const router = express.Router();
@@ -55,10 +57,18 @@ router.get('/queue/today',   getTodayQueue);
 // GET    /api/receptionist/referrals/incoming  → all pending ASHA referrals to this facility
 router.get('/referrals/incoming', getIncomingReferrals);
 
-// ── Teleconsult Triage routes (Prompt 17.1) ───────────────────────────────────
 // GET    /api/receptionist/teleconsults/pending   → all Teleconsult Requested at this facility
-// POST   /api/receptionist/teleconsults/confirm   → assign doctor, generate room, mark Teleconsult Scheduled
-router.get('/teleconsults/pending',  getPendingTeleconsults);
-router.post('/teleconsults/confirm', confirmTeleconsult);
+// POST   /api/receptionist/teleconsults/confirm   → assign doctor, generate room, mark Teleconsult Confirmed
+// PATCH  /api/receptionist/teleconsults/:id/confirm
+router.get('/teleconsults/pending',      getPendingTeleconsults);
+router.post('/teleconsults/confirm',     confirmTeleconsult);
+router.post('/teleconsults/:id/confirm',  confirmTeleconsult);
+router.patch('/teleconsults/:id/confirm', confirmTeleconsult);
+
+// ── Data Conflict routes (Prompt 2.2) ─────────────────────────────────────────
+// GET  /api/receptionist/conflicts              → list all pending sync conflicts
+// POST /api/receptionist/conflicts/:id/resolve  → resolve with 'merge' or 'create_new'
+router.get('/conflicts',              getPendingConflicts);
+router.post('/conflicts/:id/resolve', resolveConflict);
 
 export default router;

@@ -108,7 +108,8 @@ export default function PatientSearch({ onQueueSuccess }) {
   const handleConfirmAddToQueue = useCallback(async (patient) => {
     const pid      = patient._id;
     const docId    = selectedDoctorId[pid];
-    const priority = selectedPriority[pid] || 'Routine';
+    const urgency  = selectedPriority[pid] || 'Routine';
+    const priority = (urgency === 'Emergency' || urgency === 'Urgent') ? 'Urgent' : 'Routine';
 
     if (!docId) {
       setQueueError((e) => ({ ...e, [pid]: 'Please select a doctor to assign.' }));
@@ -120,18 +121,18 @@ export default function PatientSearch({ onQueueSuccess }) {
 
     try {
       const referralId = patient.pendingReferral?._id;
-      const res = await receptionistApi.addToQueue(pid, docId, undefined, priority, referralId);
+      const res = await receptionistApi.addToQueue(pid, docId, undefined, priority, referralId, urgency);
       const qNum = res.data.appointment?.queueNumber;
       const assignedDoc = doctors.find((d) => d._id === docId);
       const doctorName = assignedDoc ? assignedDoc.name : res.data.appointment?.doctorName || 'Doctor';
 
       setQueueNumbers((n) => ({ ...n, [pid]: qNum }));
       setAssignedDoctors((d) => ({ ...d, [pid]: doctorName }));
-      setQueuePriorities((p) => ({ ...p, [pid]: priority }));
+      setQueuePriorities((p) => ({ ...p, [pid]: urgency }));
       setQueueState((s) => ({ ...s, [pid]: 'done' }));
       setAssigningPatientId(null);
 
-      onQueueSuccess?.({ patient, doctorName, queueNumber: qNum, priority });
+      onQueueSuccess?.({ patient, doctorName, queueNumber: qNum, priority, urgency });
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to add to queue.';
       setQueueState((s) => ({ ...s, [pid]: 'error' }));
@@ -145,7 +146,7 @@ export default function PatientSearch({ onQueueSuccess }) {
       {/* ── Search bar ─────────────────────────────────────────────────────── */}
       <div>
         <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-          Search by Name or Phone Number
+          Search by Name, Phone Number, or UHID
         </label>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -334,6 +335,12 @@ export default function PatientSearch({ onQueueSuccess }) {
                       {/* Patient information */}
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-slate-800 truncate">{patient.fullName}</p>
+                        {/* ── UHID Badge (Prompt 1.2) ─────────────────────── */}
+                        {patient.uhid && (
+                          <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-md bg-violet-50 border border-violet-200 text-[10px] font-bold text-violet-700 font-mono tracking-wide">
+                            🪪 {patient.uhid}
+                          </span>
+                        )}
                         <div className="flex items-center gap-2.5 flex-wrap mt-0.5">
                           {patient.contactPhone && (
                             <span className="text-[11px] text-slate-500 flex items-center gap-1">
@@ -363,13 +370,17 @@ export default function PatientSearch({ onQueueSuccess }) {
                         {state === 'done' ? (
                           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5">
                             <QueueBadge queueNumber={qNum} doctorName={docName} />
-                            {queuePriorities[patient._id] === 'Urgent' && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
-                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5"
-                                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                                </svg>
-                                URGENT
+                            {queuePriorities[patient._id] === 'Emergency' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-xs animate-pulse">
+                                🚨 EMERGENCY
+                              </span>
+                            ) : queuePriorities[patient._id] === 'Urgent' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                ⚠️ URGENT
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-medium">
+                                Routine
                               </span>
                             )}
                           </div>
@@ -433,17 +444,17 @@ export default function PatientSearch({ onQueueSuccess }) {
                             )}
                           </div>
 
-                          {/* Priority / Urgency select */}
-                          <div className="sm:w-36">
+                          {/* Urgency Level select (Prompt 4.2) */}
+                          <div className="sm:w-44">
                             <label className="block text-[11px] font-bold text-violet-900 mb-1 flex items-center gap-1">
                               <svg className="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                   d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                               </svg>
-                              Urgency
+                              Urgency Level
                             </label>
                             <select
-                              id={`priority-select-${patient._id}`}
+                              id={`urgency-select-${patient._id}`}
                               value={selectedPriority[patient._id] || 'Routine'}
                               onChange={(e) =>
                                 setSelectedPriority((prev) => ({
@@ -451,16 +462,19 @@ export default function PatientSearch({ onQueueSuccess }) {
                                   [patient._id]: e.target.value,
                                 }))
                               }
-                              className={`w-full px-3 py-2 rounded-lg border text-xs font-semibold
+                              className={`w-full px-3 py-2 rounded-lg border text-xs font-bold
                                 focus:outline-none focus:ring-2 focus:ring-violet-400
                                 ${
-                                  (selectedPriority[patient._id] || 'Routine') === 'Urgent'
-                                    ? 'border-rose-300 bg-rose-50 text-rose-700'
+                                  (selectedPriority[patient._id] || 'Routine') === 'Emergency'
+                                    ? 'border-red-500 bg-red-50 text-red-700'
+                                    : (selectedPriority[patient._id] || 'Routine') === 'Urgent'
+                                    ? 'border-amber-400 bg-amber-50 text-amber-800'
                                     : 'border-violet-200 bg-white text-slate-700'
                                 }`}
                             >
-                              <option value="Routine">✔ Routine</option>
-                              <option value="Urgent">⚠️ Urgent</option>
+                              <option value="Routine">Routine (Standard)</option>
+                              <option value="Urgent">⚠️ Urgent (Priority)</option>
+                              <option value="Emergency">🚨 Emergency (Critical)</option>
                             </select>
                           </div>
 

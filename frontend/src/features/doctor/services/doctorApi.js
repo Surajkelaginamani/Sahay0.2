@@ -29,9 +29,21 @@ const doctorApi = {
   closeConsultation: (data) =>
     axios.post(`${BASE_URL}/consultation/close`, data, { headers: getAuthHeader() }),
 
+  /** Prompt 11.2: Close consultation with clinical summary tags and voice note transcript. */
+  closeConsultationWithSummary: (data) =>
+    axios.post(`${BASE_URL}/consultation/close`, data, { headers: getAuthHeader() }),
+
   /** Prompt 16.1 & 16.3: Join active teleconsultation session. */
   joinTeleconsult: (appointmentId) =>
     axios.post(`${BASE_URL}/teleconsult/join`, { appointmentId }, { headers: getAuthHeader() }),
+
+  /** Prompt 3.1 & 3.2: Fetch official standardized lab tests catalog. */
+  getLabCatalog: () =>
+    axios.get('/api/labs/catalog', { headers: getAuthHeader() }),
+
+  /** Prompt 6.3: Fetch Gemini AI longitudinal clinical insights for patient. */
+  getAiInsights: (patientId) =>
+    axios.get(`/api/ai/insights/${patientId}`, { headers: getAuthHeader() }),
 };
 
 export default doctorApi;

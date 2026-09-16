@@ -277,6 +277,12 @@ export default function TestQueueTable({
                         </div>
                         <div>
                           <p className="font-semibold text-slate-900 text-sm">{patientName}</p>
+                          {/* UHID (Prompt 1.2) */}
+                          {order.patientId?.uhid && (
+                            <span className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
+                              🪪 {order.patientId.uhid}
+                            </span>
+                          )}
                           <p className="text-xs text-slate-400">{patientEmail}</p>
                         </div>
                       </div>

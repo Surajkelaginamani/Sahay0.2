@@ -68,8 +68,11 @@ function StatusPill({ status }) {
 
 // ─── Patient Card ─────────────────────────────────────────────────────────────
 function PatientCard({ appt, isSelected, onSelect }) {
-  const isUrgent                 = appt.priority === 'Urgent';
+  const isEmergency              = appt.urgency === 'Emergency';
+  const isUrgent                 = !isEmergency && (appt.urgency === 'Urgent' || appt.priority === 'Urgent');
   const isReportsReady           = appt.status === 'Reports Ready';
+  // Prompt 6.2: Critical lab detection
+  const isCriticalLab            = Boolean(appt.isCriticalLab || appt.labOrders?.some((o) => o.isCritical) || appt.completedLabOrder?.isCritical);
   const isPatientWaiting         = appt.status === 'Patient Waiting in Room';
   const isTeleconsultRequested   = appt.status === 'Teleconsult Requested';
   const isInTeleconsult          = appt.status === 'In Teleconsult';
@@ -80,13 +83,19 @@ function PatientCard({ appt, isSelected, onSelect }) {
     ? Math.floor((new Date() - new Date(patient.dob)) / (1000 * 60 * 60 * 24 * 365.25))
     : null;
 
-  const completedTest = appt.completedLabOrder?.testName || appt.labOrders?.[0]?.testName;
+  const criticalOrder = appt.labOrders?.find((o) => o.isCritical) || (appt.completedLabOrder?.isCritical ? appt.completedLabOrder : null);
+  const criticalReason = criticalOrder?.criticalReason;
+  const completedTest = criticalOrder?.testName || appt.completedLabOrder?.testName || appt.labOrders?.[0]?.testName;
 
   return (
     <div
       onClick={() => onSelect?.(appt)}
       className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
-        isSelected
+        isCriticalLab
+          ? isSelected
+            ? 'border-red-700 border-2 bg-gradient-to-r from-red-700 via-rose-700 to-red-800 text-white shadow-2xl ring-4 ring-red-300 animate-pulse'
+            : 'border-red-600 border-2 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white shadow-xl ring-2 ring-red-400 animate-pulse'
+          : isSelected
           ? 'border-sky-500 bg-sky-50/80 shadow-sm ring-2 ring-sky-400/40'
           : isPatientWaiting
           ? 'border-emerald-500 border-l-4 border-l-emerald-600 bg-gradient-to-r from-emerald-50/90 to-teal-50/70 ring-2 ring-emerald-400 shadow-md animate-pulse'
@@ -96,8 +105,10 @@ function PatientCard({ appt, isSelected, onSelect }) {
           ? 'border-indigo-300 border-l-4 border-l-indigo-600 bg-indigo-50/70 shadow-sm'
           : isReportsReady
           ? 'border-teal-200 border-l-4 border-l-teal-500 bg-teal-50/40 hover:bg-teal-50/80 shadow-xs'
+          : isEmergency
+          ? 'border-red-500 border-l-4 border-l-red-600 bg-red-50/80 hover:bg-red-100/70 shadow-sm ring-1 ring-red-300'
           : isUrgent
-          ? 'border-rose-300 border-l-4 border-l-rose-500 bg-rose-50/70 hover:bg-rose-100/60 shadow-xs'
+          ? 'border-amber-300 border-l-4 border-l-amber-500 bg-amber-50/70 hover:bg-amber-100/60 shadow-xs'
           : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 bg-white'
       }`}
     >
@@ -107,14 +118,18 @@ function PatientCard({ appt, isSelected, onSelect }) {
           {appt.queueNumber ? (
             <span
               className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
-                isPatientWaiting
+                isReportsReady && isCriticalLab
+                  ? 'bg-white text-red-700 shadow-xs'
+                  : isPatientWaiting
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : isTeleconsultRequested
                   ? 'bg-purple-600 text-white shadow-xs'
                   : isReportsReady
                   ? 'bg-teal-200 text-teal-900'
+                  : isEmergency
+                  ? 'bg-red-600 text-white shadow-xs animate-pulse'
                   : isUrgent
-                  ? 'bg-rose-200 text-rose-800'
+                  ? 'bg-amber-200 text-amber-900'
                   : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -122,16 +137,26 @@ function PatientCard({ appt, isSelected, onSelect }) {
             </span>
           ) : (
             <span className="w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0">
-              {isPatientWaiting ? '📹' : '—'}
+              {isReportsReady && isCriticalLab ? '🚨' : isPatientWaiting ? '📹' : isEmergency ? '🚨' : '—'}
             </span>
           )}
 
           {/* Patient Name */}
           <div className="min-w-0">
-            <p className="text-xs font-bold text-slate-900 truncate leading-tight">
+            <p className={`text-xs font-bold truncate leading-tight ${isReportsReady && isCriticalLab ? 'text-white font-extrabold' : 'text-slate-900'}`}>
               {appt.patientFullName}
             </p>
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+            {/* UHID (Prompt 1.2) */}
+            {patient?.uhid && (
+              <span className={`inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold font-mono tracking-wide ${
+                isReportsReady && isCriticalLab
+                  ? 'bg-red-900/60 border border-red-400/50 text-white'
+                  : 'bg-violet-50 border border-violet-200 text-violet-700'
+              }`}>
+                🪪 {patient.uhid}
+              </span>
+            )}
+            <div className={`flex items-center gap-1.5 text-[10px] mt-0.5 ${isReportsReady && isCriticalLab ? 'text-red-100' : 'text-slate-400'}`}>
               {patient?.gender && <span>{patient.gender}</span>}
               {age !== null && (
                 <>
@@ -142,18 +167,30 @@ function PatientCard({ appt, isSelected, onSelect }) {
               {patient?.bloodGroup && (
                 <>
                   <span>·</span>
-                  <span className="font-semibold text-rose-600">{patient.bloodGroup}</span>
+                  <span className={`font-semibold ${isReportsReady && isCriticalLab ? 'text-white underline' : 'text-rose-600'}`}>{patient.bloodGroup}</span>
                 </>
               )}
             </div>
           </div>
         </div>
 
-        {/* Priority & Status */}
+        {/* Priority & Urgency Badge (Prompt 4.3) & Status */}
         <div className="flex flex-col items-end gap-1 shrink-0">
-          {isUrgent && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-md bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
-              Urgent
+          {isReportsReady && isCriticalLab ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white text-red-700 text-[9px] font-black uppercase tracking-wider shadow-xs animate-pulse">
+              🚨 CRITICAL LAB
+            </span>
+          ) : appt.urgency === 'Emergency' ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs animate-pulse">
+              🚨 Emergency
+            </span>
+          ) : appt.urgency === 'Urgent' || appt.priority === 'Urgent' ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-bold">
+              ⚠️ Urgent
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-medium">
+              Routine
             </span>
           )}
           <StatusPill status={appt.status} />
@@ -220,13 +257,34 @@ function PatientCard({ appt, isSelected, onSelect }) {
 
       {/* Reports Ready Badge / Test Notice */}
       {isReportsReady && (
-        <div className="mt-2 text-[11px] text-teal-800 bg-teal-100/70 px-2.5 py-1.5 rounded-xl border border-teal-200 flex items-center justify-between">
+        <div className={`mt-2 text-[11px] px-2.5 py-1.5 rounded-xl border flex items-center justify-between ${
+          isCriticalLab
+            ? 'bg-red-950/85 text-white border-red-400/60 shadow-sm'
+            : 'text-teal-800 bg-teal-100/70 border-teal-200'
+        }`}>
           <span className="flex items-center gap-1 font-bold">
-            <span>🔬</span>
+            <span>{isCriticalLab ? '🚨' : '🔬'}</span>
             <span className="truncate">{completedTest || 'Lab Report Completed'}</span>
           </span>
-          <span className="text-[9px] font-extrabold uppercase tracking-wide bg-teal-600 text-white px-1.5 py-0.5 rounded-md">
-            Review Ready
+          <span className={`text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-md ${
+            isCriticalLab
+              ? 'bg-white text-red-700 shadow-xs'
+              : 'bg-teal-600 text-white'
+          }`}>
+            {isCriticalLab ? 'CRITICAL REVIEW' : 'Review Ready'}
+          </span>
+        </div>
+      )}
+
+      {/* Prompt 6.2: Critical Lab Alert Strip */}
+      {isCriticalLab && (
+        <div className="mt-2 text-[10px] font-bold bg-red-950/80 border border-red-300/40 text-red-100 px-2.5 py-1.5 rounded-xl flex items-center justify-between gap-1 shadow-xs">
+          <span className="flex items-center gap-1.5 truncate">
+            <span className="text-xs shrink-0 animate-bounce">⚠️</span>
+            <span className="truncate">{criticalReason || 'Out of normal reference range'}</span>
+          </span>
+          <span className="text-[9px] font-black uppercase tracking-wider bg-white text-red-700 px-1.5 py-0.5 rounded shadow-xs shrink-0">
+            URGENT
           </span>
         </div>
       )}
@@ -259,11 +317,11 @@ export default function DoctorQueue({
   const [activeQueue, setActiveQueue]       = useState([]);
   const [reviewQueue, setReviewQueue]       = useState([]);
   const [teleconsultQueue, setTeleconsultQueue] = useState([]);
-  const [summary, setSummary]               = useState({ total: 0, urgent: 0, waiting: 0, checkedIn: 0, active: 0, reportsReady: 0, teleconsults: 0 });
+  const [summary, setSummary]               = useState({ total: 0, emergency: 0, urgent: 0, waiting: 0, checkedIn: 0, active: 0, reportsReady: 0, teleconsults: 0 });
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState('');
   const [searchQuery, setSearchQuery]       = useState('');
-  const [filterPriority, setFilterPriority] = useState('ALL'); // 'ALL' | 'Urgent' | 'Routine'
+  const [filterPriority, setFilterPriority] = useState('ALL'); // 'ALL' | 'Emergency' | 'Urgent' | 'Routine'
   const [queueTab, setQueueTab]             = useState('ALL'); // 'ALL' | 'ONGOING' | 'REPORTS_READY' | 'TELECONSULT'
   
   // Accordion toggle states
@@ -278,6 +336,13 @@ export default function DoctorQueue({
       const res = await doctorApi.getQueue();
       const rawActive = res.data?.activeQueue || (res.data?.queue || []).filter((a) => a.status !== 'Reports Ready' && a.type !== 'Teleconsultation');
       const rawReview = res.data?.reviewQueue || (res.data?.queue || []).filter((a) => a.status === 'Reports Ready');
+
+      // Prompt 6.2: Sort critical lab patients to top of review queue
+      rawReview.sort((a, b) => {
+        const aCrit = a.isCriticalLab || a.labOrders?.some((o) => o.isCritical) || a.completedLabOrder?.isCritical ? 1 : 0;
+        const bCrit = b.isCriticalLab || b.labOrders?.some((o) => o.isCritical) || b.completedLabOrder?.isCritical ? 1 : 0;
+        return bCrit - aCrit;
+      });
       const rawTeleconsult = res.data?.teleconsultQueue || (res.data?.queue || []).filter((a) =>
         a.type === 'Teleconsultation' &&
         [
@@ -304,8 +369,9 @@ export default function DoctorQueue({
         active: rawActive.length,
         reportsReady: rawReview.length,
         teleconsults: rawTeleconsult.length,
-        urgent: rawQueue.filter((a) => a.priority === 'Urgent').length,
-        routine: rawQueue.filter((a) => a.priority !== 'Urgent').length,
+        emergency: rawQueue.filter((a) => a.urgency === 'Emergency').length,
+        urgent: rawQueue.filter((a) => a.urgency === 'Urgent' || (a.priority === 'Urgent' && a.urgency !== 'Emergency')).length,
+        routine: rawQueue.filter((a) => a.urgency === 'Routine' || (!a.urgency && a.priority !== 'Urgent')).length,
         checkedIn: rawQueue.filter((a) => a.status === 'CheckedIn').length,
         waiting: rawQueue.filter((a) => a.status === 'Waiting').length,
       };
@@ -332,9 +398,12 @@ export default function DoctorQueue({
     (list) => {
       const q = searchQuery.trim().toLowerCase();
       return list.filter((appt) => {
-        if (filterPriority !== 'ALL') {
-          const p = appt.priority || 'Routine';
-          if (p !== filterPriority) return false;
+        if (filterPriority === 'Emergency') {
+          if (appt.urgency !== 'Emergency') return false;
+        } else if (filterPriority === 'Urgent') {
+          if (appt.urgency !== 'Urgent' && (appt.priority !== 'Urgent' || appt.urgency === 'Emergency')) return false;
+        } else if (filterPriority === 'Routine') {
+          if (appt.urgency === 'Emergency' || appt.urgency === 'Urgent' || appt.priority === 'Urgent') return false;
         }
         if (q) {
           const name = (appt.patientFullName || '').toLowerCase();
@@ -370,6 +439,12 @@ export default function DoctorQueue({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {summary.emergency > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black animate-pulse shadow-xs">
+                <span>🚨</span>
+                <span>{summary.emergency} Emergency</span>
+              </span>
+            )}
             {teleconsultQueue.some((a) => a.status === 'Patient Waiting in Room') && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300 animate-pulse shadow-xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
@@ -383,7 +458,7 @@ export default function DoctorQueue({
               </span>
             )}
             {summary.urgent > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-extrabold border border-rose-200">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
                 <span>⚠️</span>
                 <span>{summary.urgent}</span>
               </span>
@@ -489,19 +564,22 @@ export default function DoctorQueue({
           </div>
 
           {/* Quick Priority Toggle Pills */}
-          <div className="flex items-center gap-1.5 text-[10px] font-semibold">
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold flex-wrap">
             {[
               { id: 'ALL', label: `All Priorities` },
-              { id: 'Urgent', label: `Urgent (${summary.urgent})`, alert: summary.urgent > 0 },
-              { id: 'Routine', label: `Routine (${summary.routine})` },
+              { id: 'Emergency', label: `Emergency (${summary.emergency || 0})`, alert: (summary.emergency || 0) > 0 },
+              { id: 'Urgent', label: `Urgent (${summary.urgent || 0})`, alert: (summary.urgent || 0) > 0 },
+              { id: 'Routine', label: `Routine (${summary.routine || 0})` },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setFilterPriority(tab.id)}
                 className={`px-2.5 py-1 rounded-lg transition-all ${
                   filterPriority === tab.id
-                    ? tab.id === 'Urgent'
-                      ? 'bg-rose-600 text-white shadow-xs'
+                    ? tab.id === 'Emergency'
+                      ? 'bg-red-600 text-white shadow-xs font-black'
+                      : tab.id === 'Urgent'
+                      ? 'bg-amber-400 text-amber-950 shadow-xs font-bold'
                       : 'bg-slate-800 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}

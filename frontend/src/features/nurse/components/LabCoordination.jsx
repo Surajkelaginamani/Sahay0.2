@@ -15,7 +15,14 @@ export default function LabCoordination({ onActionSuccess }) {
     try {
       const res = await nurseApi.getLabQueue();
       setPendingLabs(res.data?.pendingLabs || []);
-      setReportsReady(res.data?.reportsReady || []);
+      const rawReports = res.data?.reportsReady || [];
+      // Prompt 6.2: Place critical lab patients at the very top of the review queue
+      rawReports.sort((a, b) => {
+        const aCrit = a.isCriticalLab || a.labOrders?.some((o) => o.isCritical) || a.latestLabOrder?.isCritical ? 1 : 0;
+        const bCrit = b.isCriticalLab || b.labOrders?.some((o) => o.isCritical) || b.latestLabOrder?.isCritical ? 1 : 0;
+        return bCrit - aCrit;
+      });
+      setReportsReady(rawReports);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load lab coordination queue.');
     } finally {
@@ -267,15 +274,37 @@ export default function LabCoordination({ onActionSuccess }) {
                   const docName = appt.assignedDoctorId?.name || 'Assigned Doctor';
                   const testDetails = appt.latestLabOrder?.testName || 'Diagnostic Report';
                   const isDoctorNotified = appt.doctorQueueType === 'Review';
+                  // Prompt 6.2: Critical lab detection
+                  const isCritical = appt.isCriticalLab || appt.labOrders?.some((o) => o.isCritical) || appt.latestLabOrder?.isCritical;
+                  const criticalOrder = appt.labOrders?.find((o) => o.isCritical) || (appt.latestLabOrder?.isCritical ? appt.latestLabOrder : null);
 
                   return (
-                    <tr key={appt._id} className="hover:bg-teal-50/30 transition-colors">
+                    <tr
+                      key={appt._id}
+                      className={`transition-colors ${
+                        isCritical
+                          ? 'bg-red-50/90 border-l-4 border-l-red-600 ring-1 ring-red-300'
+                          : 'hover:bg-teal-50/30'
+                      }`}
+                    >
                       <td className="px-6 py-3.5">
-                        <p className="font-extrabold text-slate-900">{pName}</p>
-                        <p className="text-[11px] text-slate-400">
+                        <div className="flex items-center gap-2">
+                          <p className="font-extrabold text-slate-900">{pName}</p>
+                          {isCritical && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white font-black text-[9px] uppercase tracking-wider animate-pulse shadow-xs">
+                              🚨 CRITICAL LAB RESULT
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
                           {appt.patientId?.gender ? `${appt.patientId.gender} · ` : ''}
                           {appt.patientId?.contactPhone ? `📞 ${appt.patientId.contactPhone}` : ''}
                         </p>
+                        {isCritical && criticalOrder?.criticalReason && (
+                          <p className="text-[10px] font-bold text-red-700 mt-1">
+                            ⚠️ {criticalOrder.criticalReason}
+                          </p>
+                        )}
                       </td>
 
                       <td className="px-4 py-3.5">
@@ -283,8 +312,15 @@ export default function LabCoordination({ onActionSuccess }) {
                       </td>
 
                       <td className="px-4 py-3.5">
-                        <span className="inline-block px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-[11px]">
-                          ✓ {testDetails}
+                        <span
+                          className={`inline-block px-2.5 py-1 rounded-lg font-bold text-[11px] border ${
+                            isCritical
+                              ? 'bg-red-100 text-red-800 border-red-300'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          }`}
+                        >
+                          {isCritical ? '⚠️ ' : '✓ '}
+                          {testDetails}
                         </span>
                       </td>
 
@@ -292,6 +328,10 @@ export default function LabCoordination({ onActionSuccess }) {
                         {isDoctorNotified ? (
                           <span className="inline-flex items-center gap-1 text-[11px] text-purple-700 font-bold">
                             <span>●</span> In Doctor Review Queue
+                          </span>
+                        ) : isCritical ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-red-700 font-black animate-pulse">
+                            🚨 Urgent Doctor Attention Required
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] text-teal-700 font-semibold">
@@ -306,7 +346,9 @@ export default function LabCoordination({ onActionSuccess }) {
                           disabled={actionLoadingId === appt._id}
                           onClick={() => handleNotifyDoctor(appt._id, pName, docName)}
                           className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-extrabold shadow-sm transition-all ${
-                            isDoctorNotified
+                            isCritical && !isDoctorNotified
+                              ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-200 animate-pulse'
+                              : isDoctorNotified
                               ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                               : 'bg-teal-600 hover:bg-teal-700 text-white shadow-teal-200'
                           }`}
@@ -321,6 +363,8 @@ export default function LabCoordination({ onActionSuccess }) {
                           <span>
                             {isDoctorNotified
                               ? 'Re-Notify Doctor'
+                              : isCritical
+                              ? '🚨 Escalate Critical Lab to Doctor'
                               : 'Notify Doctor (Move to Review Queue)'}
                           </span>
                         </button>

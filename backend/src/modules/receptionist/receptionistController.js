@@ -2,6 +2,7 @@ import Patient from '../../models/Patient.js';
 import Appointment from '../../models/Appointment.js';
 import User from '../../models/User.js';
 import Referral from '../../models/Referral.js';
+import SyncConflict from '../../models/SyncConflict.js';
 import bcrypt from 'bcrypt';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,33 +29,84 @@ export const registerPatient = async (req, res) => {
     const {
       firstName, lastName, dob, gender,
       contactPhone, phone, address, abhaId,
-      email, password,
+      email, password, pin,
+      forceCreateNew,
+      consentProvided, // Prompt 9.1: Digital Consent for ABDM compliance
     } = req.body;
 
-    // ── Required field validation ──────────────────────────────────────────────
+    // ── Prompt 9.1: Mandatory Digital Consent Validation ───────────────────────
+    if (consentProvided !== true && consentProvided !== 'true') {
+      return res.status(400).json({
+        message: 'Patient consent is legally required to create a health record.',
+      });
+    }
+
+    // ── Required field validation ───────────────────────────────────────
     if (!firstName || !lastName || !dob || !gender) {
       return res.status(400).json({
         message: 'firstName, lastName, dob, and gender are required.',
       });
     }
 
+    const cleanPin = (pin !== undefined && pin !== null && pin !== '') ? String(pin).trim() : '';
+    const effectivePin = cleanPin && /^\d{4}$/.test(cleanPin) ? cleanPin : '1234';
+
     const cleanPhone = (contactPhone || phone || '').trim();
     const fullName = `${firstName.trim()} ${lastName.trim()}`;
-    const userPassword = (password && password.trim().length >= 6) ? password.trim() : 'Sahay@123';
-    const cleanEmail = email && email.trim()
-      ? email.trim().toLowerCase()
-      : (cleanPhone ? `${cleanPhone}@patient.sahay.gov.in` : undefined);
+    const userPassword = (password && password.trim().length >= 4) ? password.trim() : `Sahay@${effectivePin}`;
+    const cleanEmail = email && email.trim() ? email.trim().toLowerCase() : undefined;
 
-    // ── Duplicate phone check on Patient collection ─────────────────────────────
-    if (cleanPhone) {
-      const phoneExists = await Patient.findOne({ contactPhone: cleanPhone });
-      if (phoneExists) {
+    // ── Prompt 2.3: Smart Patient Disambiguation Flow ─────────────────────────
+    // Before creating the Patient document, query for existing records matching firstName, lastName, and dob.
+    if (dob && !forceCreateNew) {
+      const dobDate = new Date(dob);
+      const dayBefore = new Date(dobDate);
+      dayBefore.setDate(dayBefore.getDate() - 1);
+      const dayAfter = new Date(dobDate);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+
+      const matches = await Patient.find({
+        firstName: { $regex: `^${firstName.trim()}$`, $options: 'i' },
+        lastName:  { $regex: `^${lastName.trim()}$`,  $options: 'i' },
+        dob:       { $gte: dayBefore, $lte: dayAfter },
+      })
+        .select('firstName lastName dob gender uhid address contactPhone')
+        .lean();
+
+      if (matches.length > 0) {
+        return res.status(200).json({
+          requiresConfirmation: true,
+          message: 'Potential duplicates found',
+          matches: matches.map((m) => ({
+            _id:          m._id,
+            name:         `${m.firstName} ${m.lastName}`.trim(),
+            firstName:    m.firstName,
+            lastName:     m.lastName,
+            dob:          m.dob,
+            uhid:         m.uhid || '—',
+            gender:       m.gender,
+            address:      m.address || {},
+            contactPhone: m.contactPhone,
+          })),
+        });
+      }
+    }
+
+    // ── Duplicate check: name + phone match (Prompt 1.1: phone alone is not primary key) ──
+    if (cleanPhone && !forceCreateNew) {
+      const exactDuplicate = await Patient.findOne({
+        contactPhone: cleanPhone,
+        firstName: { $regex: `^${firstName.trim()}$`, $options: 'i' },
+        lastName:  { $regex: `^${lastName.trim()}$`,  $options: 'i' },
+      });
+      if (exactDuplicate) {
         return res.status(400).json({
-          message: `A patient with phone ${cleanPhone} is already registered.`,
+          message: `A patient named ${fullName} with phone ${cleanPhone} is already registered.`,
           existingPatient: {
-            _id: phoneExists._id,
-            fullName: `${phoneExists.firstName} ${phoneExists.lastName}`,
-            contactPhone: phoneExists.contactPhone,
+            _id: exactDuplicate._id,
+            uhid: exactDuplicate.uhid,
+            fullName: `${exactDuplicate.firstName} ${exactDuplicate.lastName}`,
+            contactPhone: exactDuplicate.contactPhone,
           },
         });
       }
@@ -62,27 +114,29 @@ export const registerPatient = async (req, res) => {
 
     // ── Step 1: Create or find linked User document (Prompt 12.1) ──────────────
     let user = null;
-    if (cleanPhone) {
-      user = await User.findOne({
-        $or: [
-          { phone: cleanPhone },
-          ...(cleanEmail ? [{ email: cleanEmail }] : []),
-        ],
-      });
-    } else if (cleanEmail) {
+    if (cleanEmail) {
       user = await User.findOne({ email: cleanEmail });
+    }
+
+    // Only reuse existing user if it does NOT already have a patientProfileId
+    if (user && user.patientProfileId) {
+      user = null; // this user account belongs to another person; create a fresh one
     }
 
     if (!user) {
       createdUser = await User.create({
-        name:     fullName,
-        phone:    cleanPhone || undefined,
-        email:    cleanEmail,
-        password: userPassword, // hashed by pre-save hook in User.js
-        role:     'Patient',
+        name:       fullName,
+        phone:      cleanPhone || undefined,
+        email:      cleanEmail || undefined,
+        password:   userPassword, // hashed by pre-save hook in User.js
+        pin:        effectivePin, // Prompt 7.1
+        role:       'Patient',
         hospitalId: null,
       });
       user = createdUser;
+    } else if (!user.pin) {
+      user.pin = effectivePin;
+      await user.save();
     }
 
     // ── Step 2: Create Patient document linked to User._id (Prompt 12.1) ───────
@@ -94,8 +148,11 @@ export const registerPatient = async (req, res) => {
       contactPhone:         cleanPhone            || undefined,
       address:              address               || {},
       abhaId:               abhaId?.trim()        || undefined,
+      pin:                  effectivePin, // Prompt 7.1
       registeredAtFacility: req.user.hospitalId,
       userId:               user._id,
+      consentProvided:      true,
+      consentTimestamp:     new Date(),
     });
 
     // ── Step 3: Two-way binding (Prompt 12.1) ──────────────────────────────────
@@ -111,6 +168,7 @@ export const registerPatient = async (req, res) => {
       defaultPassword: 'Sahay@123',
       patient: {
         _id:                  patient._id,
+        uhid:                 patient.uhid,           // Prompt 1.2
         fullName:             `${patient.firstName} ${patient.lastName}`,
         firstName:            patient.firstName,
         lastName:             patient.lastName,
@@ -165,13 +223,14 @@ export const searchPatients = async (req, res) => {
 
     const regex = { $regex: term, $options: 'i' };
 
-    // Search unified Patient collection globally across firstName, lastName, contactPhone, or abhaId (Prompt 12.2)
+    // Search unified Patient collection globally — by UHID, firstName, lastName, contactPhone, abhaId (Prompt 1.2)
     const filter = {
       $or: [
-        { firstName: regex },
-        { lastName:  regex },
+        { uhid:         regex },
+        { firstName:    regex },
+        { lastName:     regex },
         { contactPhone: regex },
-        { abhaId: regex },
+        { abhaId:       regex },
       ],
     };
 
@@ -187,7 +246,7 @@ export const searchPatients = async (req, res) => {
     }
 
     const patients = await Patient.find(filter)
-      .select('firstName lastName dob gender contactPhone abhaId registeredAtFacility userId createdAt')
+      .select('firstName lastName dob gender contactPhone abhaId uhid registeredAtFacility userId createdAt')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
@@ -366,7 +425,7 @@ export const getTodayQueue = async (req, res) => {
     }
 
     const queue = await Appointment.find(filter)
-      .populate('patientId',        'firstName lastName contactPhone gender')
+      .populate('patientId',        'firstName lastName contactPhone gender uhid')
       .populate('assignedDoctorId', 'name')
       .populate('receptionistId',   'name')
       .sort({ queueNumber: 1, createdAt: 1 }) // checked-in first (by queue#), then scheduled
@@ -402,7 +461,7 @@ export const getTodayQueue = async (req, res) => {
 // Body:    { patientId, assignedDoctorId, appointmentDate?, priority? }
 export const addToQueue = async (req, res) => {
   try {
-    const { patientId, assignedDoctorId, appointmentDate, priority, referralId } = req.body;
+    const { patientId, assignedDoctorId, appointmentDate, priority, referralId, urgency } = req.body;
 
     if (!patientId) {
       return res.status(400).json({ message: 'patientId is required.' });
@@ -412,8 +471,19 @@ export const addToQueue = async (req, res) => {
       return res.status(400).json({ message: 'assignedDoctorId is required — please select a doctor.' });
     }
 
-    // Validate priority if supplied
-    const resolvedPriority = priority === 'Urgent' ? 'Urgent' : 'Routine';
+    // Prompt 4.1: Resolve urgency (Emergency, Urgent, Routine)
+    const validUrgencies = ['Emergency', 'Urgent', 'Routine'];
+    let resolvedUrgency = 'Routine';
+    if (urgency && validUrgencies.includes(urgency)) {
+      resolvedUrgency = urgency;
+    } else if (priority === 'Urgent') {
+      resolvedUrgency = 'Urgent';
+    }
+
+    // Validate and sync priority for backward compatibility
+    const resolvedPriority = (resolvedUrgency === 'Emergency' || resolvedUrgency === 'Urgent' || priority === 'Urgent')
+      ? 'Urgent'
+      : 'Routine';
 
     // hospitalId comes from the Receptionist's JWT (set by authMiddleware)
     // Maintain Queue Security: facilityId of Appointment is strictly set to req.user.hospitalId
@@ -439,7 +509,7 @@ export const addToQueue = async (req, res) => {
     const queueDate = appointmentDate ? new Date(appointmentDate) : new Date();
 
     // ── Priority-aware queue numbering ───────────────────────────────────────────
-    // Urgent patients receive queueNumber = 0 (displayed first in UI).
+    // Urgent/Emergency patients receive queueNumber = 0 (displayed first in UI).
     // Routine patients receive the next sequential number after all existing
     // Waiting/CheckedIn entries for that doctor today.
     const { start, end } = getTodayRange();
@@ -468,6 +538,7 @@ export const addToQueue = async (req, res) => {
       appointmentDate:  queueDate,
       status:           'Waiting',
       priority:         resolvedPriority,
+      urgency:          resolvedUrgency,
       queueNumber,
     });
 
@@ -567,6 +638,9 @@ export const scheduleAppointment = async (req, res) => {
     }
 
     // ── Create the scheduled appointment ─────────────────────────────────────────────
+    const validUrgencies = ['Emergency', 'Urgent', 'Routine'];
+    const resolvedUrgency = validUrgencies.includes(req.body.urgency) ? req.body.urgency : 'Routine';
+
     const appointment = await Appointment.create({
       patientId,
       facilityId,
@@ -574,7 +648,8 @@ export const scheduleAppointment = async (req, res) => {
       assignedDoctorId,
       appointmentDate:  parsedDate,
       status:           'Scheduled',
-      priority:         'Routine', // future bookings are Routine by default
+      priority:         resolvedUrgency === 'Emergency' || resolvedUrgency === 'Urgent' ? 'Urgent' : 'Routine',
+      urgency:          resolvedUrgency,
       timeSlot:         timeSlot?.trim()       || undefined,
       visitType:        visitType?.trim()       || undefined,
       chiefComplaint:   chiefComplaint?.trim()  || undefined,
@@ -621,7 +696,7 @@ export const getFacilityPatients = async (req, res) => {
       facilityId,
       ...dateFilter,
     })
-      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId registeredAtFacility')
+      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId uhid registeredAtFacility allergies')
       .populate('assignedDoctorId', 'name email')
       .populate('receptionistId', 'name')
       .sort({ appointmentDate: -1, queueNumber: 1 })
@@ -695,7 +770,7 @@ export const getUpcomingAppointments = async (req, res) => {
     }
 
     const appointments = await Appointment.find(filter)
-      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId')
+      .populate('patientId', 'firstName lastName contactPhone gender dob abhaId uhid allergies')
       .populate('assignedDoctorId', 'name email')
       .populate('receptionistId', 'name')
       .sort({ appointmentDate: 1 })
@@ -731,7 +806,7 @@ export const getPendingTeleconsults = async (req, res) => {
       type:   'Teleconsultation',
       status: 'Teleconsult Requested',
     })
-      .populate('patientId',        'firstName lastName contactPhone gender dob abhaId')
+      .populate('patientId',        'firstName lastName contactPhone gender dob abhaId uhid allergies')
       .populate('assignedDoctorId', 'name email')
       .populate('receptionistId',   'name firstName lastName role')
       .sort({ createdAt: -1 })
@@ -765,7 +840,9 @@ export const getPendingTeleconsults = async (req, res) => {
 // assigns teleconsultRoomId, and updates status to 'Teleconsult Confirmed'.
 export const confirmTeleconsult = async (req, res) => {
   try {
-    const { appointmentId, assignedDoctorId, scheduledDate, timeSlot } = req.body;
+    const appointmentId = req.params?.id || req.params?.appointmentId || req.body?.appointmentId || req.body?.id;
+    const assignedDoctorId = req.body?.assignedDoctorId || req.body?.doctorId;
+    const { scheduledDate, timeSlot } = req.body;
 
     if (!appointmentId || !assignedDoctorId) {
       return res.status(400).json({
@@ -851,7 +928,7 @@ export const getIncomingReferrals = async (req, res) => {
       referredToFacility: facilityId,
       status: 'Pending',
     })
-      .populate('patientId',  'firstName lastName contactPhone gender dob abhaId')
+      .populate('patientId',  'firstName lastName contactPhone gender dob abhaId uhid')
       .populate('referredBy', 'name firstName lastName role email')
       .populate('referredFromFacility', 'name hospitalName address city')
       .sort({ createdAt: -1 })
@@ -872,6 +949,138 @@ export const getIncomingReferrals = async (req, res) => {
     });
 
     res.json({ count: enriched.length, referrals: enriched });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── getPendingConflicts (Prompt 2.2) ─────────────────────────────────────────────────────────────
+// @route   GET /api/receptionist/conflicts
+// @access  Private (Receptionist)
+export const getPendingConflicts = async (req, res) => {
+  try {
+    const facilityId = req.user.hospitalId;
+
+    const conflicts = await SyncConflict.find({
+      status: 'Pending',
+      $or: [
+        { facilityId },
+        { facilityId: null }, // show global conflicts too if no facility filter
+      ],
+    })
+      .populate('potentialMatchPatientId', 'firstName lastName dob gender contactPhone abhaId uhid address registeredAtFacility')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({
+      count:     conflicts.length,
+      conflicts,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── resolveConflict (Prompt 2.2) ─────────────────────────────────────────────────────────────
+// @route   POST /api/receptionist/conflicts/:id/resolve
+// @access  Private (Receptionist)
+// Body: { action: 'merge' | 'create_new' }
+export const resolveConflict = async (req, res) => {
+  try {
+    const { id }     = req.params;
+    const { action } = req.body;
+
+    if (!['merge', 'create_new'].includes(action)) {
+      return res.status(400).json({ message: "action must be 'merge' or 'create_new'" });
+    }
+
+    const conflict = await SyncConflict.findById(id);
+    if (!conflict) {
+      return res.status(404).json({ message: 'Conflict record not found.' });
+    }
+    if (conflict.status !== 'Pending') {
+      return res.status(400).json({ message: 'This conflict has already been resolved.' });
+    }
+
+    let responsePayload = {};
+
+    if (action === 'merge') {
+      // Discard the duplicate — just mark the conflict resolved.
+      // The existing patient retains their ID.
+      // Future: attach any vitals/referrals in incomingData to existingPatientId here.
+      conflict.status     = 'Merged';
+      conflict.resolvedBy = req.user._id;
+      conflict.resolvedAt = new Date();
+      await conflict.save();
+
+      responsePayload = {
+        success: true,
+        action:  'merge',
+        message: 'Conflict resolved. Incoming duplicate discarded; existing patient record retained.',
+        existingPatientId: conflict.potentialMatchPatientId,
+      };
+    } else {
+      // create_new: create a brand-new Patient from incomingData
+      const d = conflict.incomingData;
+      const firstName  = (d.firstName || '').trim();
+      const lastName   = (d.lastName  || '').trim();
+      const cleanPhone = (d.contactPhone || d.phone || '').trim();
+      const cleanEmail = d.email && d.email.trim()
+        ? d.email.trim().toLowerCase()
+        : cleanPhone ? `${cleanPhone}@patient.sahay.gov.in` : undefined;
+
+      let user = null;
+      if (cleanPhone || cleanEmail) {
+        user = await User.findOne({
+          $or: [
+            ...(cleanPhone  ? [{ phone: cleanPhone }]  : []),
+            ...(cleanEmail  ? [{ email: cleanEmail }]  : []),
+          ],
+        });
+      }
+
+      if (!user) {
+        user = await User.create({
+          name:     `${firstName} ${lastName}`.trim(),
+          phone:    cleanPhone || undefined,
+          email:    cleanEmail,
+          password: 'Sahay@123',
+          role:     'Patient',
+        });
+      }
+
+      const newPatient = await Patient.create({
+        firstName,
+        lastName,
+        dob:                  d.dob ? new Date(d.dob) : undefined,
+        gender:               d.gender || 'Other',
+        contactPhone:         cleanPhone  || undefined,
+        bloodGroup:           d.bloodGroup || undefined,
+        address:              d.address   || {},
+        abhaId:               d.abhaId?.trim() || undefined,
+        userId:               user._id,
+        registeredAtFacility: req.user.hospitalId,
+      });
+
+      user.patientProfileId = newPatient._id;
+      await user.save();
+
+      conflict.status      = 'CreatedNew';
+      conflict.resolvedBy  = req.user._id;
+      conflict.resolvedAt  = new Date();
+      conflict.newPatientId = newPatient._id;
+      await conflict.save();
+
+      responsePayload = {
+        success:      true,
+        action:       'create_new',
+        message:      `New patient created with UHID: ${newPatient.uhid}`,
+        newPatientId: newPatient._id,
+        uhid:         newPatient.uhid,
+      };
+    }
+
+    res.json(responsePayload);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

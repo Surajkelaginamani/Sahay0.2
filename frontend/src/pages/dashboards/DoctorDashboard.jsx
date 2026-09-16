@@ -4,6 +4,7 @@ import DoctorQueue from '../../features/doctor/components/DoctorQueue';
 import ConsultationPanel from '../../features/doctor/components/ConsultationPanel';
 import PatientHistory from '../../features/doctor/components/PatientHistory';
 import VideoRoom from '../../components/common/VideoRoom';
+import doctorApi from '../../features/doctor/services/doctorApi';
 
 function StatCard({ icon, label, value, sub, color }) {
   return (
@@ -33,6 +34,8 @@ export default function DoctorDashboard() {
     checkedIn: 0,
     waiting: 0,
     reportsReady: 0,
+    teleconsults: 0,
+    patientWaitingInCall: 0,
   });
   const [toast, setToast] = useState(null);
 
@@ -65,9 +68,12 @@ export default function DoctorDashboard() {
     if (appt) {
       setWorkspaceTab('consultation');
       // Prompt 18.3: Automatically fetch patient's full longitudinal records
-      const patientId = appt.patientId?._id || appt.patientId;
-      if (patientId) {
-        doctorApi.getPatientHistory(patientId).catch(() => {});
+      const rawPatientId = appt.patientId?._id || appt.patientId?.id || (typeof appt.patientId === 'string' ? appt.patientId : null);
+      if (rawPatientId && rawPatientId !== '[object Object]') {
+        doctorApi.getPatientHistory(rawPatientId).catch(() => {});
+      }
+      if (appt.type === 'Teleconsultation' || appt.teleconsultRoomId) {
+        doctorApi.joinTeleconsult(appt._id).catch(() => {});
       }
     }
   }, []);
@@ -174,8 +180,8 @@ export default function DoctorDashboard() {
             icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
             label="Urgent Priority"
             value={queueStats.urgent}
-            sub="Immediate triage required"
-            color={{ border: 'border-rose-100', icon: 'bg-rose-100 text-rose-600', text: 'text-rose-700' }}
+            sub={queueStats.criticalLabs > 0 ? `🚨 ${queueStats.criticalLabs} Critical Lab${queueStats.criticalLabs > 1 ? 's' : ''}!` : "Immediate triage required"}
+            color={queueStats.criticalLabs > 0 ? { border: 'border-red-300 ring-2 ring-red-300', icon: 'bg-red-100 text-red-600 animate-pulse', text: 'text-red-700' } : { border: 'border-rose-100', icon: 'bg-rose-100 text-rose-600', text: 'text-rose-700' }}
           />
           <StatCard
             icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
@@ -185,11 +191,11 @@ export default function DoctorDashboard() {
             color={{ border: 'border-emerald-100', icon: 'bg-emerald-100 text-emerald-600', text: 'text-emerald-700' }}
           />
           <StatCard
-            icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>}
-            label="Reports Ready"
-            value={queueStats.reportsReady || 0}
-            sub="Lab tests awaiting review"
-            color={{ border: 'border-teal-100', icon: 'bg-teal-100 text-teal-700', text: 'text-teal-800' }}
+            icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87V15.13a1 1 0 01-1.447.899L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
+            label="Virtual OPD Queue"
+            value={queueStats.teleconsults || 0}
+            sub={queueStats.patientWaitingInCall > 0 ? `⚡ ${queueStats.patientWaitingInCall} patient waiting in call!` : 'Teleconsult sessions'}
+            color={{ border: 'border-violet-100', icon: 'bg-violet-100 text-violet-700', text: 'text-violet-800' }}
           />
         </div>
 
@@ -252,13 +258,13 @@ export default function DoctorDashboard() {
 
               {/* Right Panel (50%): Standard ABDM Clinical Consultation Station */}
               <div className="xl:col-span-6 space-y-4">
-                {/* 2-Tab Navigation Bar */}
+                {/* 3-Tab Navigation Bar */}
                 <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <button
                       type="button"
                       onClick={() => setWorkspaceTab('consultation')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                         workspaceTab === 'consultation'
                           ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
                           : 'text-slate-600 hover:bg-slate-50'
@@ -269,8 +275,29 @@ export default function DoctorDashboard() {
 
                     <button
                       type="button"
+                      onClick={() => setWorkspaceTab('labReports')}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                        workspaceTab === 'labReports'
+                          ? (selectedAppointment?.isCriticalLab || selectedAppointment?.labOrders?.some((o) => o.isCritical))
+                            ? 'bg-red-600 text-white shadow-sm shadow-red-200 animate-pulse'
+                            : 'bg-teal-600 text-white shadow-sm shadow-teal-200'
+                          : (selectedAppointment?.isCriticalLab || selectedAppointment?.labOrders?.some((o) => o.isCritical))
+                          ? 'bg-red-50 text-red-700 border border-red-300 animate-pulse font-black'
+                          : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>🔬 Lab Reports</span>
+                      {(selectedAppointment?.isCriticalLab || selectedAppointment?.labOrders?.some((o) => o.isCritical)) && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-white text-red-700 text-[9px] font-black uppercase">
+                          🚨 CRITICAL
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setWorkspaceTab('history')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                         workspaceTab === 'history'
                           ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
                           : 'text-slate-600 hover:bg-slate-50'
@@ -292,6 +319,15 @@ export default function DoctorDashboard() {
                     onConsultationSaved={handleConsultationSaved}
                     onLabRequested={handleLabRequested}
                     onCancel={() => setSelectedAppointment(null)}
+                    initialTab="consultation"
+                  />
+                ) : workspaceTab === 'labReports' ? (
+                  <ConsultationPanel
+                    appointment={selectedAppointment}
+                    onConsultationSaved={handleConsultationSaved}
+                    onLabRequested={handleLabRequested}
+                    onCancel={() => setSelectedAppointment(null)}
+                    initialTab="labReports"
                   />
                 ) : (
                   <PatientHistory
@@ -319,13 +355,13 @@ export default function DoctorDashboard() {
             <div className="lg:col-span-8 xl:col-span-8 space-y-4">
               {selectedAppointment ? (
                 <>
-                  {/* 2-Tab Navigation Bar */}
+                  {/* 3-Tab Navigation Bar */}
                   <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <button
                         type="button"
                         onClick={() => setWorkspaceTab('consultation')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                           workspaceTab === 'consultation'
                             ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
                             : 'text-slate-600 hover:bg-slate-50'
@@ -340,8 +376,30 @@ export default function DoctorDashboard() {
 
                       <button
                         type="button"
+                        id="doctor-dashboard-lab-reports-tab"
+                        onClick={() => setWorkspaceTab('labReports')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                          workspaceTab === 'labReports'
+                            ? (selectedAppointment?.isCriticalLab || selectedAppointment?.labOrders?.some((o) => o.isCritical))
+                              ? 'bg-red-600 text-white shadow-sm shadow-red-200 animate-pulse'
+                              : 'bg-teal-600 text-white shadow-sm shadow-teal-200'
+                            : (selectedAppointment?.isCriticalLab || selectedAppointment?.labOrders?.some((o) => o.isCritical))
+                            ? 'bg-red-50 text-red-700 border border-red-300 animate-pulse font-black'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>🔬 Lab Reports</span>
+                        {(selectedAppointment?.isCriticalLab || selectedAppointment?.labOrders?.some((o) => o.isCritical)) && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-white text-red-700 text-[9px] font-black uppercase">
+                            🚨 CRITICAL
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setWorkspaceTab('history')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                           workspaceTab === 'history'
                             ? 'bg-sky-600 text-white shadow-sm shadow-sky-200'
                             : 'text-slate-600 hover:bg-slate-50'
@@ -367,10 +425,19 @@ export default function DoctorDashboard() {
                       onConsultationSaved={handleConsultationSaved}
                       onLabRequested={handleLabRequested}
                       onCancel={() => setSelectedAppointment(null)}
+                      initialTab="consultation"
+                    />
+                  ) : workspaceTab === 'labReports' ? (
+                    <ConsultationPanel
+                      appointment={selectedAppointment}
+                      onConsultationSaved={handleConsultationSaved}
+                      onLabRequested={handleLabRequested}
+                      onCancel={() => setSelectedAppointment(null)}
+                      initialTab="labReports"
                     />
                   ) : (
                     <PatientHistory
-                      patientId={selectedAppointment.patientId?._id || selectedAppointment.patientId}
+                      patientId={selectedAppointment.patientId?._id || selectedAppointment.patientId?.id || (typeof selectedAppointment.patientId === 'string' ? selectedAppointment.patientId : null)}
                       patient={selectedAppointment.patientId}
                     />
                   )}

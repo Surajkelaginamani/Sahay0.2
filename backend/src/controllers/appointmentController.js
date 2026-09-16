@@ -106,7 +106,7 @@ export const bookTeleconsult = async (req, res) => {
 // Updates status to 'Patient Waiting in Room' and records timestamps.
 export const startTeleconsultWaiting = async (req, res) => {
   try {
-    const { appointmentId } = req.params;
+    const appointmentId = req.params.appointmentId || req.params.id;
     const userId = req.user._id;
 
     const appointment = await Appointment.findById(appointmentId);
@@ -199,7 +199,7 @@ export const getMyTeleconsults = async (req, res) => {
     }
 
     const teleconsults = await Appointment.find(filter)
-      .populate('patientId',        'firstName lastName contactPhone gender dob abhaId')
+      .populate('patientId',        'firstName lastName contactPhone gender dob abhaId uhid')
       .populate('facilityId',       'hospitalName name address')
       .populate('assignedDoctorId', 'name email specialization')
       .sort({ scheduledDate: 1, createdAt: -1 })

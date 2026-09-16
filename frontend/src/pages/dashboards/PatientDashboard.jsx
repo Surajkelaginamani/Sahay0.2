@@ -101,6 +101,11 @@ export default function PatientDashboard() {
     }
   }, []);
 
+  // Display computations
+  const fullName = patientData?.firstName
+    ? `${patientData.firstName} ${patientData.lastName || ''}`.trim()
+    : user?.name || 'Citizen';
+
   // ── Enter Waiting Room / Start Call (Prompt 18.2) ──────────────────────────
   const handleStartCall = async (tc) => {
     try {
@@ -134,11 +139,6 @@ export default function PatientDashboard() {
   }, [user, activeTab, loadMyTeleconsults]);
 
   if (!user) return null;
-
-  // Display computations
-  const fullName = patientData?.firstName
-    ? `${patientData.firstName} ${patientData.lastName || ''}`.trim()
-    : user.name || 'Citizen';
 
   const abhaId = patientData?.abhaId || (user._id ? `SAHAY-${user._id.slice(-8).toUpperCase()}` : '—');
   const bloodGroup = patientData?.bloodGroup || 'O+';
@@ -198,19 +198,6 @@ export default function PatientDashboard() {
           <div className="min-w-0">
             <p className="font-bold text-slate-900 text-sm">{toast.title}</p>
             <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{toast.message}</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Active Video Room Modal (Prompt 17.4) ── */}
-      {activeVideoRoom && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-4xl bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800">
-            <VideoRoom
-              roomName={activeVideoRoom.roomId || activeVideoRoom.roomName}
-              displayName={`${fullName} (Patient)`}
-              onClose={() => setActiveVideoRoom(null)}
-            />
           </div>
         </div>
       )}
@@ -278,6 +265,18 @@ export default function PatientDashboard() {
                       {abhaId}
                     </p>
                   </div>
+
+                  {/* ── UHID Display (Prompt 1.2) ── */}
+                  {patientData?.uhid && (
+                    <div className="bg-violet-500/20 px-3 py-1.5 rounded-xl border border-violet-400/30 backdrop-blur-sm">
+                      <p className="text-[9px] uppercase tracking-wider font-bold text-violet-300">
+                        🪪 Unique Health ID (UHID)
+                      </p>
+                      <p className="text-sm font-mono font-black text-white tracking-widest mt-0.5">
+                        {patientData.uhid}
+                      </p>
+                    </div>
+                  )}
 
                   {patientData?.address && (
                     <span className="text-[11px] text-slate-400 hidden sm:inline">
@@ -899,9 +898,9 @@ export default function PatientDashboard() {
                       <div
                         key={tc._id}
                         className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all
-                          ${isScheduled ? 'border-violet-300 ring-1 ring-violet-200' : 'border-slate-200'}`}
+                          ${tc.status === 'Teleconsult Confirmed' || tc.status === 'Patient Waiting in Room' ? 'border-emerald-300 ring-1 ring-emerald-200' : isScheduled ? 'border-violet-300 ring-1 ring-violet-200' : 'border-slate-200'}`}
                       >
-                        <div className={`h-1.5 w-full ${isScheduled ? 'bg-gradient-to-r from-violet-500 to-purple-600' : isRequested ? 'bg-amber-400' : 'bg-emerald-500'}`} />
+                        <div className={`h-1.5 w-full ${tc.status === 'Teleconsult Confirmed' || tc.status === 'Patient Waiting in Room' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : isScheduled ? 'bg-gradient-to-r from-violet-500 to-purple-600' : isRequested ? 'bg-amber-400' : 'bg-emerald-500'}`} />
                         <div className="p-5 space-y-3.5">
                           <div className="flex items-start justify-between gap-3">
                             <div>
@@ -946,7 +945,7 @@ export default function PatientDashboard() {
                             </div>
                           )}
 
-                          {['Teleconsult Confirmed', 'Patient Waiting in Room', 'Teleconsult Scheduled'].includes(tc.status) && tc.teleconsultRoomId && (
+                          {['Teleconsult Confirmed', 'Patient Waiting in Room', 'Teleconsult Scheduled', 'In Teleconsult'].includes(tc.status) && (
                             <button
                               id={`patient-join-call-${tc._id}`}
                               onClick={() => handleStartCall(tc)}
@@ -991,19 +990,6 @@ export default function PatientDashboard() {
             />
           </div>
         </div>
-      )}
-
-      {/* ── Book Teleconsult Modal (Prompt 17.2) ───────────────────────── */}
-      {showBookTeleconsultModal && (
-        <BookTeleconsultModal
-          userRole="Patient"
-          onClose={() => setShowBookTeleconsultModal(false)}
-          onSuccess={() => {
-            setShowBookTeleconsultModal(false);
-            showToast('success', 'Teleconsult Requested', 'Teleconsult request submitted for hospital review.');
-            loadMyTeleconsults();
-          }}
-        />
       )}
     </div>
   );

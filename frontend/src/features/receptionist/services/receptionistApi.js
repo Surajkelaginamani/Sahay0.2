@@ -40,13 +40,13 @@ const receptionistApi = {
     }),
 
   // ── Queue ──────────────────────────────────────────────────────────────────
-  /** Add an existing patient to today's walk-in queue with an assigned doctor, optional priority, and referralId. */
-  addToQueue: (patientId, assignedDoctorId, appointmentDate, priority = 'Routine', referralId) =>
+  /** Prompt 4.1 & 4.2: Add an existing patient to today's walk-in queue with an assigned doctor, urgency, priority, and referralId. */
+  addToQueue: (patientId, assignedDoctorId, appointmentDate, priority = 'Routine', referralId, urgency = 'Routine') =>
     axios.post(
       `${BASE_URL}/queue`,
       typeof patientId === 'object'
-        ? patientId
-        : { patientId, assignedDoctorId, appointmentDate, priority, referralId },
+        ? { urgency: 'Routine', ...patientId }
+        : { patientId, assignedDoctorId, appointmentDate, priority, referralId, urgency },
       { headers: getAuthHeader() }
     ),
 
@@ -77,6 +77,19 @@ const receptionistApi = {
   /** Fetch all pending ASHA referrals directed to this facility. */
   getIncomingReferrals: () =>
     axios.get(`${BASE_URL}/referrals/incoming`, { headers: getAuthHeader() }),
+
+  // ── Data Conflicts (Prompt 2.2) ────────────────────────────────────────────
+  /** Fetch all pending SyncConflict records for admin review. */
+  getPendingConflicts: () =>
+    axios.get(`${BASE_URL}/conflicts`, { headers: getAuthHeader() }),
+
+  /** Resolve a conflict: action = 'merge' | 'create_new' */
+  resolveConflict: (conflictId, action) =>
+    axios.post(
+      `${BASE_URL}/conflicts/${conflictId}/resolve`,
+      { action },
+      { headers: getAuthHeader() }
+    ),
 };
 
 export default receptionistApi;

@@ -27,10 +27,15 @@ router.get(
   getHigherLevelHospitals
 );
 
-// ── Book Teleconsult (ASHA, Nurse, Patient) ────────────────────────────────────
-// POST /api/teleconsult/book → submit a teleconsult request for hospital review
+// POST /api/teleconsult/book or /api/appointments/teleconsult → submit a teleconsult request for hospital review
 router.post(
   '/book',
+  protect,
+  authorize('ASHA', 'AshaWorker', 'Nurse', 'Patient'),
+  bookTeleconsult
+);
+router.post(
+  '/teleconsult',
   protect,
   authorize('ASHA', 'AshaWorker', 'Nurse', 'Patient'),
   bookTeleconsult
@@ -46,9 +51,15 @@ router.get(
 );
 
 // ── Patient/ASHA Check-In & Enter Waiting Room (Prompt 18.1) ─────────────────
-// POST /api/teleconsult/:appointmentId/start → updates status to 'Patient Waiting in Room'
+// POST /api/teleconsult/:appointmentId/start or .../enter-waiting-room → updates status to 'Patient Waiting in Room'
 router.post(
   '/:appointmentId/start',
+  protect,
+  authorize('ASHA', 'AshaWorker', 'Nurse', 'Patient', 'Doctor', 'HospitalAdmin'),
+  startTeleconsultWaiting
+);
+router.post(
+  '/:appointmentId/enter-waiting-room',
   protect,
   authorize('ASHA', 'AshaWorker', 'Nurse', 'Patient', 'Doctor', 'HospitalAdmin'),
   startTeleconsultWaiting

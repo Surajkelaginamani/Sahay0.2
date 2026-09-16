@@ -28,6 +28,11 @@ const medicationItemSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    quantity: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
   },
   { _id: false }
 );
@@ -90,6 +95,13 @@ const prescriptionSchema = new mongoose.Schema(
     dispensedAt: {
       type: Date,
       default: null,
+    },
+    // Prompt 5.3: Clinical Allergy Override Protocol
+    allergyOverride: {
+      acknowledged: { type: Boolean, default: false },
+      reason: { type: String, trim: true, default: '' },
+      overriddenAt: { type: Date, default: null },
+      matchedAllergies: { type: [String], default: [] },
     },
   },
   {

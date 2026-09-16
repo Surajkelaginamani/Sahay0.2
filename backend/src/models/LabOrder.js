@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import labCatalog from '../utils/labCatalog.js';
 
 const labOrderSchema = new mongoose.Schema(
   {
@@ -26,6 +27,10 @@ const labOrderSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Test name is required'],
       trim: true,
+      enum: {
+        values: labCatalog.map((t) => (typeof t === 'string' ? t : t.name)),
+        message: '{VALUE} is not a valid standardized diagnostic test in the catalog',
+      },
     },
     status: {
       type: String,
@@ -35,12 +40,32 @@ const labOrderSchema = new mongoose.Schema(
       },
       default: 'Requested',
     },
+    result: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    resultText: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     resultURL: {
       type: String,
       trim: true,
       default: '',
     },
     notes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    // Prompt 6.1: Flag out-of-bounds numeric test results as critical
+    isCritical: {
+      type: Boolean,
+      default: false,
+    },
+    criticalReason: {
       type: String,
       trim: true,
       default: '',

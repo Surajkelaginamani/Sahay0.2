@@ -25,6 +25,9 @@ export const labApi = {
 
   // Submit test report and finalize order as Completed
   submitReport: (data) => api.post('/lab/reports', data),
+
+  // Prompt 3.1 & 3.2: Get standardized lab tests catalog
+  getCatalog: () => api.get('/labs/catalog'),
 };
 
 export default labApi;

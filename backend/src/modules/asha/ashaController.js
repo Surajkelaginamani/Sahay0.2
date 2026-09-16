@@ -47,7 +47,12 @@ export const searchPatients = async (req, res) => {
 
     let filter;
     if (isPhone) {
-      filter = { contactPhone: { $regex: term, $options: 'i' } };
+      filter = {
+        $or: [
+          { contactPhone: { $regex: term, $options: 'i' } },
+          { uhid:         { $regex: term, $options: 'i' } },
+        ],
+      };
     } else if (tokens.length > 1) {
       filter = {
         $or: [
@@ -71,16 +76,17 @@ export const searchPatients = async (req, res) => {
     } else {
       filter = {
         $or: [
-          { firstName: { $regex: term, $options: 'i' } },
-          { lastName:  { $regex: term, $options: 'i' } },
+          { firstName:    { $regex: term, $options: 'i' } },
+          { lastName:     { $regex: term, $options: 'i' } },
           { contactPhone: { $regex: term, $options: 'i' } },
-          { abhaId:    { $regex: term, $options: 'i' } },
+          { abhaId:       { $regex: term, $options: 'i' } },
+          { uhid:         { $regex: term, $options: 'i' } },
         ],
       };
     }
 
     const patients = await Patient.find(filter)
-      .select('firstName lastName dob gender contactPhone abhaId')
+      .select('firstName lastName dob gender contactPhone abhaId uhid')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
@@ -182,7 +188,7 @@ export const getMyReferrals = async (req, res) => {
     }
 
     const referrals = await Referral.find(filter)
-      .populate('patientId',          'firstName lastName contactPhone gender dob')
+      .populate('patientId',          'firstName lastName contactPhone gender dob uhid')
       .populate('referredToFacility', 'hospitalName address')
       .sort({ createdAt: -1 })
       .lean();
