@@ -746,6 +746,75 @@ export const getFacilityDoctors = async (req, res) => {
   }
 };
 
+// ─── getDoctorsDutyStatus (Prompt: Reception & Doctor Duty Synchronization) ────
+// @route   GET /api/reception/doctors-status and GET /api/receptionist/doctors-status
+// @access  Private (Receptionist / Staff)
+export const getDoctorsDutyStatus = async (req, res) => {
+  try {
+    const facilityId = req.user.hospitalId;
+
+    const doctorFilter = { role: 'Doctor' };
+    if (facilityId) {
+      doctorFilter.hospitalId = facilityId;
+    }
+
+    const doctors = await User.find(doctorFilter)
+      .select('_id name specialty department email isOnDuty dutyStatusUpdatedAt dutyShift')
+      .sort({ isOnDuty: -1, name: 1 })
+      .lean();
+
+    const { start, end } = getTodayRange();
+
+    const activeStatuses = [
+      'Waiting',
+      'Waiting for Doctor',
+      'CheckedIn',
+      'At Triage',
+      'In Progress',
+      'In Consultation',
+      'Reports Ready',
+    ];
+
+    const enrichedDoctors = await Promise.all(
+      doctors.map(async (doc) => {
+        const apptFilter = {
+          assignedDoctorId: doc._id,
+          appointmentDate: { $gte: start, $lte: end },
+          status: { $in: activeStatuses },
+        };
+        if (facilityId) {
+          apptFilter.facilityId = facilityId;
+        }
+
+        const activeQueueCount = await Appointment.countDocuments(apptFilter);
+
+        return {
+          _id: doc._id,
+          name: doc.name,
+          specialty: doc.specialty || doc.department || 'General Medicine',
+          department: doc.department || 'OPD',
+          email: doc.email,
+          isOnDuty: Boolean(doc.isOnDuty),
+          dutyStatusUpdatedAt: doc.dutyStatusUpdatedAt || null,
+          dutyShift: doc.dutyShift || 'OFF',
+          activeQueueCount,
+        };
+      })
+    );
+
+    const activeCount = enrichedDoctors.filter((d) => d.isOnDuty).length;
+
+    res.status(200).json({
+      success: true,
+      count: enrichedDoctors.length,
+      activeCount,
+      doctors: enrichedDoctors,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // ─── getUpcomingAppointments ──────────────────────────────────────────────────
 // @route   GET /api/receptionist/appointments/upcoming
 // @access  Private (Receptionist)

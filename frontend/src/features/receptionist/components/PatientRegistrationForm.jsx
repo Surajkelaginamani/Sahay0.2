@@ -246,8 +246,8 @@ export default function PatientRegistrationForm({ onSuccess }) {
                   }`}
               >
                 <option value="Routine">Routine (Standard)</option>
-                <option value="Urgent">⚠️ Urgent (Priority)</option>
-                <option value="Emergency">🚨 Emergency (Critical)</option>
+                <option value="Urgent">Urgent (Priority)</option>
+                <option value="Emergency">Emergency (Critical)</option>
               </select>
             </div>
           </div>

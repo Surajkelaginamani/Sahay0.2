@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Sparkles, RefreshCw, AlertTriangle } from 'lucide-react';
 import doctorApi from '../services/doctorApi';
 
-export default function AiClinicalInsightCard({ patientId, className = '' }) {
-  const [insight, setInsight] = useState('');
-  const [source, setSource] = useState('gemini-1.5-flash');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+export default function AiClinicalInsightCard({ patientId, className = '', collapsed = false }) {
+  const [insight, setInsight]               = useState('');
+  const [source, setSource]                 = useState('gemini-1.5-flash');
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState('');
   const [recordsAnalyzed, setRecordsAnalyzed] = useState(null);
+  const [isCollapsed, setIsCollapsed]       = useState(collapsed);
 
   const fetchInsight = useCallback(async () => {
     const cleanId = typeof patientId === 'string'
@@ -37,112 +39,107 @@ export default function AiClinicalInsightCard({ patientId, className = '' }) {
     }
   }, [patientId]);
 
-  useEffect(() => {
-    fetchInsight();
-  }, [fetchInsight]);
+  useEffect(() => { fetchInsight(); }, [fetchInsight]);
 
   if (!patientId) return null;
 
   return (
     <div
       id="ai-clinical-insight-card"
-      className={`relative overflow-hidden rounded-3xl border border-violet-200/90 bg-gradient-to-br from-violet-50/95 via-indigo-50/50 to-sky-50/70 p-5 sm:p-6 shadow-sm transition-all ${className}`}
+      className={`relative overflow-hidden rounded-xl border border-indigo-100 bg-indigo-50/50 transition-all ${className}`}
     >
-      {/* Decorative subtle ambient glow */}
-      <div className="absolute -top-12 -right-12 w-36 h-36 bg-purple-200/40 rounded-full blur-2xl pointer-events-none" />
-      <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-sky-200/30 rounded-full blur-2xl pointer-events-none" />
+      {/* Subtle ambient glows */}
+      <div className="absolute -top-10 -right-10 w-28 h-28 bg-purple-200/30 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute -bottom-10 -left-10 w-28 h-28 bg-sky-200/20 rounded-full blur-2xl pointer-events-none" />
 
       {/* Header */}
-      <div className="relative flex flex-wrap items-center justify-between gap-3 mb-3.5 pb-3 border-b border-violet-200/60">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 text-white flex items-center justify-center text-lg shadow-md shadow-violet-200 shrink-0">
-            ✨
+      <button
+        type="button"
+        onClick={() => setIsCollapsed((v) => !v)}
+        className="relative w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-purple-700 text-white flex items-center justify-center shadow-sm shrink-0">
+            <Sparkles className="w-3.5 h-3.5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-black text-slate-900 tracking-tight">
-                AI Clinical Insight
-              </h3>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-800 border border-violet-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-600 animate-pulse" />
-                {source === 'gemini-1.5-flash' ? 'Gemini 1.5 Flash' : 'Clinical AI Synthesis'}
+              <h3 className="text-xs font-black text-slate-900 tracking-tight">Clinical Intelligence</h3>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-100 text-violet-800 border border-violet-200">
+                <span className="w-1 h-1 rounded-full bg-violet-600 animate-pulse" />
+                {source === 'gemini-1.5-flash' ? 'Gemini AI' : 'AI Synthesis'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              12-Month longitudinal trend synthesis & risk spotting for rapid doctor review
-            </p>
+            {recordsAnalyzed && !isCollapsed && (
+              <p className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                {recordsAnalyzed.vitalsCount || 0} vitals · {recordsAnalyzed.consultationsCount || 0} visits · {recordsAnalyzed.labOrdersCount || 0} labs
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {recordsAnalyzed && (
-            <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
-              {recordsAnalyzed.vitalsCount || 0} vitals · {recordsAnalyzed.consultationsCount || 0} visits · {recordsAnalyzed.labOrdersCount || 0} labs
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={fetchInsight}
-            disabled={loading}
-            title="Re-analyze clinical records"
-            className="p-1.5 rounded-xl border border-violet-200 bg-white/80 hover:bg-white text-violet-700 hover:text-violet-900 transition-colors shadow-xs disabled:opacity-50 text-xs font-bold flex items-center gap-1"
-          >
-            <svg
-              className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            <span className="text-[11px] hidden sm:inline">Refresh</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Body: Shimmer Loading Skeleton vs Loaded State */}
-      <div className="relative">
-        {loading ? (
-          <div className="space-y-2.5 py-1">
-            <div className="h-3.5 bg-gradient-to-r from-violet-200/90 via-indigo-100 to-violet-200/90 rounded-lg animate-pulse w-full" />
-            <div className="h-3.5 bg-gradient-to-r from-violet-200/90 via-indigo-100 to-violet-200/90 rounded-lg animate-pulse w-11/12" />
-            <div className="h-3.5 bg-gradient-to-r from-violet-200/90 via-indigo-100 to-violet-200/90 rounded-lg animate-pulse w-4/5" />
-            <div className="flex items-center gap-2 pt-1 text-[11px] font-semibold text-violet-600 animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-violet-500 animate-ping" />
-              <span>Analyzing longitudinal patient history with Gemini AI…</span>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="p-3 rounded-2xl bg-white/70 border border-amber-200 text-xs text-amber-800 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span>⚠️</span>
-              <span>{error}</span>
-            </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {!isCollapsed && (
             <button
               type="button"
-              onClick={fetchInsight}
-              className="text-xs font-bold text-violet-700 underline hover:text-violet-900"
+              onClick={(e) => { e.stopPropagation(); fetchInsight(); }}
+              disabled={loading}
+              title="Re-analyze clinical records"
+              className="p-1 rounded-lg border border-violet-200 bg-white/70 hover:bg-white text-violet-700 transition-colors disabled:opacity-50 flex items-center gap-1"
             >
-              Retry
+              <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+              <span className="text-[10px] font-bold hidden sm:inline">Refresh</span>
             </button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs sm:text-sm font-bold text-slate-900 leading-relaxed tracking-wide">
-              {insight}
-            </p>
-            <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold pt-1">
-              <span>Automated clinical briefing for doctor evaluation · Non-diagnostic synthesis</span>
-              <span className="text-violet-600 font-bold">Fast-Read Format</span>
+          )}
+          <svg
+            className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isCollapsed ? '' : 'rotate-180'}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {/* Body */}
+      {!isCollapsed && (
+        <div className="relative px-4 pb-4">
+          {loading ? (
+            <div className="space-y-2 py-1">
+              <div className="h-3 bg-violet-200/80 rounded-lg animate-pulse w-full" />
+              <div className="h-3 bg-violet-200/80 rounded-lg animate-pulse w-11/12" />
+              <div className="h-3 bg-violet-200/80 rounded-lg animate-pulse w-4/5" />
+              <div className="flex items-center gap-1.5 pt-1 text-[11px] font-semibold text-violet-600 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-ping" />
+                <span>Analyzing longitudinal patient history…</span>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          ) : error ? (
+            <div className="p-3 rounded-xl bg-white/70 border border-amber-200 text-xs text-amber-800 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={fetchInsight}
+                className="text-xs font-bold text-violet-700 underline hover:text-violet-900 shrink-0"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-800 leading-relaxed">
+                {insight}
+              </p>
+              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                <span>12-month longitudinal synthesis · Non-diagnostic</span>
+                <span className="text-violet-600 font-bold">Fast-Read</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

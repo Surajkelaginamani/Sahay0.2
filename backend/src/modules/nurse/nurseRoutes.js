@@ -9,6 +9,9 @@ import {
   notifyDoctor,
   requestTeleconsult,
   getAvailableDoctors,
+  skipPatient,
+  recallPatient,
+  markNoShow,
 } from './nurseController.js';
 
 const router = express.Router();
@@ -45,5 +48,13 @@ router.post('/notify-doctor', notifyDoctor);
 router.post('/request-teleconsult', requestTeleconsult);
 // GET  /api/nurse/doctors             → fetch available specialist doctors
 router.get('/doctors', getAvailableDoctors);
+
+// ── Skip & Recall routes (plans.md) ───────────────────────────────────────────
+// PATCH /api/nurse/queue/:id/skip     → move patient to On-Hold / Absent (Skipped)
+router.patch('/queue/:id/skip',    skipPatient);
+// PATCH /api/nurse/queue/:id/recall   → recall patient back to triage at next slot
+router.patch('/queue/:id/recall',  recallPatient);
+// PATCH /api/nurse/queue/:id/no-show  → permanently remove (Cancelled) from queue
+router.patch('/queue/:id/no-show', markNoShow);
 
 export default router;

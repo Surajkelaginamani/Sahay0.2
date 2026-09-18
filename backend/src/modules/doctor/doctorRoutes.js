@@ -10,6 +10,8 @@ import {
   requestLabTest,
   closeConsultation,
   joinTeleconsult,
+  updateDutyStatus,
+  getDoctorDutyStatus,
 } from './doctorController.js';
 
 const router = express.Router();
@@ -57,5 +59,11 @@ router.post('/consultation', submitConsultation);
 // POST /api/doctor/teleconsult/join                  → join video teleconsultation room
 router.post('/teleconsult/join', joinTeleconsult);
 router.post('/join-teleconsult', joinTeleconsult); // alias
+
+// ── Duty Status routes (Prompt: Doctor Duty Synchronization) ──────────────────
+// PATCH /api/doctor/duty-status                      → toggle On Duty / Off Duty
+// GET   /api/doctor/duty-status                      → get current duty status
+router.patch('/duty-status', updateDutyStatus);
+router.get('/duty-status', getDoctorDutyStatus);
 
 export default router;

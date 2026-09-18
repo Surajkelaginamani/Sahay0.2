@@ -4,6 +4,8 @@ import {
   loginGovtEmployee,
   getPendingHospitals,
   verifyHospital,
+  getDashboardMetrics,
+  getFacilities,
 } from '../controllers/govtController.js';
 import { protect, authorize } from '../middlewares/authMiddleware.js';
 
@@ -26,6 +28,20 @@ router.put(
   protect,
   authorize('GovtEmployee'),
   verifyHospital
+);
+
+router.get(
+  '/dashboard-metrics',
+  protect,
+  authorize('GovtEmployee'),
+  getDashboardMetrics
+);
+
+router.get(
+  '/facilities',
+  protect,
+  authorize('GovtEmployee'),
+  getFacilities
 );
 
 export default router;

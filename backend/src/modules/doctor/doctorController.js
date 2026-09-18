@@ -7,6 +7,9 @@ import LabOrder from '../../models/LabOrder.js';
 import Vitals from '../../models/Vitals.js';
 import LabInvestigationOrder from '../../models/LabInvestigationOrder.js';
 import labCatalog from '../../utils/labCatalog.js';
+import FollowUp from '../../models/FollowUp.js';
+import Referral from '../../models/Referral.js';
+import User from '../../models/User.js';
 
 // ─── getDoctorQueue ───────────────────────────────────────────────────────────
 // @route   GET /api/doctor/queue
@@ -560,11 +563,16 @@ export const closeConsultation = async (req, res) => {
       medications,
       instructions,
       medicalHistory,
-      followUpDate,
+      followUpDate: rawFollowUpDate,
+      followUpInstructions,
+      followUp: followUpPayload,
       // Prompt 11.1: Clinical Tags & Voice Transcript
       clinicalTags,
       voiceNoteTranscript,
     } = req.body;
+
+    const followUpDate = rawFollowUpDate || followUpPayload?.followUpDate || followUpPayload?.date;
+    const resolvedFollowUpInstructions = (followUpInstructions || followUpPayload?.instructions || '').trim();
 
     const appointmentId = bodyApptId || req.params.appointmentId;
 
@@ -661,12 +669,45 @@ export const closeConsultation = async (req, res) => {
     }
     await appointment.save();
 
+    // 4. Closed-Loop Follow-up & ASHA Routing (plans.md)
+    let followUpRecord = null;
+    if (followUpDate) {
+      try {
+        const patientDoc = await Patient.findById(targetPatientId);
+        let referringAshaId = patientDoc?.registeredByAshaId || null;
+        if (!referringAshaId) {
+          const recentReferral = await Referral.findOne({ patientId: targetPatientId })
+            .sort({ createdAt: -1 })
+            .select('referredBy');
+          if (recentReferral?.referredBy) {
+            referringAshaId = recentReferral.referredBy;
+          }
+        }
+
+        followUpRecord = await FollowUp.create({
+          patientId: targetPatientId,
+          patientUhid: patientDoc?.uhid || '',
+          doctorId,
+          referringAshaId,
+          followUpDate: new Date(followUpDate),
+          instructions: resolvedFollowUpInstructions || instructions?.trim() || '',
+          status: 'SCHEDULED',
+          facilityId,
+          appointmentId,
+          consultationId: consultation._id,
+        });
+      } catch (fErr) {
+        console.error('Failed to create follow-up record:', fErr.message);
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Consultation closed and prescription created successfully.',
       consultation,
       prescription,
       appointment,
+      followUp: followUpRecord,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -714,4 +755,76 @@ export const joinTeleconsult = async (req, res) => {
 
 // ─── completeAppointment (Prompt 11.1 alias) ──────────────────────────────────
 export const completeAppointment = closeConsultation;
+
+// ─── updateDutyStatus (Prompt: Doctor Duty Synchronization) ───────────────────
+// @route   PATCH /api/doctor/duty-status
+// @access  Private (Doctor)
+export const updateDutyStatus = async (req, res) => {
+  try {
+    const doctorId = req.user._id;
+    const { isOnDuty, dutyShift } = req.body;
+
+    if (typeof isOnDuty !== 'boolean') {
+      return res.status(400).json({ message: 'isOnDuty must be a boolean.' });
+    }
+
+    const doctor = await User.findById(doctorId);
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found.' });
+    }
+
+    doctor.isOnDuty = isOnDuty;
+    doctor.dutyStatusUpdatedAt = new Date();
+    if (dutyShift && ['MORNING', 'EVENING', 'NIGHT', 'OFF'].includes(dutyShift)) {
+      doctor.dutyShift = dutyShift;
+    } else if (!isOnDuty) {
+      doctor.dutyShift = 'OFF';
+    } else if (isOnDuty && (!doctor.dutyShift || doctor.dutyShift === 'OFF')) {
+      doctor.dutyShift = 'MORNING';
+    }
+
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Doctor duty status updated to ${isOnDuty ? 'On Duty' : 'Off Duty'}.`,
+      isOnDuty: doctor.isOnDuty,
+      dutyStatusUpdatedAt: doctor.dutyStatusUpdatedAt,
+      dutyShift: doctor.dutyShift,
+      doctor: {
+        _id: doctor._id,
+        name: doctor.name,
+        email: doctor.email,
+        isOnDuty: doctor.isOnDuty,
+        dutyStatusUpdatedAt: doctor.dutyStatusUpdatedAt,
+        dutyShift: doctor.dutyShift,
+        specialty: doctor.specialty,
+        department: doctor.department,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── getDoctorDutyStatus ─────────────────────────────────────────────────────
+// @route   GET /api/doctor/duty-status
+// @access  Private (Doctor)
+export const getDoctorDutyStatus = async (req, res) => {
+  try {
+    const doctor = await User.findById(req.user._id).select('name email isOnDuty dutyStatusUpdatedAt dutyShift specialty department');
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found.' });
+    }
+    res.status(200).json({
+      success: true,
+      isOnDuty: doctor.isOnDuty,
+      dutyStatusUpdatedAt: doctor.dutyStatusUpdatedAt,
+      dutyShift: doctor.dutyShift,
+      doctor,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 

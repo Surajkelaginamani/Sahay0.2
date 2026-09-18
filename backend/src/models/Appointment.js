@@ -86,7 +86,7 @@ const appointmentSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ── Workflow Status (Prompt 6.1 + 16.1 + 17.1 + 18.1) ──────────────────────
+    // ── Workflow Status (Prompt 6.1 + 16.1 + 17.1 + 18.1 + Skip & Recall) ────────
     status: {
       type: String,
       enum: {
@@ -102,6 +102,8 @@ const appointmentSchema = new mongoose.Schema(
           'Patient Waiting in Room',
           'In Teleconsult',
           'Completed',
+          // Skip & Recall: patient was absent when called; placed in on-hold section
+          'Skipped',
           // Backward-compatible statuses
           'CheckedIn',
           'Waiting',
@@ -176,6 +178,30 @@ const appointmentSchema = new mongoose.Schema(
     staffNotes: {
       type: String,
       trim: true,
+    },
+
+    // ── Consultation Timing (Queue Prediction Engine) ─────────────────────────
+    // Set when doctor opens the consultation; used to compute doctor velocity.
+    consultationStartTime: {
+      type: Date,
+      default: null,
+    },
+    // Set when doctor closes/completes the consultation session.
+    consultationEndTime: {
+      type: Date,
+      default: null,
+    },
+
+    // ── Skip & Recall Tracking (plans.md) ────────────────────────────────────
+    // Timestamp of when the patient was skipped (absent on call)
+    skippedAt: {
+      type: Date,
+      default: null,
+    },
+    // How many times the nurse has called / attempted to reach this patient
+    callAttempts: {
+      type: Number,
+      default: 0,
     },
 
     // ── Prompt 11.1: Clinical Tags & Voice Transcript ─────────────────────────

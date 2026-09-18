@@ -9,6 +9,7 @@ import {
   addToQueue,
   getFacilityPatients,
   getFacilityDoctors,
+  getDoctorsDutyStatus,
   scheduleAppointment,
   getUpcomingAppointments,
   getIncomingReferrals,
@@ -45,7 +46,10 @@ router.patch('/appointment/:id/checkin',       checkInPatient);
 
 // ── Doctor routes ─────────────────────────────────────────────────────────────
 // GET    /api/receptionist/doctors          → all doctors at this facility
-router.get('/doctors', getFacilityDoctors);
+// GET    /api/reception/doctors-status      → live doctors duty status & activeQueueCount
+router.get('/doctors',        getFacilityDoctors);
+router.get('/doctors-status', getDoctorsDutyStatus);
+router.get('/doctors/status', getDoctorsDutyStatus);
 
 // ── Queue routes ──────────────────────────────────────────────────────────────
 // POST   /api/receptionist/queue            → add existing patient to today's queue (needs assignedDoctorId + optional priority)

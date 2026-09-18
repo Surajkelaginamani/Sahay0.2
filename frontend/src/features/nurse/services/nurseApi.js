@@ -44,6 +44,19 @@ const nurseApi = {
   /** Prompt 5.1 & 5.2: Update patient allergies */
   updatePatientAllergies: (patientId, allergies) =>
     axios.patch(`/api/patients/${patientId}/allergies`, { allergies }, { headers: getAuthHeader() }),
+
+  /** Skip & Recall: Move a patient to On-Hold / Absent status. */
+  skipPatient: (appointmentId) =>
+    axios.patch(`${BASE_URL}/queue/${appointmentId}/skip`, {}, { headers: getAuthHeader() }),
+
+  /** Skip & Recall: Recall a skipped patient back to the active triage queue. */
+  recallPatient: (appointmentId) =>
+    axios.patch(`${BASE_URL}/queue/${appointmentId}/recall`, {}, { headers: getAuthHeader() }),
+
+  /** Skip & Recall: Mark a skipped patient as No-Show (permanently removes from queue). */
+  markNoShow: (appointmentId) =>
+    axios.patch(`${BASE_URL}/queue/${appointmentId}/no-show`, {}, { headers: getAuthHeader() }),
+
 };
 
 export default nurseApi;

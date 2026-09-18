@@ -16,6 +16,8 @@ import ashaRoutes from './src/modules/asha/ashaRoutes.js';
 import referralRoutes from './src/routes/referralRoutes.js';
 import teleconsultRoutes from './src/routes/teleconsultRoutes.js';
 import aiRoutes from './src/modules/ai/aiRoutes.js';
+import queueRoutes from './src/modules/queue/queueRoutes.js';
+import followUpRoutes from './src/routes/followUpRoutes.js';
 
 dotenv.config();
 
@@ -35,6 +37,7 @@ app.use('/api/auth', staffAuthRoutes);
 app.use('/api/lab', labRoutes);
 app.use('/api/labs', labRoutes);
 app.use('/api/receptionist', receptionistRoutes);
+app.use('/api/reception', receptionistRoutes);
 app.use('/api/doctor', doctorRoutes);
 app.use('/api/nurse', nurseRoutes);
 app.use('/api/pharmacy', pharmacyRoutes);
@@ -43,6 +46,9 @@ app.use('/api/referrals', referralRoutes);
 app.use('/api/teleconsult', teleconsultRoutes);
 app.use('/api/appointments', teleconsultRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/queue', queueRoutes);
+app.use('/api/follow-ups', followUpRoutes);
+app.use('/api/follow-up', followUpRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

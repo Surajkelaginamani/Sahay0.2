@@ -77,10 +77,15 @@ const patientSchema = new mongoose.Schema(
       ref: 'User',
     },
 
-    // ── Facility Registration ─────────────────────────────────────────────────
+    // ── Facility & ASHA Registration ──────────────────────────────────────────
     registeredAtFacility: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Hospital',
+      default: null,
+    },
+    registeredByAshaId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       default: null,
     },
 

@@ -37,6 +37,8 @@ export const govtAPI = {
   register: (data) => api.post('/govt/register', data),
   getPendingHospitals: (config) => api.get('/govt/pending-hospitals', config),
   verifyHospital: (id, status, config) => api.put(`/govt/verify-hospital/${id}`, { status }, config),
+  getDashboardMetrics: () => api.get('/govt/dashboard-metrics'),
+  getFacilities: (status) => api.get('/govt/facilities', { params: status ? { status } : {} }),
 };
 
 // Hospital Admin Management API (protected - requires HospitalAdmin JWT)

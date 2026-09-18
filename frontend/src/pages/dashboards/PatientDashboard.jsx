@@ -4,6 +4,27 @@ import axios from 'axios';
 import patientApi from '../../services/patientApi';
 import VideoRoom from '../../components/common/VideoRoom';
 import BookTeleconsultModal from '../../components/common/BookTeleconsultModal';
+import LiveQueueTracker from '../../features/patient/LiveQueueTracker';
+import {
+  Bell,
+  Calendar,
+  FileText,
+  Video,
+  CheckCircle2,
+  Phone,
+  MapPin,
+  Clock,
+  Building2,
+  Stethoscope,
+  Pill,
+  FlaskConical,
+  User,
+  ShieldCheck,
+  RotateCw,
+  Activity,
+  History,
+  Plus,
+} from 'lucide-react';
 
 function StatCard({ icon, label, value, sub, color }) {
   return (
@@ -39,6 +60,10 @@ export default function PatientDashboard() {
   const [loadingTeleconsults, setLoadingTeleconsults]           = useState(false);
   const [activeVideoRoom, setActiveVideoRoom]                   = useState(null);
   const [toast, setToast]                                       = useState(null);
+  // AI Queue Prediction: today's active OPD appointment
+  const [activeAppointment, setActiveAppointment]               = useState(null);
+  // Prompt: Closed-Loop Follow-up: upcoming scheduled follow-up
+  const [upcomingFollowUp, setUpcomingFollowUp]                 = useState(null);
 
   // ── Auth Guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -73,6 +98,25 @@ export default function PatientDashboard() {
       setConsultations(data.consultations || []);
       setPrescriptions(data.prescriptions || []);
       setLabOrders(data.labOrders || []);
+      // AI Queue Prediction: store today's active appointment if present
+      if (data.activeAppointment) {
+        setActiveAppointment(data.activeAppointment);
+      }
+      // Closed-Loop Follow-up: store upcoming follow-up if present
+      if (data.upcomingFollowUp) {
+        setUpcomingFollowUp(data.upcomingFollowUp);
+      } else if (Array.isArray(data.scheduledFollowUps) && data.scheduledFollowUps.length > 0) {
+        setUpcomingFollowUp(data.scheduledFollowUps[0]);
+      } else {
+        // Fallback dedicated fetch
+        patientApi.getMyFollowUps().then((fRes) => {
+          if (fRes.data?.upcomingFollowUp) {
+            setUpcomingFollowUp(fRes.data.upcomingFollowUp);
+          } else if (Array.isArray(fRes.data?.followUps) && fRes.data.followUps.length > 0) {
+            setUpcomingFollowUp(fRes.data.followUps[0]);
+          }
+        }).catch(() => null);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load medical history records.');
     } finally {
@@ -125,12 +169,42 @@ export default function PatientDashboard() {
     loadMyTeleconsults();
   };
 
+  // ── Prompt: Live Queue Tracker - Fetch Active Today Appointment ─────────────
+  const loadActiveTodayAppointment = useCallback(async () => {
+    try {
+      const res = await patientApi.getActiveTodayAppointment();
+      if (res.data?.success && res.data?.activeAppointment) {
+        setActiveAppointment(res.data.activeAppointment);
+      } else {
+        // Fallback check against today's appointments list
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+        const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+        const allAppts   = consultations.concat(timeline);
+        const found = allAppts.find((c) => {
+          const d = new Date(c.date || c.appointmentDate || c.createdAt);
+          const isToday = d >= todayStart && d <= todayEnd;
+          const status = (c.status || '').toUpperCase().replace(/\s+/g, '_');
+          return isToday && (status === 'WAITING' || status === 'IN_CONSULTATION' || status === 'WAITING_FOR_DOCTOR' || status === 'CHECKEDIN');
+        });
+        if (found) {
+          setActiveAppointment(found);
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+  }, [consultations, timeline]);
+
   useEffect(() => {
     if (user) {
       fetchRecords();
       loadMyTeleconsults();
+      loadActiveTodayAppointment();
+      // Set up a 20-second interval to refresh queue status per plans.md
+      const qInterval = setInterval(loadActiveTodayAppointment, 20000);
+      return () => clearInterval(qInterval);
     }
-  }, [user, fetchRecords, loadMyTeleconsults]);
+  }, [user, fetchRecords, loadMyTeleconsults, loadActiveTodayAppointment]);
 
   useEffect(() => {
     if (user && activeTab === 'teleconsults') {
@@ -212,7 +286,7 @@ export default function PatientDashboard() {
           name: fullName,
         }}
         onSuccess={(appt) => {
-          showToast('success', '📹 Teleconsult Requested!', 'Your request has been submitted to the hospital for review. You can track status under "My Video Consults".');
+          showToast('success', 'Teleconsult Requested!', 'Your request has been submitted to the hospital for review. You can track status under "My Video Consults".');
           setShowBookTeleconsultModal(false);
           loadMyTeleconsults();
           setActiveTab('teleconsults');
@@ -240,8 +314,9 @@ export default function PatientDashboard() {
                   <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight truncate">
                     {fullName}
                   </h1>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold">
-                    ✓ Verified Citizen
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    Verified Citizen
                   </span>
                 </div>
 
@@ -253,7 +328,11 @@ export default function PatientDashboard() {
                       Blood: {bloodGroup}
                     </span>
                   )}
-                  {patientData?.contactPhone && <span>· 📞 {patientData.contactPhone}</span>}
+                  {patientData?.contactPhone && (
+                    <span className="inline-flex items-center gap-1">
+                      · <Phone className="w-3 h-3 text-slate-400" /> {patientData.contactPhone}
+                    </span>
+                  )}
                 </p>
 
                 <div className="pt-2 flex flex-wrap items-center gap-3">
@@ -270,7 +349,7 @@ export default function PatientDashboard() {
                   {patientData?.uhid && (
                     <div className="bg-violet-500/20 px-3 py-1.5 rounded-xl border border-violet-400/30 backdrop-blur-sm">
                       <p className="text-[9px] uppercase tracking-wider font-bold text-violet-300">
-                        🪪 Unique Health ID (UHID)
+                        Unique Health ID (UHID)
                       </p>
                       <p className="text-sm font-mono font-black text-white tracking-widest mt-0.5">
                         {patientData.uhid}
@@ -279,8 +358,9 @@ export default function PatientDashboard() {
                   )}
 
                   {patientData?.address && (
-                    <span className="text-[11px] text-slate-400 hidden sm:inline">
-                      📍 {[patientData.address.village, patientData.address.district, patientData.address.state].filter(Boolean).join(', ')}
+                    <span className="text-[11px] text-slate-400 hidden sm:inline-flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-slate-400" />
+                      {[patientData.address.village, patientData.address.district, patientData.address.state].filter(Boolean).join(', ')}
                     </span>
                   )}
                 </div>
@@ -306,31 +386,86 @@ export default function PatientDashboard() {
           </div>
         </div>
 
+        {/* ── Follow-up Notification Card (Prompt: Closed-Loop Follow-up) ── */}
+        {upcomingFollowUp && (
+          <div
+            id="patient-followup-notification"
+            className="bg-blue-50 border border-blue-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 shadow-sm">
+                  <Bell className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm font-black text-blue-950">
+                      Upcoming Follow-up Appointment
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-200/80 text-blue-800 border border-blue-300">
+                      {upcomingFollowUp.status === 'ASHA_REMINDED' ? 'ASHA Verified' : 'Scheduled'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-0.5">
+                    Dr. {upcomingFollowUp.doctorId?.name || 'Assigned Specialist'}
+                    {upcomingFollowUp.facilityId?.hospitalName ? ` · ${upcomingFollowUp.facilityId.hospitalName}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              {/* Date badge */}
+              <div className="bg-white px-3 py-1.5 rounded-xl border border-blue-200 text-right shrink-0 shadow-2xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500 block">Date</span>
+                <span className="text-xs font-black text-blue-900">
+                  {upcomingFollowUp.followUpDate
+                    ? new Date(upcomingFollowUp.followUpDate).toLocaleDateString('en-IN', {
+                        weekday: 'short',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : 'Scheduled'}
+                </span>
+              </div>
+            </div>
+
+            {upcomingFollowUp.instructions && (
+              <div className="bg-white/80 rounded-xl p-3 border border-blue-100 flex items-start gap-2.5">
+                <FileText className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-900 leading-relaxed">
+                  <span className="font-bold text-blue-950">Clinical Instructions: </span>
+                  {upcomingFollowUp.instructions}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Longitudinal Summary Stats ─────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
           <StatCard
-            icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
+            icon={<Building2 className="w-5 h-5 text-sky-700" />}
             label="Hospitals Visited"
             value={hospitals.length}
             sub="Registered facilities"
             color={{ border: 'border-sky-100', icon: 'bg-sky-100 text-sky-700', text: 'text-sky-800' }}
           />
           <StatCard
-            icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+            icon={<Stethoscope className="w-5 h-5 text-indigo-700" />}
             label="OPD Consultations"
             value={consultations.length}
             sub="Doctor sessions"
             color={{ border: 'border-indigo-100', icon: 'bg-indigo-100 text-indigo-700', text: 'text-indigo-800' }}
           />
           <StatCard
-            icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>}
+            icon={<Pill className="w-5 h-5 text-emerald-700" />}
             label="Digital Prescriptions"
             value={prescriptions.length}
             sub="Medication orders"
             color={{ border: 'border-emerald-100', icon: 'bg-emerald-100 text-emerald-700', text: 'text-emerald-800' }}
           />
           <StatCard
-            icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>}
+            icon={<FlaskConical className="w-5 h-5 text-purple-700" />}
             label="Diagnostic Reports"
             value={labOrders.length}
             sub="Laboratory tests"
@@ -346,11 +481,16 @@ export default function PatientDashboard() {
           </div>
         )}
 
+        {/* ── Live OPD Queue Tracker (Prompt: Mount Live Queue Tracker in Patient Dashboard) ── */}
+        {activeAppointment && (
+          <LiveQueueTracker appointment={activeAppointment} />
+        )}
+
         {/* ── Prominent Card: Schedule Doctor Video Call (Prompt 17.2) ── */}
         <div className="bg-gradient-to-r from-violet-700 via-purple-700 to-indigo-800 rounded-3xl p-6 text-white shadow-xl flex flex-wrap items-center justify-between gap-4 border border-violet-500/40">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-3xl shrink-0 shadow-inner">
-              📹
+            <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-white shrink-0 shadow-inner">
+              <Video className="w-7 h-7 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -370,7 +510,7 @@ export default function PatientDashboard() {
               onClick={() => setShowBookTeleconsultModal(true)}
               className="px-5 py-3 rounded-2xl bg-white text-violet-900 font-extrabold text-xs hover:bg-violet-50 transition-all shadow-lg shadow-violet-950/30 flex items-center gap-2"
             >
-              <span>📹</span>
+              <Video className="w-4 h-4 mr-1 text-violet-900" />
               <span>Schedule Doctor Video Call</span>
             </button>
           </div>
@@ -379,32 +519,35 @@ export default function PatientDashboard() {
         {/* ── Tabbed Records Navigation (Prompt 9.3 & 17.4) ─────────────────── */}
         <div className="flex flex-wrap items-center bg-white p-2 rounded-2xl border border-slate-200 shadow-sm gap-2">
           {[
-            { id: 'timeline', label: 'Medical History Timeline', count: timeline.length, icon: '📅' },
-            { id: 'prescriptions', label: 'Digital Prescriptions', count: prescriptions.length, icon: '💊' },
-            { id: 'labs', label: 'Diagnostic Lab Reports', count: labOrders.length, icon: '🔬' },
-            { id: 'hospitals', label: 'Hospitals Visited', count: hospitals.length, icon: '🏥' },
-            { id: 'teleconsults', label: 'My Video Consults', count: myTeleconsults.length, icon: '📹' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
-                activeTab === tab.id
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-              <span
-                className={`px-1.5 py-0.5 rounded-md text-[10px] ${
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+            { id: 'timeline', label: 'Medical History Timeline', count: timeline.length, icon: History },
+            { id: 'prescriptions', label: 'Digital Prescriptions', count: prescriptions.length, icon: Pill },
+            { id: 'labs', label: 'Diagnostic Lab Reports', count: labOrders.length, icon: FlaskConical },
+            { id: 'hospitals', label: 'Hospitals Visited', count: hospitals.length, icon: Building2 },
+            { id: 'teleconsults', label: 'My Video Consults', count: myTeleconsults.length, icon: Video },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                {tab.count}
-              </span>
-            </button>
-          ))}
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-md text-[10px] ${
+                    activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* ── Tab Content Views ────────────────────────────────────────────── */}
@@ -434,7 +577,7 @@ export default function PatientDashboard() {
                 </div>
               ) : timeline.length === 0 ? (
                 <div className="py-16 text-center text-slate-400">
-                  <span className="text-3xl">📋</span>
+                  <FileText className="w-10 h-10 text-slate-300 mx-auto" />
                   <p className="text-xs font-bold text-slate-700 mt-2">No Past Medical Records Found</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     Your check-up visits, prescriptions, and lab tests will populate automatically here.
@@ -491,13 +634,13 @@ export default function PatientDashboard() {
                           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-2">
                             {event.facility?.hospitalName && (
                               <span className="flex items-center gap-1 font-semibold text-slate-700">
-                                <span>🏥</span>
+                                <Building2 className="w-3.5 h-3.5 text-slate-500" />
                                 <span>{event.facility.hospitalName}</span>
                               </span>
                             )}
                             {event.doctor?.name && (
                               <span className="flex items-center gap-1">
-                                <span>👨‍⚕️</span>
+                                <Stethoscope className="w-3.5 h-3.5 text-slate-500" />
                                 <span>Dr. {event.doctor.name}</span>
                               </span>
                             )}
@@ -535,9 +678,9 @@ export default function PatientDashboard() {
                               {event.medications.map((m, mIdx) => (
                                 <span
                                   key={mIdx}
-                                  className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold"
+                                  className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold flex items-center gap-1"
                                 >
-                                  💊 {m.medicineName || m.drugName} ({m.dosage || 'Std'})
+                                  <Pill className="w-3 h-3 text-emerald-600" /> {m.medicineName || m.drugName} ({m.dosage || 'Std'})
                                 </span>
                               ))}
                             </div>
@@ -556,7 +699,7 @@ export default function PatientDashboard() {
             <div className="space-y-4">
               {prescriptions.length === 0 ? (
                 <div className="bg-white rounded-3xl border border-slate-100 p-16 text-center text-slate-400">
-                  <span className="text-3xl">💊</span>
+                  <Pill className="w-10 h-10 text-slate-300 mx-auto" />
                   <p className="text-xs font-bold text-slate-700 mt-2">No Digital Prescriptions on File</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     Prescribed medicines from consultations will be organized here.
@@ -569,8 +712,8 @@ export default function PatientDashboard() {
                     <div key={hospitalName} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                       {/* Hospital Header */}
                       <div className="bg-gradient-to-r from-sky-50 to-indigo-50 border-b border-sky-100 px-6 py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center text-lg shrink-0">
-                          🏥
+                        <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                          <Building2 className="w-5 h-5 text-sky-700" />
                         </div>
                         <div>
                           <h3 className="text-sm font-extrabold text-slate-900">{hospitalName}</h3>
@@ -586,7 +729,9 @@ export default function PatientDashboard() {
                           <div key={doctorName} className="px-6 py-4">
                             {/* Doctor Sub-header */}
                             <div className="flex items-center gap-2 mb-3">
-                              <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs">👨‍⚕️</span>
+                              <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                                <Stethoscope className="w-4 h-4 text-indigo-700" />
+                              </span>
                               <span className="text-xs font-bold text-indigo-900">{doctorName}</span>
                               <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold border border-indigo-100">
                                 {grouped[hospitalName][doctorName].length} Rx
@@ -609,7 +754,7 @@ export default function PatientDashboard() {
                                             : 'bg-amber-100 text-amber-800'
                                         }`}
                                       >
-                                        {rx.status === 'Dispensed' ? '✓ Dispensed' : '● Pending'}
+                                        {rx.status === 'Dispensed' ? 'Dispensed' : 'Pending'}
                                       </span>
                                     </div>
                                     <span className="text-[10px] font-mono text-slate-400">
@@ -670,7 +815,7 @@ export default function PatientDashboard() {
             <div className="space-y-4">
               {labOrders.length === 0 ? (
                 <div className="bg-white rounded-3xl border border-slate-100 p-16 text-center text-slate-400">
-                  <span className="text-3xl">🔬</span>
+                  <FlaskConical className="w-10 h-10 text-slate-300 mx-auto" />
                   <p className="text-xs font-bold text-slate-700 mt-2">No Diagnostic Reports on File</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     Laboratory tests and investigation reports will appear here when completed.
@@ -683,8 +828,8 @@ export default function PatientDashboard() {
                     <div key={hospitalName} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                       {/* Hospital Header */}
                       <div className="bg-gradient-to-r from-purple-50 to-fuchsia-50 border-b border-purple-100 px-6 py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg shrink-0">
-                          🏥
+                        <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                          <Building2 className="w-5 h-5 text-purple-700" />
                         </div>
                         <div>
                           <h3 className="text-sm font-extrabold text-slate-900">{hospitalName}</h3>
@@ -700,7 +845,9 @@ export default function PatientDashboard() {
                           <div key={doctorName} className="px-6 py-4">
                             {/* Doctor Sub-header */}
                             <div className="flex items-center gap-2 mb-3">
-                              <span className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-xs">👨‍⚕️</span>
+                              <span className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+                                <Stethoscope className="w-4 h-4 text-purple-700" />
+                              </span>
                               <span className="text-xs font-bold text-purple-900">{doctorName}</span>
                               <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold border border-purple-100">
                                 {grouped[hospitalName][doctorName].length} test(s)
@@ -736,7 +883,8 @@ export default function PatientDashboard() {
                                           rel="noopener noreferrer"
                                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 text-[10px] font-bold transition-all border border-sky-200"
                                         >
-                                          📄 View PDF
+                                          <FileText className="w-3 h-3" />
+                                          <span>View PDF</span>
                                         </a>
                                       )}
                                     </div>
@@ -783,7 +931,7 @@ export default function PatientDashboard() {
 
                 {hospitals.length === 0 ? (
                   <div className="py-12 text-center text-slate-400">
-                    <span className="text-3xl">🏥</span>
+                    <Building2 className="w-10 h-10 text-slate-300 mx-auto" />
                     <p className="text-xs font-bold text-slate-700 mt-2">No Hospital History Yet</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       Facilities you check into will appear here automatically.
@@ -797,8 +945,8 @@ export default function PatientDashboard() {
                         className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-2 hover:bg-slate-100/60 transition-colors"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center text-lg shrink-0">
-                            🏥
+                          <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                            <Building2 className="w-5 h-5 text-sky-700" />
                           </div>
                           <div className="min-w-0">
                             <h4 className="text-xs font-extrabold text-slate-900 truncate">
@@ -831,8 +979,8 @@ export default function PatientDashboard() {
             <div className="space-y-4">
               <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 text-white flex items-center justify-center text-xl shadow-md shadow-violet-200 shrink-0">
-                    📹
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 text-white flex items-center justify-center shadow-md shadow-violet-200 shrink-0">
+                    <Video className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-900">
@@ -875,7 +1023,9 @@ export default function PatientDashboard() {
 
               {!loadingTeleconsults && myTeleconsults.length === 0 && (
                 <div className="text-center py-12 bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-                  <div className="w-14 h-14 rounded-2xl bg-violet-50 mx-auto flex items-center justify-center mb-3 text-3xl">📹</div>
+                  <div className="w-14 h-14 rounded-2xl bg-violet-50 mx-auto flex items-center justify-center mb-3">
+                    <Video className="w-7 h-7 text-violet-600" />
+                  </div>
                   <p className="text-sm font-bold text-slate-700">No scheduled video consults yet</p>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
                     Book a video appointment to consult specialist hospital doctors from your home.
@@ -952,7 +1102,7 @@ export default function PatientDashboard() {
                               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white font-extrabold text-xs
                                 hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-200"
                             >
-                              <span>📹</span>
+                              <Video className="w-4 h-4 mr-1 text-white" />
                               <span>Enter Waiting Room / Start Call</span>
                             </button>
                           )}

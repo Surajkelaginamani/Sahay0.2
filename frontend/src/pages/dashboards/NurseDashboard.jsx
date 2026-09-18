@@ -31,6 +31,7 @@ export default function NurseDashboard() {
   const [activeTab, setActiveTab]                     = useState('triage'); // 'triage' | 'labCoordination' | 'referrals'
   const [refreshTrigger, setRefreshTrigger]           = useState(0);
   const [vitalsCapturedCount, setVitalsCapturedCount] = useState(0);
+  const [skippedQueue, setSkippedQueue]               = useState([]);
   const [queueStats, setQueueStats]                   = useState({
     total: 0,
     urgent: 0,
@@ -160,11 +161,48 @@ export default function NurseDashboard() {
     navigate('/auth/hospital/login');
   };
 
-  const handleQueueLoaded = useCallback(({ summary }) => {
+  const handleQueueLoaded = useCallback(({ summary, skippedQueue: sq }) => {
     if (summary) {
       setQueueStats(summary);
     }
+    if (Array.isArray(sq)) {
+      setSkippedQueue(sq);
+    }
   }, []);
+
+  // ── Skip & Recall Handlers ─────────────────────────────────────────────────
+  const handleSkipPatient = useCallback(async (appt) => {
+    try {
+      await nurseApi.skipPatient(appt._id);
+      const pName = appt.patientFullName || 'Patient';
+      showToast('success', 'Patient On Hold', `${pName} moved to Absent / On-Hold section.`);
+      setRefreshTrigger((r) => r + 1);
+    } catch (err) {
+      showToast('error', 'Skip Failed', err.response?.data?.message || 'Could not skip patient.');
+    }
+  }, [showToast]);
+
+  const handleRecallPatient = useCallback(async (appt) => {
+    try {
+      await nurseApi.recallPatient(appt._id);
+      const pName = appt.patientFullName || 'Patient';
+      showToast('success', 'Patient Recalled', `${pName} recalled — placed next in queue.`);
+      setRefreshTrigger((r) => r + 1);
+    } catch (err) {
+      showToast('error', 'Recall Failed', err.response?.data?.message || 'Could not recall patient.');
+    }
+  }, [showToast]);
+
+  const handleMarkNoShow = useCallback(async (appt) => {
+    try {
+      await nurseApi.markNoShow(appt._id);
+      const pName = appt.patientFullName || 'Patient';
+      showToast('success', 'Marked No-Show', `${pName} marked as No-Show and removed from queue.`);
+      setRefreshTrigger((r) => r + 1);
+    } catch (err) {
+      showToast('error', 'No-Show Failed', err.response?.data?.message || 'Could not mark patient as No-Show.');
+    }
+  }, [showToast]);
 
   const handleVitalsSuccess = useCallback((data) => {
     const appt = data?.appointment;
@@ -737,8 +775,12 @@ export default function NurseDashboard() {
                 onEnterVitals={setSelectedAppointment}
                 onForwardToDoctor={handleOpenForwardModal}
                 onRequestTeleconsult={handleOpenTeleconsultModal}
+                onSkip={handleSkipPatient}
+                onRecall={handleRecallPatient}
+                onMarkNoShow={handleMarkNoShow}
                 refreshTrigger={refreshTrigger}
                 onQueueLoaded={handleQueueLoaded}
+                skippedQueue={skippedQueue}
               />
             </div>
 

@@ -1,21 +1,68 @@
-# Prompt 12.1: Backend - Audit Log Schema & Integration
-Task: Create a lightweight audit trail to log every time a patient's medical record is accessed or modified.
+# Prompt: Mount Live Queue Tracker in Patient Dashboard
+Task: Mount the conditional Live OPD Queue Tracker card on PatientDashboard.jsx directly below the summary stat cards and wire it to real-time appointment status data. Use lucide-react icons and avoid all emojis.
 
-Requirements:
+1. Dashboard State & Logic (PatientDashboard.jsx)
+On dashboard load, call GET /api/appointments/patient/active-today (or check if today's appointments list contains a record with status: 'WAITING' or status: 'IN_CONSULTATION').
 
-New Schema (AuditLog.js): Create a collection with the following fields: action (String, e.g., 'VIEW_RECORD', 'EDIT_RECORD', 'DISPENSE_MEDS'), userId (ObjectId, referencing the Doctor/Nurse/Pharmacist who did it), patientUhid (String, referencing the patient), and timestamp (Date, default Date.now).
+Store the active record in state: const [activeAppointment, setActiveAppointment] = useState(null);
 
-Controller Logic: Create a reusable backend function logAudit(action, userId, patientUhid).
+If activeAppointment exists:
 
-Integration: Inject this function into your critical endpoints. For example, in the route where a doctor opens a file, call logAudit('VIEW_RECORD', req.user._id, patientUhid). In the route where a pharmacist dispenses meds, call logAudit('DISPENSE_MEDS', req.user._id, patientUhid).
+Render <LiveQueueTracker appointment="{activeAppointment}"/> immediately below the 4 stat cards and above the purple video call banner.
 
-# Prompt 12.2: Frontend - Admin Audit Viewer
-Task: Provide a simple UI for hospital administrators to view the audit logs for compliance purposes.
+Set up a 20-second interval to refresh queue status from /api/queue/patient-status/:appointmentId.
 
-Requirements:
+2. Component Layout (LiveQueueTracker.jsx)
+Container: Rounded card (rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50/70 via-white to-cyan-50/70 p-5 shadow-sm mb-6).
 
-Admin Dashboard (AdminDashboard.jsx): Add a new tab called "Security & Audit Logs".
+Header Row:
 
-Data Fetching: Fetch the logs from a new GET /api/audit/logs backend endpoint.
+Left side: Pulse indicator (span className="relative flex h-3 w-3 mr-2") with text "Live OPD Queue Tracker" (font-semibold text-slate-800 text-lg) and <Activity className="w-5 h-5 text-teal-600 ml-2"/>.
 
-UI Table: Display the logs in a clean, chronological table showing: Date/Time | Action Performed | Staff Member Name | Patient UHID. Add a simple text input to filter the table by Patient UHID.
+Right side: Assigned Doctor pill badge (bg-white border border-slate-200 px-3 py-1 rounded-full text-xs text-slate-600 flex items-center): <Stethoscope className="w-3.5 h-3.5 text-teal-600 mr-1.5"/> Dr. [Doctor Name] • Room 3.
+
+3-Column Token & Progress Grid (grid grid-cols-3 gap-4 my-4):
+
+Box 1 (Your Token):
+
+Label: "Your Token" (text-xs font-medium text-slate-500)
+
+Value: #[tokenNumber] (text-3xl font-black text-teal-700)
+
+Box 2 (Now Serving):
+
+Label: "Currently Serving" (text-xs font-medium text-slate-500)
+
+Value: #[currentServingToken || '--'] (text-3xl font-black text-slate-800)
+
+Box 3 (Ahead of You):
+
+Label: "Patients Ahead" (text-xs font-medium text-slate-500)
+
+Value: [patientsAhead] (text-3xl font-black text-indigo-600)
+
+Dynamic Wait-Time & Action Banner:
+
+If status === 'WAITING' and patientsAhead > 1:
+
+Clean banner (bg-white/80 border border-teal-100 rounded-xl p-3.5 flex items-center justify-between):
+
+Left: <Timer className="w-5 h-5 text-teal-600 mr-2"/> Estimated Wait Time: ~[estimatedWaitMinutes] mins
+
+Right: <Clock className="w-4 h-4 text-slate-400 mr-1"/> Expected Call: [expectedTime]
+
+If patientsAhead <= 1 (Next Up Alert):
+
+Highlight banner (bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex items-center text-amber-900):
+
+<BellRing className="w-5 h-5 text-amber-600 mr-2 animate-bounce"/>
+
+"Please be ready near Room 3. You are next in line."
+
+If status === 'IN_CONSULTATION':
+
+Success banner (bg-emerald-50 border border-emerald-300 rounded-xl p-3.5 flex items-center text-emerald-900):
+
+<CheckCircle2 className="w-5 h-5 text-emerald-600 mr-2"/>
+
+"Doctor is ready. Please enter Consultation Room 3."

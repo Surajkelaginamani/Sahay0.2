@@ -4,11 +4,20 @@ import {
   bookTeleconsult,
   getMyTeleconsults,
   startTeleconsultWaiting,
+  getPatientActiveTodayAppointment,
 } from '../controllers/appointmentController.js';
 import { getPendingTeleconsults, confirmTeleconsult } from '../modules/receptionist/receptionistController.js';
 import { getHigherLevelHospitals, searchPatients } from '../modules/asha/ashaController.js';
 
 const router = express.Router();
+
+// ── Today's Active Patient Appointment for Queue Tracker (Prompt: Mount Live Queue Tracker)
+// GET /api/appointments/patient/active-today
+router.get(
+  '/patient/active-today',
+  protect,
+  getPatientActiveTodayAppointment
+);
 
 // ── Patient & Hospital Search for Teleconsultation (ASHA, Nurse, etc.) ────────
 // GET /api/teleconsult/patients/search?q=<name|phone>

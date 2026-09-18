@@ -73,6 +73,10 @@ const receptionistApi = {
   getFacilityDoctors: () =>
     axios.get(`${BASE_URL}/doctors`, { headers: getAuthHeader() }),
 
+  /** Prompt: Doctor Duty Status Management - Live dynamic doctor duty status */
+  getDoctorsDutyStatus: () =>
+    axios.get('/api/reception/doctors-status', { headers: getAuthHeader() }),
+
   // ── Referrals ──────────────────────────────────────────────────────────────
   /** Fetch all pending ASHA referrals directed to this facility. */
   getIncomingReferrals: () =>

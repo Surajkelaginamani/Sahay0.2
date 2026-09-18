@@ -1,9 +1,30 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Building2,
+  UserPlus,
+  ListOrdered,
+  Calendar,
+  Inbox,
+  AlertCircle,
+  Video,
+  Search,
+  LogOut,
+  CheckCircle2,
+  Clock,
+  ShieldCheck,
+  X,
+  Plus,
+  RotateCw,
+  User,
+  Users,
+  AlertTriangle,
+  ChevronRight,
+} from 'lucide-react';
 import PatientRegistrationForm from '../../features/receptionist/components/PatientRegistrationForm';
 import PatientSearch           from '../../features/receptionist/components/PatientSearch';
 import TodayQueue              from '../../features/receptionist/components/TodayQueue';
-import DoctorRoster            from '../../features/receptionist/components/DoctorRoster';
+import DoctorsDutyCard         from '../../features/receptionist/components/DoctorsDutyCard';
 import AppointmentScheduler    from '../../features/receptionist/components/AppointmentScheduler';
 import UpcomingAppointments    from '../../features/receptionist/components/UpcomingAppointments';
 import MergeResolution         from '../../features/receptionist/components/MergeResolution';
@@ -23,13 +44,9 @@ function Toast({ toast }) {
         ${ok ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}
       >
         {ok ? (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-          </svg>
+          <CheckCircle2 className="w-4 h-4" />
         ) : (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <AlertTriangle className="w-4 h-4" />
         )}
       </div>
       <div className="min-w-0">
@@ -40,112 +57,41 @@ function Toast({ toast }) {
   );
 }
 
-// ─── Tab definitions ──────────────────────────────────────────────────────────
+// ─── Tab definitions (Consolidated 4-tab model) ─────────────────────────────────
 const TABS = [
   {
     id: 'queue',
-    label: "Today's Queue",
-    shortLabel: 'Queue',
+    label: 'Live Queue',
+    shortLabel: 'Live Queue',
     color: 'amber',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-    ),
+    icon: ListOrdered,
   },
   {
-    id: 'register',
-    label: 'Register New Patient',
-    shortLabel: 'Register',
-    color: 'rose',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'search',
-    label: 'Search & Add Existing',
-    shortLabel: 'Search',
-    color: 'violet',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'book',
-    label: 'Book Appointment',
-    shortLabel: 'Book',
+    id: 'appointments',
+    label: 'Appointments',
+    shortLabel: 'Appointments',
     color: 'sky',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-          d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
+    icon: Calendar,
   },
   {
-    id: 'upcoming',
-    label: 'Upcoming Appointments',
-    shortLabel: 'Upcoming',
-    color: 'teal',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'referrals',
-    label: 'Incoming Referrals',
-    shortLabel: 'Referrals',
+    id: 'inbound',
+    label: 'Inbound & Teleconsult',
+    shortLabel: 'Inbound',
     color: 'emerald',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-      </svg>
-    ),
-  },
-  {
-    id: 'teleconsults',
-    label: 'Teleconsult Requests',
-    shortLabel: 'Teleconsult',
-    color: 'violet',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-          d="M15 10l4.553-2.069A1 1 0 0121 8.87V15.13a1 1 0 01-1.447.899L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-      </svg>
-    ),
+    icon: Inbox,
   },
   {
     id: 'conflicts',
-    label: 'Data Conflicts',
+    label: 'Sync Conflicts',
     shortLabel: 'Conflicts',
     color: 'orange',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      </svg>
-    ),
+    icon: AlertCircle,
   },
 ];
 
 const TAB_ACTIVE_CLASSES = {
   amber:   'bg-amber-500 text-white shadow-sm shadow-amber-200',
-  rose:    'bg-rose-500 text-white shadow-sm shadow-rose-200',
-  violet:  'bg-violet-600 text-white shadow-sm shadow-violet-200',
   sky:     'bg-sky-600   text-white shadow-sm shadow-sky-200',
-  teal:    'bg-teal-600  text-white shadow-sm shadow-teal-200',
   emerald: 'bg-emerald-600 text-white shadow-sm shadow-emerald-200',
   orange:  'bg-orange-500 text-white shadow-sm shadow-orange-200',
 };
@@ -154,24 +100,32 @@ const TAB_ACTIVE_CLASSES = {
 export default function ReceptionistDashboard() {
   const navigate = useNavigate();
 
-  const [user, setUser]           = useState(null);
-  const [activeTab, setActiveTab] = useState('queue');
-  const [toast, setToast]         = useState(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [user, setUser]                       = useState(null);
+  const [activeTab, setActiveTab]             = useState('queue');
+  const [apptSubTab, setApptSubTab]           = useState('upcoming'); // 'upcoming' | 'book'
+  const [inboundSubTab, setInboundSubTab]     = useState('referrals'); // 'referrals' | 'teleconsults'
+  const [walkInModalOpen, setWalkInModalOpen] = useState(false);
+  const [walkInMode, setWalkInMode]           = useState('new'); // 'new' | 'search'
+  const [toast, setToast]                     = useState(null);
+  const [currentTime, setCurrentTime]         = useState(new Date());
+
   // Increment to trigger TodayQueue re-fetch
-  const [queueRefresh, setQueueRefresh] = useState(0);
+  const [queueRefresh, setQueueRefresh]       = useState(0);
+
   // Incoming ASHA referrals
   const [incomingReferrals, setIncomingReferrals] = useState([]);
   const [loadingReferrals, setLoadingReferrals]   = useState(false);
-  // Data conflicts count (Prompt 2.2)
-  const [conflictsCount, setConflictsCount] = useState(0);
-  // Teleconsult requests (Prompt 17.3)
+
+  // Data conflicts count
+  const [conflictsCount, setConflictsCount]       = useState(0);
+
+  // Teleconsult requests
   const [pendingTeleconsults, setPendingTeleconsults] = useState([]);
   const [loadingTeleconsults, setLoadingTeleconsults] = useState(false);
   const [facilityDoctors, setFacilityDoctors]         = useState([]);
-  const [confirming, setConfirming]                   = useState(null); // appointmentId being confirmed
-  const [confirmDoctorId, setConfirmDoctorId]         = useState({});   // { [apptId]: doctorId }
-  const [confirmTimeSlot, setConfirmTimeSlot]         = useState({});   // { [apptId]: timeSlot }
+  const [confirming, setConfirming]                   = useState(null);
+  const [confirmDoctorId, setConfirmDoctorId]         = useState({});
+  const [confirmTimeSlot, setConfirmTimeSlot]         = useState({});
 
   // ── Toast helper ────────────────────────────────────────────────────────
   const showToast = useCallback((type, title, message) => {
@@ -201,13 +155,13 @@ export default function ReceptionistDashboard() {
       const res = await receptionistApi.getIncomingReferrals();
       setIncomingReferrals(res.data.referrals || []);
     } catch {
-      // Silently ignore — referrals are supplemental
+      // non-blocking
     } finally {
       setLoadingReferrals(false);
     }
   }, []);
 
-  // ── Load pending teleconsults (Prompt 17.3) ──────────────────────────────────
+  // ── Load pending teleconsults ───────────────────────────────────────────
   const loadPendingTeleconsults = useCallback(async () => {
     setLoadingTeleconsults(true);
     try {
@@ -243,7 +197,7 @@ export default function ReceptionistDashboard() {
         assignedDoctorId: doctorId,
         timeSlot: confirmTimeSlot[appointmentId] || '',
       }, { headers: { Authorization: `Bearer ${token}` } });
-      showToast('success', '✅ Teleconsult Confirmed',
+      showToast('success', 'Teleconsult Confirmed',
         res.data.message || 'Doctor assigned and room ID generated.');
       loadPendingTeleconsults();
     } catch (err) {
@@ -254,23 +208,27 @@ export default function ReceptionistDashboard() {
   }, [confirmDoctorId, confirmTimeSlot, showToast, loadPendingTeleconsults]);
 
   useEffect(() => {
-    if (user) loadIncomingReferrals();
-  }, [user, loadIncomingReferrals]);
-
-  useEffect(() => {
-    if (user && activeTab === 'teleconsults') {
+    if (user) {
+      loadIncomingReferrals();
       loadPendingTeleconsults();
       loadFacilityDoctors();
     }
-  }, [user, activeTab, loadPendingTeleconsults, loadFacilityDoctors]);
+  }, [user, loadIncomingReferrals, loadPendingTeleconsults, loadFacilityDoctors]);
 
-  // ── Load conflicts count for badge (Prompt 2.2) ─────────────────────────
+  useEffect(() => {
+    if (user && activeTab === 'inbound' && inboundSubTab === 'teleconsults') {
+      loadPendingTeleconsults();
+      loadFacilityDoctors();
+    }
+  }, [user, activeTab, inboundSubTab, loadPendingTeleconsults, loadFacilityDoctors]);
+
+  // ── Load conflicts count ────────────────────────────────────────────────
   const loadConflictsCount = useCallback(async () => {
     try {
       const res = await receptionistApi.getPendingConflicts();
       setConflictsCount((res.data.conflicts || []).length);
     } catch {
-      // non-blocking — badge just won't show
+      // non-blocking
     }
   }, []);
 
@@ -278,14 +236,13 @@ export default function ReceptionistDashboard() {
     if (user) loadConflictsCount();
   }, [user, loadConflictsCount]);
 
-
   // ── Logout ──────────────────────────────────────────────────────────────
   const handleLogout = () => {
     ['token', 'sahay_token', 'user', 'sahay_user'].forEach((k) => localStorage.removeItem(k));
     navigate('/auth/hospital/login');
   };
 
-  // ── Child callbacks ─────────────────────────────────────────────────────
+  // ── Registration / Queue callbacks ─────────────────────────────────────
   const handlePatientRegistered = useCallback(({ type, patient, queueInfo, message }) => {
     if (type === 'registered') {
       const alertMsg = message || 'Patient registered. They can log in using their phone number and default password: Sahay@123';
@@ -296,19 +253,22 @@ export default function ReceptionistDashboard() {
       } else {
         showToast('success', 'Patient Registered', alertMsg);
       }
+      setWalkInModalOpen(false);
       setActiveTab('queue');
       setQueueRefresh((n) => n + 1);
     } else if (type === 'found') {
       showToast('success', 'Patient Found', `Using existing record for ${patient.fullName}.`);
-      setActiveTab('search');
+      setWalkInMode('search');
     }
   }, [showToast]);
 
   const handleQueueSuccess = useCallback(({ patient, doctorName, queueNumber, priority }) => {
     const docText      = doctorName ? ` for Dr. ${doctorName}` : '';
-    const urgentPrefix = priority === 'Urgent' ? '⚠️ Urgent — ' : '';
+    const urgentPrefix = priority === 'Urgent' ? 'Urgent — ' : '';
     showToast('success', `${urgentPrefix}Added to Queue`,
       `${patient.fullName} is now Queue #${queueNumber}${docText}.`);
+    setWalkInModalOpen(false);
+    setActiveTab('queue');
     setQueueRefresh((n) => n + 1);
   }, [showToast]);
 
@@ -324,8 +284,9 @@ export default function ReceptionistDashboard() {
     const dateStr = appointment?.appointmentDate
       ? new Date(appointment.appointmentDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
       : '';
-    showToast('success', '📅 Appointment Booked',
+    showToast('success', 'Appointment Booked',
       `${patient?.fullName || 'Patient'} scheduled${docName ? ` with Dr. ${docName}` : ''}${dateStr ? ` on ${dateStr}` : ''}.`);
+    setApptSubTab('upcoming');
   }, [showToast]);
 
   if (!user) return null;
@@ -344,10 +305,7 @@ export default function ReceptionistDashboard() {
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600
               flex items-center justify-center text-white shadow-lg shadow-rose-200/50 shrink-0"
             >
-              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
+              <Building2 className="w-7 h-7 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
@@ -375,21 +333,22 @@ export default function ReceptionistDashboard() {
             </div>
           </div>
 
-          {/* Header actions */}
+          {/* Primary Action Button (Unified Walk-in) + Sign Out */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               id="header-register-btn"
-              onClick={() => setActiveTab('register')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold
+              onClick={() => {
+                setWalkInMode('new');
+                setWalkInModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold
                 bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-sm shadow-rose-200
                 hover:from-rose-600 hover:to-pink-700 active:scale-[0.98] transition-all"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-              </svg>
-              <span className="hidden sm:inline">Register Walk-in</span>
-              <span className="sm:hidden">Register</span>
+              <UserPlus className="w-4 h-4 mr-1" />
+              <span>Register Walk-in</span>
             </button>
+
             <button
               id="logout-btn"
               onClick={handleLogout}
@@ -397,46 +356,45 @@ export default function ReceptionistDashboard() {
                 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:border-rose-200
                 hover:text-rose-700 transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
+              <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>
 
-        {/* ── Tab navigation ──────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 flex gap-1 overflow-x-auto">
+        {/* ── Responsive Tab Strip (Single horizontal scrolling row) ──────── */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 overflow-x-auto scrollbar-none py-1 flex whitespace-nowrap gap-2">
           {TABS.map((tab) => {
+            const Icon = tab.icon;
             const isActive = activeTab === tab.id;
-            const badge = tab.id === 'referrals' && incomingReferrals.length > 0
-              ? incomingReferrals.length
-              : tab.id === 'teleconsults' && pendingTeleconsults.length > 0
-              ? pendingTeleconsults.length
+            const badge = tab.id === 'inbound'
+              ? (incomingReferrals.length + pendingTeleconsults.length > 0 ? incomingReferrals.length + pendingTeleconsults.length : null)
               : tab.id === 'conflicts' && conflictsCount > 0
               ? conflictsCount
               : null;
+
             return (
               <button
                 key={tab.id}
                 id={`tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl
+                className={`flex-1 min-w-[135px] md:min-w-0 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl
                   text-sm font-semibold transition-all relative shrink-0
                   ${isActive
                     ? TAB_ACTIVE_CLASSES[tab.color]
                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
                   }`}
               >
-                {tab.icon}
+                <Icon className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">{tab.label}</span>
                 <span className="sm:hidden">{tab.shortLabel}</span>
-                {badge && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center">
+                {badge ? (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black leading-none ${
+                    isActive ? 'bg-white text-slate-900' : 'bg-rose-500 text-white'
+                  }`}>
                     {badge}
                   </span>
-                )}
+                ) : null}
               </button>
             );
           })}
@@ -449,29 +407,25 @@ export default function ReceptionistDashboard() {
           <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
             {(() => {
               const tab = TABS.find((t) => t.id === activeTab);
+              const Icon = tab?.icon || ListOrdered;
               const colorMap = {
                 amber:   'bg-amber-100 text-amber-700',
-                rose:    'bg-rose-100 text-rose-700',
-                violet:  'bg-violet-100 text-violet-700',
                 sky:     'bg-sky-100 text-sky-700',
-                teal:    'bg-teal-100 text-teal-700',
                 emerald: 'bg-emerald-100 text-emerald-700',
                 orange:  'bg-orange-100 text-orange-700',
               };
               return (
                 <>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${colorMap[tab.color]}`}>
-                    {tab.icon}
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${colorMap[tab?.color || 'amber']}`}>
+                    <Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-slate-800">{tab.label}</h2>
+                    <h2 className="text-sm font-bold text-slate-800">{tab?.label}</h2>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      {activeTab === 'queue'     && "All of today's patient appointments"}
-                      {activeTab === 'register'  && 'Register a new walk-in patient with login credentials'}
-                      {activeTab === 'search'    && 'Find an existing patient and add them to the queue'}
-                      {activeTab === 'book'      && 'Schedule a future appointment with a specific doctor'}
-                      {activeTab === 'upcoming'  && 'View and manage all future scheduled appointments beyond today'}
-                      {activeTab === 'conflicts' && 'Review flagged duplicate records from offline ASHA syncs and merge or create as new'}  
+                      {activeTab === 'queue'        && "Real-time OPD queue, triage priority, and on-duty doctor status"}
+                      {activeTab === 'appointments' && "Schedule new consultations and view upcoming bookings"}
+                      {activeTab === 'inbound'      && "Triaged ASHA field referrals and incoming teleconsultation requests"}
+                      {activeTab === 'conflicts'    && "Review and resolve duplicate patient sync conflicts from offline devices"}
                     </p>
                   </div>
                 </>
@@ -482,7 +436,7 @@ export default function ReceptionistDashboard() {
           {/* Panel body */}
           <div className="p-6">
 
-            {/* Tab 1: Today's Queue — two-column layout with DoctorRoster sidebar */}
+            {/* Tab 1: Live OPD Queue — two-column layout with DoctorsDutyCard sidebar */}
             {activeTab === 'queue' && (
               <div className="flex flex-col xl:flex-row gap-6">
                 {/* Main queue panel */}
@@ -493,130 +447,313 @@ export default function ReceptionistDashboard() {
                   />
                 </div>
 
-                {/* Doctor Roster sidebar */}
-                <div className="xl:w-64 shrink-0">
-                  <DoctorRoster className="sticky top-6" />
+                {/* Real-time Doctors on Duty Widget */}
+                <div className="xl:w-80 shrink-0">
+                  <DoctorsDutyCard className="sticky top-6" />
                 </div>
               </div>
             )}
 
-            {/* Tab 2: Register New Patient */}
-            {activeTab === 'register' && (
-              <PatientRegistrationForm onSuccess={handlePatientRegistered} />
-            )}
-
-            {/* Tab 3: Search & Add Existing */}
-            {activeTab === 'search' && (
-              <div className="flex flex-col xl:flex-row gap-6">
-                {/* Patient search */}
-                <div className="flex-1 min-w-0">
-                  <PatientSearch onQueueSuccess={handleQueueSuccess} />
-                </div>
-
-                {/* Doctor Roster sidebar (shows when searching too) */}
-                <div className="xl:w-64 shrink-0">
-                  <DoctorRoster className="sticky top-6" />
-                </div>
-              </div>
-            )}
-
-            {/* Tab 4: Book Appointment */}
-            {activeTab === 'book' && (
-              <AppointmentScheduler onSuccess={handleAppointmentBooked} />
-            )}
-
-            {/* Tab 5: Upcoming Appointments */}
-            {activeTab === 'upcoming' && (
-              <UpcomingAppointments onBookNew={() => setActiveTab('book')} />
-            )}
-
-            {/* Tab 6: Incoming Referrals */}
-            {activeTab === 'referrals' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-slate-500 font-medium">
-                    {loadingReferrals ? 'Loading…' : `${incomingReferrals.length} pending incoming referral(s)`}
-                  </p>
+            {/* Tab 2: Appointments & Bookings */}
+            {activeTab === 'appointments' && (
+              <div>
+                {/* Sub-tabs header */}
+                <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-3">
                   <button
-                    id="refresh-referrals-btn"
-                    onClick={loadIncomingReferrals}
-                    disabled={loadingReferrals}
-                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-50 flex items-center gap-1"
+                    onClick={() => setApptSubTab('upcoming')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      apptSubTab === 'upcoming'
+                        ? 'bg-sky-100 text-sky-800 shadow-xs'
+                        : 'text-slate-500 hover:bg-slate-100'
+                    }`}
                   >
-                    <svg className={`w-3.5 h-3.5 ${loadingReferrals ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    Refresh
+                    <Calendar className="w-3.5 h-3.5" />
+                    Upcoming Appointments
+                  </button>
+                  <button
+                    onClick={() => setApptSubTab('book')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      apptSubTab === 'book'
+                        ? 'bg-sky-100 text-sky-800 shadow-xs'
+                        : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Book Appointment
                   </button>
                 </div>
 
-                {incomingReferrals.length === 0 && !loadingReferrals ? (
-                  <div className="text-center py-10">
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 mx-auto flex items-center justify-center mb-3">
-                      <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                      </svg>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-600">No pending referrals</p>
-                    <p className="text-xs text-slate-400 mt-1">ASHA worker referrals to your facility will appear here.</p>
-                  </div>
+                {apptSubTab === 'book' ? (
+                  <AppointmentScheduler onSuccess={handleAppointmentBooked} />
                 ) : (
-                  <div className="space-y-3">
-                    {incomingReferrals.map((ref) => (
-                      <div key={ref._id} className="border border-emerald-200 rounded-2xl overflow-hidden bg-emerald-50/30">
-                        <div className="h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
-                        <div className="p-4 space-y-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0">
-                                {ref.patientId?.firstName?.[0]}{ref.patientId?.lastName?.[0]}
+                  <UpcomingAppointments onBookNew={() => setApptSubTab('book')} />
+                )}
+              </div>
+            )}
+
+            {/* Tab 3: Referrals & Inbound */}
+            {activeTab === 'inbound' && (
+              <div>
+                {/* Sub-tabs header */}
+                <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-3">
+                  <button
+                    onClick={() => setInboundSubTab('referrals')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      inboundSubTab === 'referrals'
+                        ? 'bg-emerald-100 text-emerald-800 shadow-xs'
+                        : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Inbox className="w-3.5 h-3.5" />
+                    Incoming Referrals
+                    {incomingReferrals.length > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black">
+                        {incomingReferrals.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setInboundSubTab('teleconsults')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      inboundSubTab === 'teleconsults'
+                        ? 'bg-emerald-100 text-emerald-800 shadow-xs'
+                        : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    Teleconsult Requests
+                    {pendingTeleconsults.length > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black">
+                        {pendingTeleconsults.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Sub-tab 1: ASHA Referrals */}
+                {inboundSubTab === 'referrals' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-slate-500 font-medium">
+                        {loadingReferrals ? 'Loading…' : `${incomingReferrals.length} pending incoming referral(s)`}
+                      </p>
+                      <button
+                        id="refresh-referrals-btn"
+                        onClick={loadIncomingReferrals}
+                        disabled={loadingReferrals}
+                        className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <RotateCw className={`w-3.5 h-3.5 ${loadingReferrals ? 'animate-spin' : ''}`} />
+                        Refresh
+                      </button>
+                    </div>
+
+                    {incomingReferrals.length === 0 && !loadingReferrals ? (
+                      <div className="text-center py-10">
+                        <div className="w-14 h-14 rounded-2xl bg-emerald-50 mx-auto flex items-center justify-center mb-3">
+                          <Inbox className="w-7 h-7 text-emerald-400" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-600">No pending referrals</p>
+                        <p className="text-xs text-slate-400 mt-1">ASHA worker referrals to your facility will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {incomingReferrals.map((ref) => (
+                          <div key={ref._id} className="border border-emerald-200 rounded-2xl overflow-hidden bg-emerald-50/30">
+                            <div className="h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0">
+                                    {ref.patientId?.firstName?.[0]}{ref.patientId?.lastName?.[0]}
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-slate-900 text-sm">{ref.patientFullName}</p>
+                                    <p className="text-xs text-slate-500">{ref.patientId?.gender} · {ref.patientId?.contactPhone || '—'}</p>
+                                  </div>
+                                </div>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                  Pending
+                                </span>
                               </div>
-                              <div>
-                                <p className="font-bold text-slate-900 text-sm">{ref.patientFullName}</p>
-                                <p className="text-xs text-slate-500">{ref.patientId?.gender} · {ref.patientId?.contactPhone || '—'}</p>
+
+                              <div className="bg-white rounded-xl px-3 py-2 border border-emerald-100">
+                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Reason for Referral</p>
+                                <p className="text-sm text-slate-800 font-medium">{ref.reasonForReferral}</p>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 bg-white/70 px-3 py-2 rounded-xl border border-emerald-100">
+                                <span className="flex items-center gap-1">
+                                  <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                                  Origin: <strong className="text-slate-800">{ref.referredFromFacility?.hospitalName || ref.referredFromFacility?.name || 'Independent Field Worker'}</strong>
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <User className="w-3.5 h-3.5 text-slate-500" />
+                                  By: <strong className="text-slate-800">{ref.ashaWorkerName}</strong> {ref.referredBy?.role && <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-1.5 py-0.5 rounded">({ref.referredBy.role})</span>}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                                  {new Date(ref.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                </span>
+                              </div>
+
+                              <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex items-start gap-2.5">
+                                <Search className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
+                                <div className="text-xs text-sky-800 flex-1">
+                                  <span>Search <strong>{ref.patientFullName}</strong> in <strong>Register Walk-in &gt; Search Existing</strong> to confirm arrival and assign to live OPD queue.</span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setWalkInMode('search');
+                                    setWalkInModalOpen(true);
+                                  }}
+                                  className="text-xs font-bold text-sky-700 underline hover:text-sky-900 shrink-0"
+                                >
+                                  Open Search
+                                </button>
                               </div>
                             </div>
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Pending
-                            </span>
                           </div>
-
-                          <div className="bg-white rounded-xl px-3 py-2 border border-emerald-100">
-                            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Reason for Referral</p>
-                            <p className="text-sm text-slate-800 font-medium">{ref.reasonForReferral}</p>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 bg-white/70 px-3 py-2 rounded-xl border border-emerald-100">
-                            <span>
-                              🏥 Origin: <strong className="text-slate-800">{ref.referredFromFacility?.hospitalName || ref.referredFromFacility?.name || 'Independent Field Worker'}</strong>
-                            </span>
-                            <span>
-                              👤 By: <strong className="text-slate-800">{ref.ashaWorkerName}</strong> {ref.referredBy?.role && <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-1.5 py-0.5 rounded">({ref.referredBy.role})</span>}
-                            </span>
-                            <span>
-                              📅 {new Date(ref.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                            </span>
-                          </div>
-
-                          <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex items-start gap-2">
-                            <svg className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <p className="text-xs text-sky-800">
-                              Search <strong>{ref.patientFullName}</strong> in the <strong>Search & Add Existing</strong> tab.
-                              A referral banner will appear — click <strong>Add to Queue</strong> to process arrival.
-                            </p>
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+                  </div>
+                )}
+
+                {/* Sub-tab 2: Teleconsult Requests */}
+                {inboundSubTab === 'teleconsults' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-slate-500 font-medium">
+                        {loadingTeleconsults ? 'Loading…' : `${pendingTeleconsults.length} pending request(s)`}
+                      </p>
+                      <button
+                        id="refresh-teleconsults-btn"
+                        onClick={loadPendingTeleconsults}
+                        disabled={loadingTeleconsults}
+                        className="text-xs font-semibold text-violet-600 hover:text-violet-800 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <RotateCw className={`w-3.5 h-3.5 ${loadingTeleconsults ? 'animate-spin' : ''}`} />
+                        Refresh
+                      </button>
+                    </div>
+
+                    {pendingTeleconsults.length === 0 && !loadingTeleconsults ? (
+                      <div className="text-center py-12">
+                        <div className="w-14 h-14 rounded-2xl bg-violet-50 mx-auto flex items-center justify-center mb-3">
+                          <Video className="w-7 h-7 text-violet-500" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-600">No pending teleconsult requests</p>
+                        <p className="text-xs text-slate-400 mt-1">Requests from ASHA workers, nurses, and patients will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {pendingTeleconsults.map((tc) => (
+                          <div key={tc._id} className="border border-violet-200 rounded-2xl overflow-hidden bg-violet-50/30">
+                            <div className="h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
+                            <div className="p-4 space-y-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center font-bold shrink-0">
+                                    {tc.patientId?.firstName?.[0]}{tc.patientId?.lastName?.[0]}
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-slate-900 text-sm">{tc.patientFullName}</p>
+                                    <p className="text-xs text-slate-500">{tc.patientId?.gender} · {tc.patientId?.contactPhone || '—'}</p>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    Awaiting Review
+                                  </span>
+                                  <span className="text-[10px] text-violet-700 font-bold bg-violet-100 px-2 py-0.5 rounded-full">
+                                    {tc.teleconsultSource || 'External'} Request
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Requested Date</p>
+                                  <p className="font-bold text-slate-800">
+                                    {tc.scheduledDate ? new Date(tc.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                  </p>
+                                </div>
+                                <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Time Preference</p>
+                                  <p className="font-bold text-slate-800">{tc.timeSlot || '—'}</p>
+                                </div>
+                              </div>
+
+                              {tc.chiefComplaint && (
+                                <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Chief Complaint</p>
+                                  <p className="text-sm text-slate-800 font-medium">{tc.chiefComplaint}</p>
+                                </div>
+                              )}
+
+                              <p className="text-xs text-slate-600 bg-white/70 px-3 py-2 rounded-xl border border-violet-100 flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5 text-slate-500" />
+                                Booked by: <strong className="text-slate-800">{tc.bookedByName}</strong>
+                              </p>
+
+                              <div className="space-y-2">
+                                <label className="block text-xs font-bold text-slate-700">
+                                  Assign Doctor <span className="text-rose-500">*</span>
+                                </label>
+                                <select
+                                  value={confirmDoctorId[tc._id] || ''}
+                                  onChange={(e) => setConfirmDoctorId((prev) => ({ ...prev, [tc._id]: e.target.value }))}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                                >
+                                  <option value="">— Select an available doctor —</option>
+                                  {facilityDoctors.map((doc) => (
+                                    <option key={doc._id} value={doc._id}>
+                                      Dr. {doc.name} {doc.specialty ? `(${doc.specialty})` : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="text"
+                                  placeholder="Confirm time slot (e.g. 10:30 AM)"
+                                  value={confirmTimeSlot[tc._id] || ''}
+                                  onChange={(e) => setConfirmTimeSlot((prev) => ({ ...prev, [tc._id]: e.target.value }))}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                                />
+                              </div>
+
+                              <button
+                                id={`confirm-teleconsult-${tc._id}`}
+                                onClick={() => handleConfirmTeleconsult(tc._id)}
+                                disabled={!confirmDoctorId[tc._id] || confirming === tc._id}
+                                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-sm
+                                  hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-200/50"
+                              >
+                                {confirming === tc._id ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    Confirming…
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Confirm &amp; Generate Room Link
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Tab 8: Data Conflicts (Prompt 2.2) */}
+            {/* Tab 4: Data Sync Conflicts */}
             {activeTab === 'conflicts' && (
               <MergeResolution />
             )}
@@ -624,160 +761,17 @@ export default function ReceptionistDashboard() {
           </div>
         </div>
 
-        {/* ── Teleconsult Triage Desk (Prompt 17.3) ─────────────────────── */}
-        {activeTab === 'teleconsults' && (
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center shrink-0 text-base">📹</div>
-              <div>
-                <h2 className="text-sm font-bold text-slate-800">Teleconsult Triage Desk</h2>
-                <p className="text-[11px] text-slate-400 mt-0.5">Review requests from ASHA workers, nurses &amp; patients — assign doctor &amp; generate room link</p>
-              </div>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-500 font-medium">
-                  {loadingTeleconsults ? 'Loading…' : `${pendingTeleconsults.length} pending request(s)`}
-                </p>
-                <button
-                  id="refresh-teleconsults-btn"
-                  onClick={loadPendingTeleconsults}
-                  disabled={loadingTeleconsults}
-                  className="text-xs font-semibold text-violet-600 hover:text-violet-800 disabled:opacity-50 flex items-center gap-1"
-                >
-                  <svg className={`w-3.5 h-3.5 ${loadingTeleconsults ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                  </svg>
-                  Refresh
-                </button>
-              </div>
-
-              {pendingTeleconsults.length === 0 && !loadingTeleconsults ? (
-                <div className="text-center py-12">
-                  <div className="w-14 h-14 rounded-2xl bg-violet-50 mx-auto flex items-center justify-center mb-3 text-3xl">📹</div>
-                  <p className="text-sm font-semibold text-slate-600">No pending teleconsult requests</p>
-                  <p className="text-xs text-slate-400 mt-1">Requests from ASHA workers, nurses, and patients will appear here.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pendingTeleconsults.map((tc) => (
-                    <div key={tc._id} className="border border-violet-200 rounded-2xl overflow-hidden bg-violet-50/30">
-                      <div className="h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
-                      <div className="p-4 space-y-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center font-bold shrink-0">
-                              {tc.patientId?.firstName?.[0]}{tc.patientId?.lastName?.[0]}
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-900 text-sm">{tc.patientFullName}</p>
-                              <p className="text-xs text-slate-500">{tc.patientId?.gender} · {tc.patientId?.contactPhone || '—'}</p>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Awaiting Review
-                            </span>
-                            <span className="text-[10px] text-violet-700 font-bold bg-violet-100 px-2 py-0.5 rounded-full">
-                              {tc.teleconsultSource || 'External'} Request
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                          <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Requested Date</p>
-                            <p className="font-bold text-slate-800">
-                              {tc.scheduledDate ? new Date(tc.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-                            </p>
-                          </div>
-                          <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Time Preference</p>
-                            <p className="font-bold text-slate-800">{tc.timeSlot || '—'}</p>
-                          </div>
-                        </div>
-
-                        {tc.chiefComplaint && (
-                          <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Chief Complaint</p>
-                            <p className="text-sm text-slate-800 font-medium">{tc.chiefComplaint}</p>
-                          </div>
-                        )}
-
-                        <p className="text-xs text-slate-600 bg-white/70 px-3 py-2 rounded-xl border border-violet-100">
-                          👤 Booked by: <strong className="text-slate-800">{tc.bookedByName}</strong>
-                        </p>
-
-                        <div className="space-y-2">
-                          <label className="block text-xs font-bold text-slate-700">
-                            Assign Doctor <span className="text-rose-500">*</span>
-                          </label>
-                          <select
-                            value={confirmDoctorId[tc._id] || ''}
-                            onChange={(e) => setConfirmDoctorId((prev) => ({ ...prev, [tc._id]: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
-                          >
-                            <option value="">— Select a doctor —</option>
-                            {facilityDoctors.map((doc) => (
-                              <option key={doc._id} value={doc._id}>Dr. {doc.name}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            placeholder="Confirm time slot (e.g. 10:30 AM)"
-                            value={confirmTimeSlot[tc._id] || ''}
-                            onChange={(e) => setConfirmTimeSlot((prev) => ({ ...prev, [tc._id]: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
-                          />
-                        </div>
-
-                        <button
-                          id={`confirm-teleconsult-${tc._id}`}
-                          onClick={() => handleConfirmTeleconsult(tc._id)}
-                          disabled={!confirmDoctorId[tc._id] || confirming === tc._id}
-                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-sm
-                            hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-200/50"
-                        >
-                          {confirming === tc._id ? (
-                            <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Confirming…</>
-                          ) : <>✅ Confirm &amp; Generate Room Link</>}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* Tab 8: Data Conflicts (Prompt 2.2) */}
-            {activeTab === 'conflicts' && (
-              <MergeResolution />
-            )}
-
-          </div>
-        )}
-
         {/* ── Footer info strip ────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             {
-              icon: (
-                <svg className="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              ),
+              icon: <Calendar className="w-4 h-4 text-sky-600" />,
               bg: 'bg-sky-100',
               label: 'Today',
               value: currentTime.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
             },
             {
-              icon: (
-                <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              ),
+              icon: <Clock className="w-4 h-4 text-emerald-600" />,
               bg: 'bg-emerald-100',
               label: 'OPD Hours',
               value: '8:00 AM – 6:00 PM',
@@ -785,12 +779,7 @@ export default function ReceptionistDashboard() {
               subColor: 'text-emerald-600',
             },
             {
-              icon: (
-                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              ),
+              icon: <ShieldCheck className="w-4 h-4 text-slate-500" />,
               bg: 'bg-slate-100',
               label: 'Security',
               value: 'JWT Protected',
@@ -812,6 +801,74 @@ export default function ReceptionistDashboard() {
         </div>
 
       </div>
+
+      {/* ── Unified Walk-in Registration Modal / Drawer ───────────────────── */}
+      {walkInModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-2xl w-full overflow-hidden transition-all my-8">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Register Walk-in Patient</h3>
+                  <p className="text-xs text-slate-500">Add a new patient or check in an existing record to today's queue</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setWalkInModalOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Mode Selector */}
+            <div className="px-6 pt-4 pb-2">
+              <div className="flex rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setWalkInMode('new')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    walkInMode === 'new'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  New Patient Registration
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWalkInMode('search')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    walkInMode === 'search'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  Search Existing Patient
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 max-h-[75vh] overflow-y-auto">
+              {walkInMode === 'new' ? (
+                <PatientRegistrationForm onSuccess={handlePatientRegistered} />
+              ) : (
+                <PatientSearch onQueueSuccess={handleQueueSuccess} />
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

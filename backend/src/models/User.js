@@ -77,6 +77,30 @@ const userSchema = new mongoose.Schema(
       ref: 'Hospital',
       default: null,
     },
+    // ── Doctor Duty Status & Specialization (Prompt: Doctor Duty Synchronization) ──
+    isOnDuty: {
+      type: Boolean,
+      default: false,
+    },
+    dutyStatusUpdatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    dutyShift: {
+      type: String,
+      enum: ['MORNING', 'EVENING', 'NIGHT', 'OFF'],
+      default: 'OFF',
+    },
+    specialty: {
+      type: String,
+      trim: true,
+      default: 'General Medicine',
+    },
+    department: {
+      type: String,
+      trim: true,
+      default: 'OPD',
+    },
   },
   {
     timestamps: true,

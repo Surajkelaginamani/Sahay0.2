@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ashaApi from '../../services/ashaApi';
 import BookTeleconsultModal from '../../components/common/BookTeleconsultModal';
 import VideoRoom from '../../components/common/VideoRoom';
+import { MapPin, FileText, CheckCircle2, Loader2, Calendar } from 'lucide-react';
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ toasts, removeToast }) {
@@ -105,6 +106,11 @@ export default function AshaDashboard() {
   const [loadingTeleconsults, setLoadingTeleconsults]   = useState(false);
   const [activeVideoRoom, setActiveVideoRoom]           = useState(null); // { roomId, patientName }
 
+  // ── Closed-Loop Follow-ups & Field Tasks State (plans.md) ─────────────────
+  const [followUps, setFollowUps]                     = useState([]);
+  const [loadingFollowUps, setLoadingFollowUps]       = useState(false);
+  const [updatingFollowUpId, setUpdatingFollowUpId]   = useState(null);
+
   // ── Auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem('user') || localStorage.getItem('sahay_user');
@@ -142,6 +148,41 @@ export default function AshaDashboard() {
   useEffect(() => {
     if (user && activeTab === 'active') loadReferrals();
   }, [user, activeTab, loadReferrals]);
+
+  // ── Load Field Follow-ups (Prompt: Closed-Loop Follow-up & ASHA Routing) ───
+  const loadFollowUps = useCallback(async () => {
+    if (!user) return;
+    setLoadingFollowUps(true);
+    try {
+      const ashaId = user._id || user.id || 'me';
+      const res = await ashaApi.getFollowUps(ashaId);
+      setFollowUps(res.data.followUps || []);
+    } catch {
+      // non-blocking
+    } finally {
+      setLoadingFollowUps(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadFollowUps();
+    }
+  }, [user, loadFollowUps]);
+
+  // ── Mark Follow-up as Reminded / Visited ─────────────────────────────────
+  const handleMarkReminded = async (followUpId) => {
+    setUpdatingFollowUpId(followUpId);
+    try {
+      await ashaApi.updateFollowUpStatus(followUpId, 'ASHA_REMINDED');
+      setFollowUps((prev) => prev.filter((item) => item._id !== followUpId));
+      addToast('success', 'Home Visit Logged', 'Follow-up marked as reminded and cleared from pending tasks.');
+    } catch (err) {
+      addToast('error', 'Update failed', err.response?.data?.message || 'Could not update follow-up status.');
+    } finally {
+      setUpdatingFollowUpId(null);
+    }
+  };
 
   // ── Load my teleconsults (Prompt 17.4) ────────────────────────────────────────
   const loadMyTeleconsults = useCallback(async () => {
@@ -298,15 +339,20 @@ export default function AshaDashboard() {
         {/* ── Tab bar ── */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 flex gap-1.5">
           {[
-            { id: 'refer', label: '📤 Refer Patient', active: 'bg-emerald-500 text-white' },
+            { id: 'refer', label: '📤 Refer', active: 'bg-emerald-500 text-white' },
+            {
+              id: 'field-tasks',
+              label: followUps.length > 0 ? `📍 Visits (${followUps.length})` : '📍 Visits',
+              active: 'bg-indigo-600 text-white',
+            },
             {
               id: 'active',
-              label: pendingCount > 0 ? `📋 My Referrals (${pendingCount} pending)` : '📋 My Referrals',
+              label: pendingCount > 0 ? `📋 Referrals (${pendingCount})` : '📋 Referrals',
               active: 'bg-sky-600 text-white',
             },
             {
               id: 'teleconsults',
-              label: scheduledTeleconsults.length > 0 ? `📹 Teleconsults (${scheduledTeleconsults.length})` : '📹 Teleconsults',
+              label: scheduledTeleconsults.length > 0 ? `📹 Video (${scheduledTeleconsults.length})` : '📹 Video',
               active: 'bg-violet-600 text-white',
             },
           ].map((tab) => (
@@ -314,7 +360,7 @@ export default function AshaDashboard() {
               key={tab.id}
               id={`tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all
+              className={`flex-1 py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all truncate
                 ${activeTab === tab.id ? tab.active + ' shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
             >
               {tab.label}
@@ -526,6 +572,145 @@ export default function AshaDashboard() {
                 <li>4. Track all your referrals in the "My Referrals" tab</li>
               </ul>
             </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB: PENDING HOME VISITS & REMINDERS (Prompt: ASHA Task Routing)  */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'field-tasks' && (
+          <div className="space-y-4">
+            {/* Header banner */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                  <MapPin className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-sm font-extrabold text-slate-900 truncate">
+                    Pending Home Visits &amp; Reminders
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    Follow-ups routed from hospital specialists for your field area
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={loadFollowUps}
+                disabled={loadingFollowUps}
+                className="shrink-0 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {loadingFollowUps ? '…' : 'Refresh'}
+              </button>
+            </div>
+
+            {/* List */}
+            {loadingFollowUps ? (
+              <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
+                <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                <span>Loading pending field tasks…</span>
+              </div>
+            ) : followUps.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center space-y-2 shadow-sm">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mx-auto text-xl">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                </div>
+                <p className="font-bold text-slate-800 text-sm">All Field Tasks Caught Up!</p>
+                <p className="text-slate-400 text-xs max-w-xs mx-auto leading-relaxed">
+                  No pending home visits or follow-up reminders right now. New tasks will automatically appear when hospital doctors schedule follow-up appointments.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {followUps.map((task) => {
+                  const p = task.patientId || {};
+                  const patientName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Citizen';
+                  const villageLocation = p.address?.village || p.address?.district || (task.facilityId?.hospitalName ? `Near ${task.facilityId.hospitalName}` : 'Local Village');
+                  const uhid = task.patientUhid || p.uhid || '—';
+                  const isUpdating = updatingFollowUpId === task._id;
+
+                  return (
+                    <div
+                      key={task._id}
+                      className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm space-y-3 transition-all hover:border-indigo-200 hover:shadow-md"
+                    >
+                      {/* Top row: Patient identity & Village */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-0.5 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-extrabold text-sm text-slate-900 truncate">
+                              {patientName}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100">
+                              {uhid}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{villageLocation}</span>
+                            {p.contactPhone && (
+                              <span className="text-slate-400">· 📞 {p.contactPhone}</span>
+                            )}
+                          </p>
+                        </div>
+
+                        {/* Follow-up Date badge */}
+                        <div className="text-right shrink-0 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/70">
+                          <p className="text-[9px] font-bold text-amber-700 uppercase tracking-wider">Due Date</p>
+                          <p className="text-xs font-black text-amber-900">
+                            {task.followUpDate
+                              ? new Date(task.followUpDate).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })
+                              : 'Scheduled'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Doctor instructions */}
+                      <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-start gap-2.5">
+                        <FileText className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                        <div className="text-xs text-slate-700 leading-relaxed min-w-0 flex-1">
+                          <span className="font-bold text-slate-900">Doctor's Instructions: </span>
+                          <span>{task.instructions || 'Routine clinical assessment and check-up.'}</span>
+                          {task.doctorId?.name && (
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              Prescribed by Dr. {task.doctorId.name}
+                              {task.facilityId?.hospitalName ? ` (${task.facilityId.hospitalName})` : ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="flex items-center justify-end pt-1">
+                        <button
+                          type="button"
+                          id={`mark-reminded-btn-${task._id}`}
+                          onClick={() => handleMarkReminded(task._id)}
+                          disabled={isUpdating}
+                          className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 shadow-sm shadow-indigo-200 transition-all disabled:opacity-50"
+                        >
+                          {isUpdating ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Updating…
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-4 h-4 mr-2" />
+                              Mark as Reminded / Visited
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

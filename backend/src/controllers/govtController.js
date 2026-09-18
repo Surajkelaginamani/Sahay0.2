@@ -1,5 +1,7 @@
 import Hospital from '../models/Hospital.js';
 import User from '../models/User.js';
+import Patient from '../models/Patient.js';
+import Appointment from '../models/Appointment.js';
 import generateToken from '../utils/generateToken.js';
 
 // @desc    Register a Govt Employee (for administrative onboarding / dev setup)
@@ -121,3 +123,67 @@ export const verifyHospital = async (req, res) => {
   }
 };
 
+
+// @desc    Aggregate dashboard metrics for regulatory overview
+// @route   GET /api/govt/dashboard-metrics
+// @access  Private (GovtEmployee only)
+export const getDashboardMetrics = async (req, res) => {
+  try {
+    const [totalPatients, approvedHospitals, pendingHospitals, totalConsultations] =
+      await Promise.all([
+        Patient.countDocuments(),
+        Hospital.countDocuments({ status: 'approved' }),
+        Hospital.countDocuments({ status: 'pending' }),
+        Appointment.countDocuments({ status: 'COMPLETED' }),
+      ]);
+
+    res.json({
+      success: true,
+      metrics: {
+        totalPatients,
+        approvedHospitals,
+        pendingHospitals,
+        totalConsultations,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// @desc    Get accredited facilities directory
+// @route   GET /api/govt/facilities
+// @access  Private (GovtEmployee only)
+export const getFacilities = async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    const query =
+      !status || status.toUpperCase() === 'ALL'
+        ? {}
+        : { status: status.toLowerCase() };
+
+    const facilities = await Hospital.find(query)
+      .sort({ createdAt: -1 })
+      .select(
+        'hospitalName registrationNumber address adminEmail status verificationStatus createdAt updatedAt'
+      );
+
+    const mapped = facilities.map((f) => ({
+      _id: f._id,
+      facilityName: f.hospitalName,
+      facilityId: f.registrationNumber,
+      // Parse district/state from address heuristically (comma-separated last parts)
+      district: f.address.split(',').slice(-2, -1)[0]?.trim() || f.address,
+      state: f.address.split(',').slice(-1)[0]?.trim() || '',
+      contactEmail: f.adminEmail,
+      accreditationDate: f.updatedAt,
+      status: f.status || f.verificationStatus,
+    }));
+
+    res.json({ success: true, facilities: mapped });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

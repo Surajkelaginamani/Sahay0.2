@@ -44,6 +44,17 @@ const doctorApi = {
   /** Prompt 6.3: Fetch Gemini AI longitudinal clinical insights for patient. */
   getAiInsights: (patientId) =>
     axios.get(`/api/ai/insights/${patientId}`, { headers: getAuthHeader() }),
+
+  /** Prompt: Closed-Loop Follow-up & ASHA Task Routing */
+  scheduleFollowUp: (data) =>
+    axios.post('/api/follow-ups/schedule', data, { headers: getAuthHeader() }),
+
+  /** Prompt: Doctor Duty Status Management */
+  getDutyStatus: () =>
+    axios.get(`${BASE_URL}/duty-status`, { headers: getAuthHeader() }),
+
+  updateDutyStatus: (isOnDuty, dutyShift) =>
+    axios.patch(`${BASE_URL}/duty-status`, { isOnDuty, dutyShift }, { headers: getAuthHeader() }),
 };
 
 export default doctorApi;

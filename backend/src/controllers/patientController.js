@@ -5,6 +5,7 @@ import Consultation from '../models/Consultation.js';
 import Prescription from '../models/Prescription.js';
 import LabOrder from '../models/LabOrder.js';
 import Appointment from '../models/Appointment.js';
+import FollowUp from '../models/FollowUp.js';
 import generateToken from '../utils/generateToken.js';
 
 // @desc    Register a new patient (Self-Registration - Prompt 12.1 & 13.2 & 7.1)
@@ -510,6 +511,28 @@ export const getMyMedicalRecords = async (req, res) => {
     // Sort timeline descending by date
     timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+    // Find today's active OPD appointment for the queue tracker
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+    const activeAppointment = appointments.find((a) => {
+      const apptDate = new Date(a.appointmentDate || a.createdAt);
+      const isToday  = apptDate >= todayStart && apptDate <= todayEnd;
+      const isActive = ['Waiting for Doctor', 'Waiting', 'WAITING', 'In Consultation', 'IN_CONSULTATION', 'CheckedIn', 'At Triage', 'Scheduled'].includes(a.status);
+      return isToday && isActive;
+    }) || null;
+
+    // Fetch scheduled follow-up for patient (Prompt: Closed-Loop Follow-up)
+    const scheduledFollowUps = await FollowUp.find({
+      patientId: { $in: candidateIds },
+      status: { $in: ['SCHEDULED', 'ASHA_REMINDED'] },
+    })
+      .populate('doctorId', 'name email role')
+      .populate('facilityId', 'hospitalName address')
+      .sort({ followUpDate: 1 })
+      .lean();
+
+    const upcomingFollowUp = scheduledFollowUps[0] || null;
+
     res.status(200).json({
       success: true,
       patient: patientDoc || {
@@ -524,7 +547,11 @@ export const getMyMedicalRecords = async (req, res) => {
       prescriptions,
       labOrders,
       appointments,
+      activeAppointment,
+      scheduledFollowUps,
+      upcomingFollowUp,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

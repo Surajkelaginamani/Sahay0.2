@@ -220,3 +220,72 @@ export const getMyTeleconsults = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── getPatientActiveTodayAppointment (Prompt: Mount Live Queue Tracker in Patient Dashboard)
+// @route   GET /api/appointments/patient/active-today
+// @access  Private (Patient)
+export const getPatientActiveTodayAppointment = async (req, res) => {
+  try {
+    const candidateIds = [req.user._id];
+    if (req.user.patientProfileId) {
+      candidateIds.push(req.user.patientProfileId);
+    }
+    if (req.user.email) {
+      const patientDocs = await Patient.find({
+        $or: [
+          { contactPhone: req.user.email },
+          { email: req.user.email },
+        ],
+      }).select('_id').lean();
+      patientDocs.forEach((p) => candidateIds.push(p._id));
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const activeStatuses = [
+      'Waiting',
+      'WAITING',
+      'In Consultation',
+      'IN_CONSULTATION',
+      'Waiting for Doctor',
+      'CheckedIn',
+      'At Triage',
+      'Scheduled',
+    ];
+
+    const appointment = await Appointment.findOne({
+      patientId: { $in: candidateIds },
+      appointmentDate: { $gte: todayStart, $lte: todayEnd },
+      status: { $in: activeStatuses },
+    })
+      .populate('assignedDoctorId', 'name specialty department email')
+      .populate('facilityId', 'hospitalName name address')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!appointment) {
+      return res.status(200).json({ success: true, activeAppointment: null });
+    }
+
+    const doctorName = appointment.assignedDoctorId?.name
+      ? (appointment.assignedDoctorId.name.startsWith('Dr.')
+          ? appointment.assignedDoctorId.name
+          : `Dr. ${appointment.assignedDoctorId.name}`)
+      : appointment.doctorName || 'General Consulting';
+
+    res.status(200).json({
+      success: true,
+      activeAppointment: {
+        ...appointment,
+        doctorName,
+        facilityName: appointment.facilityId?.hospitalName || appointment.facilityId?.name || 'Healthcare Facility',
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

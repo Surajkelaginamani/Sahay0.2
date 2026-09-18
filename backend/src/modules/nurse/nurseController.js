@@ -17,7 +17,8 @@ function calculateBMI(heightCm, weightKg) {
 // ─── getTriageQueue ───────────────────────────────────────────────────────────
 // @route   GET /api/nurse/queue
 // @access  Private (Nurse)
-// Queries appointments for the nurse's facility where status is 'At Triage' or 'CheckedIn'.
+// Queries appointments for the nurse's facility where status is 'At Triage', 'CheckedIn',
+// or 'Skipped'. Active patients and skipped (on-hold) patients are returned separately.
 export const getTriageQueue = async (req, res) => {
   try {
     const facilityId = req.user.hospitalId;
@@ -25,17 +26,21 @@ export const getTriageQueue = async (req, res) => {
       return res.status(400).json({ message: 'Nurse account is not linked to a hospital facility.' });
     }
 
-    // Query appointments waiting for vitals / triage
+    // Query all triage-related appointments (active + on-hold)
     const appointments = await Appointment.find({
       facilityId,
-      status: { $in: ['At Triage', 'CheckedIn'] },
+      status: { $in: ['At Triage', 'CheckedIn', 'Skipped'] },
     })
       .populate('patientId', 'firstName lastName contactPhone gender dob abhaId bloodGroup address emergencyContact uhid allergies')
       .populate('assignedDoctorId', 'name email')
       .lean();
 
-    // Sort: Urgent triage patients first, then by queueNumber or appointmentDate
-    appointments.sort((a, b) => {
+    // Split into active queue vs skipped (on-hold)
+    const activeAppointments = appointments.filter((a) => a.status !== 'Skipped');
+    const skippedAppointments = appointments.filter((a) => a.status === 'Skipped');
+
+    // Sort active: Urgent triage patients first, then by queueNumber or appointmentDate
+    activeAppointments.sort((a, b) => {
       const aUrgent = a.priority === 'Urgent';
       const bUrgent = b.priority === 'Urgent';
       if (aUrgent && !bUrgent) return -1;
@@ -48,13 +53,21 @@ export const getTriageQueue = async (req, res) => {
       return dateA - dateB;
     });
 
+    // Sort skipped: most recently skipped first
+    skippedAppointments.sort((a, b) =>
+      new Date(b.skippedAt || b.updatedAt) - new Date(a.skippedAt || a.updatedAt)
+    );
+
     // Enrich with computed patientFullName
-    const enriched = appointments.map((appt) => ({
+    const enrichAppt = (appt) => ({
       ...appt,
       patientFullName: appt.patientId
         ? `${appt.patientId.firstName} ${appt.patientId.lastName}`
         : 'Unknown Patient',
-    }));
+    });
+
+    const enriched        = activeAppointments.map(enrichAppt);
+    const enrichedSkipped = skippedAppointments.map(enrichAppt);
 
     // Metrics summary
     const summary = {
@@ -62,12 +75,14 @@ export const getTriageQueue = async (req, res) => {
       urgent:   enriched.filter((a) => a.priority === 'Urgent').length,
       routine:  enriched.filter((a) => a.priority !== 'Urgent').length,
       atTriage: enriched.filter((a) => a.status === 'At Triage').length,
+      skipped:  enrichedSkipped.length,
     };
 
     res.status(200).json({
-      count: enriched.length,
+      count:        enriched.length,
       summary,
-      queue: enriched,
+      queue:        enriched,
+      skippedQueue: enrichedSkipped,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -419,6 +434,124 @@ export const requestTeleconsult = async (req, res) => {
       message: 'Teleconsultation requested successfully.',
       teleconsultRoomId,
       appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── skipPatient (plans.md — Skip & Recall) ───────────────────────────────────────
+// @route   PATCH /api/nurse/queue/:id/skip
+// @access  Private (Nurse)
+// Moves a patient out of the active queue into the on-hold section.
+// Records the timestamp and increments call attempts.
+export const skipPatient = async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    // Only allow skipping patients currently in triage / check-in
+    if (!['At Triage', 'CheckedIn'].includes(appointment.status)) {
+      return res.status(400).json({
+        message: `Cannot skip a patient with status "${appointment.status}". Only At Triage / CheckedIn patients can be skipped.`,
+      });
+    }
+
+    appointment.status      = 'Skipped';
+    appointment.skippedAt   = new Date();
+    appointment.callAttempts = (appointment.callAttempts || 0) + 1;
+
+    await appointment.save();
+    await appointment.populate([
+      { path: 'patientId', select: 'firstName lastName contactPhone gender dob uhid' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Patient moved to On-Hold / Absent section.',
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── recallPatient (plans.md — Skip & Recall) ────────────────────────────────────
+// @route   PATCH /api/nurse/queue/:id/recall
+// @access  Private (Nurse)
+// Recalls a skipped patient back into the active triage queue.
+// Inserts them at queueNumber = (current lowest active queueNumber) + 1 so they are
+// "next" without fully jumping to the front.
+export const recallPatient = async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    if (appointment.status !== 'Skipped') {
+      return res.status(400).json({
+        message: `Cannot recall a patient with status "${appointment.status}". Only Skipped patients can be recalled.`,
+      });
+    }
+
+    // Find the current lowest (next-up) queueNumber among active triage patients
+    // in the same facility to slot the recalled patient right after them.
+    const activePatients = await Appointment.find({
+      facilityId: appointment.facilityId,
+      status:     { $in: ['At Triage', 'CheckedIn'] },
+      queueNumber: { $ne: null },
+    }).select('queueNumber').lean();
+
+    const minQueueNumber = activePatients.length > 0
+      ? Math.min(...activePatients.map((a) => a.queueNumber))
+      : 0;
+
+    // Place recalled patient just after the current first-in-line
+    appointment.status      = 'At Triage';
+    appointment.skippedAt   = null;
+    appointment.queueNumber = minQueueNumber + 1;
+
+    await appointment.save();
+    await appointment.populate([
+      { path: 'patientId', select: 'firstName lastName contactPhone gender dob uhid' },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Patient recalled and placed next in queue.',
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── markNoShow (plans.md — Skip & Recall) ──────────────────────────────────────
+// @route   PATCH /api/nurse/queue/:id/no-show
+// @access  Private (Nurse)
+// Terminally removes a skipped patient from the active queue by cancelling their appointment.
+export const markNoShow = async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found.' });
+    }
+
+    appointment.status     = 'Cancelled';
+    appointment.staffNotes = [
+      appointment.staffNotes,
+      `Marked No-Show by nurse at ${new Date().toISOString()}.`,
+    ].filter(Boolean).join(' | ');
+
+    await appointment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Patient marked as No-Show and removed from queue.',
+      appointmentId: appointment._id,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

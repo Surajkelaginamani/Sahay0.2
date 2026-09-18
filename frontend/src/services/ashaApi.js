@@ -29,6 +29,13 @@ const ashaApi = {
       params: status ? { status } : {},
       headers: getAuthHeader(),
     }),
+
+  /** Prompt: Closed-Loop Follow-up & ASHA Task Routing */
+  getFollowUps: (ashaId) =>
+    axios.get(`/api/follow-ups/asha/${ashaId || 'me'}`, { headers: getAuthHeader() }),
+
+  updateFollowUpStatus: (followUpId, status = 'ASHA_REMINDED') =>
+    axios.patch(`/api/follow-ups/${followUpId}/status`, { status }, { headers: getAuthHeader() }),
 };
 
 export default ashaApi;

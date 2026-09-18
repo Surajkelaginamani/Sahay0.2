@@ -1,33 +1,36 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import {
+  FileText,
+  Mic,
+  MicOff,
+  CheckCircle2,
+  AlertTriangle,
+  Tag,
+  TrendingUp,
+  TrendingDown,
+  FlaskConical,
+  Calendar,
+  Syringe,
+  Hospital,
+  MessageSquare,
+  ShieldCheck,
+  Ambulance,
+  X,
+  Loader2,
+} from "lucide-react";
 
-/**
- * EndVisitModal (Prompt 11.2)
- *
- * Frictionless "End Visit" modal for doctors.
- * - One-click clinical outcome tags (clinicalTags[])
- * - Multilingual voice scribe via browser SpeechRecognition API (voiceNoteTranscript)
- * - Validation: at least one tag OR non-empty transcript required
- * - "Save & End Visit" submits to the closeConsultation endpoint
- *
- * Props:
- *  open          {Boolean}   - controls visibility
- *  onClose       {Function}  - called when modal is dismissed without saving
- *  onSave        {Function}  - called with { clinicalTags, voiceNoteTranscript }
- *  submitting    {Boolean}   - shows loading state on "Save" button
- *  error         {String}    - backend error to display
- */
-
+// ── Clinical outcome tags with Lucide icons ───────────────────────────────────
 const CLINICAL_TAGS = [
-  { id: "dosage-adjusted",   label: "Dosage Adjusted",      icon: "💊" },
-  { id: "improving",         label: "Condition Improving",  icon: "📈" },
-  { id: "referred-labs",     label: "Referred for Labs",    icon: "🧪" },
-  { id: "routine-followup",  label: "Routine Follow-up",    icon: "🗓️" },
-  { id: "worsening",         label: "Condition Worsening",  icon: "📉" },
-  { id: "rx-initiated",      label: "Treatment Initiated",  icon: "💉" },
-  { id: "specialist-ref",    label: "Specialist Referral",  icon: "🏥" },
-  { id: "counselled",        label: "Patient Counselled",   icon: "🗣️" },
-  { id: "stable",            label: "Stable / No Change",   icon: "✅" },
-  { id: "emergency-referred","label": "Emergency Referred", icon: "🚑" },
+  { id: "dosage-adjusted",    label: "Dosage Adjusted",     Icon: Tag },
+  { id: "improving",          label: "Condition Improving", Icon: TrendingUp },
+  { id: "referred-labs",      label: "Referred for Labs",   Icon: FlaskConical },
+  { id: "routine-followup",   label: "Routine Follow-up",   Icon: Calendar },
+  { id: "worsening",          label: "Condition Worsening", Icon: TrendingDown },
+  { id: "rx-initiated",       label: "Treatment Initiated", Icon: Syringe },
+  { id: "specialist-ref",     label: "Specialist Referral", Icon: Hospital },
+  { id: "counselled",         label: "Patient Counselled",  Icon: MessageSquare },
+  { id: "stable",             label: "Stable / No Change",  Icon: ShieldCheck },
+  { id: "emergency-referred", label: "Emergency Referred",  Icon: Ambulance },
 ];
 
 const SpeechRecognition =
@@ -41,19 +44,23 @@ export default function EndVisitModal({ open, onClose, onSave, submitting, error
   const [listening, setListening]       = useState(false);
   const [voiceError, setVoiceError]     = useState("");
   const [voiceLang, setVoiceLang]       = useState("en-IN");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpInstructions, setFollowUpInstructions] = useState("");
   const recognitionRef = useRef(null);
 
-  // Reset state on open
+  // Reset on open
   useEffect(() => {
     if (open) {
       setSelectedTags([]);
       setTranscript("");
       setListening(false);
       setVoiceError("");
+      setFollowUpDate("");
+      setFollowUpInstructions("");
     }
   }, [open]);
 
-  // Cleanup recognition on unmount
+  // Cleanup recognition
   useEffect(() => {
     return () => {
       if (recognitionRef.current) {
@@ -93,9 +100,7 @@ export default function EndVisitModal({ open, onClose, onSave, submitting, error
       setListening(false);
     };
 
-    recognition.onend = () => {
-      setListening(false);
-    };
+    recognition.onend = () => { setListening(false); };
 
     recognitionRef.current = recognition;
     recognition.start();
@@ -117,376 +122,266 @@ export default function EndVisitModal({ open, onClose, onSave, submitting, error
       const tag = CLINICAL_TAGS.find((t) => t.id === id);
       return tag ? tag.label : id;
     });
-    onSave({ clinicalTags: tagLabels, voiceNoteTranscript: transcript.trim() });
+    onSave({
+      clinicalTags: tagLabels,
+      voiceNoteTranscript: transcript.trim(),
+      followUpDate: followUpDate || undefined,
+      followUpInstructions: followUpInstructions.trim() || undefined,
+    });
   };
 
   if (!open) return null;
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(2, 6, 23, 0.72)",
-        backdropFilter: "blur(6px)",
-        animation: "fadeInOverlay 0.2s ease",
-        padding: "1rem",
-      }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ background: "rgba(2,6,23,0.72)", backdropFilter: "blur(6px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <style>{`
-        @keyframes fadeInOverlay {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .end-visit-modal {
-          background: #fff;
-          border-radius: 24px;
-          width: 100%;
-          max-width: 600px;
-          max-height: 90vh;
-          overflow-y: auto;
-          box-shadow: 0 24px 80px rgba(0,0,0,0.4);
-          animation: slideUp 0.25s ease;
-          border: 1px solid rgba(99,102,241,0.15);
-        }
-        .tag-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 14px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 700;
-          cursor: pointer;
-          border: 1.5px solid #e2e8f0;
-          background: #f8fafc;
-          color: #475569;
-          transition: all 0.18s ease;
-          white-space: nowrap;
-        }
-        .tag-btn:hover {
-          border-color: #6366f1;
-          background: #eef2ff;
-          color: #4338ca;
-        }
-        .tag-btn.selected {
-          background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-          border-color: #4338ca;
-          color: #fff;
-          box-shadow: 0 2px 10px rgba(99,102,241,0.35);
-        }
-      `}</style>
-
-      <div className="end-visit-modal">
-        {/* Header */}
-        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #f1f5f9" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 12,
-                background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 18, boxShadow: "0 4px 12px rgba(99,102,241,0.3)",
-              }}>
-                📋
-              </div>
-              <div>
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#0f172a" }}>
-                  Consultation Summary
-                </h2>
-                <p style={{ margin: 0, fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-                  Select outcome tags or dictate a quick note to close this visit
-                </p>
-              </div>
+      {/* Modal panel */}
+      <div
+        className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-indigo-100/50 overflow-hidden"
+        style={{ maxHeight: "90vh", overflowY: "auto" }}
+      >
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-md shadow-indigo-200">
+              <FileText className="w-5 h-5" />
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: "#f1f5f9", border: "none",
-                cursor: "pointer", fontSize: 16, color: "#64748b",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-            >
-              &times;
-            </button>
+            <div>
+              <h2 className="text-sm font-black text-slate-900">Consultation Summary</h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">Select outcome tags or dictate a quick note</p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* ── Body ───────────────────────────────────────────────────────── */}
+        <div className="px-6 py-5 space-y-5">
 
-          {/* ── Clinical Tags Section ── */}
+          {/* Step 1: Clinical Tags */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <span style={{
-                fontSize: 10, fontWeight: 800, color: "#6366f1",
-                textTransform: "uppercase", letterSpacing: 0.8,
-                background: "#eef2ff", padding: "3px 10px",
-                borderRadius: 999, border: "1px solid #c7d2fe",
-              }}>
-                Step 1 — Select Outcome Tags
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[10px] font-black text-indigo-700 uppercase tracking-wider bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200">
+                Step 1 — Outcome Tags
               </span>
               {selectedTags.length > 0 && (
-                <span style={{
-                  fontSize: 10, fontWeight: 700, color: "#4f46e5",
-                  background: "#eef2ff", borderRadius: 999, padding: "3px 8px",
-                }}>
+                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 rounded-full px-2 py-0.5">
                   {selectedTags.length} selected
                 </span>
               )}
             </div>
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {CLINICAL_TAGS.map((tag) => (
-                <button
-                  key={tag.id}
-                  type="button"
-                  className={"tag-btn" + (selectedTags.includes(tag.id) ? " selected" : "")}
-                  onClick={() => toggleTag(tag.id)}
-                >
-                  <span>{tag.icon}</span>
-                  <span>{tag.label}</span>
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2">
+              {CLINICAL_TAGS.map(({ id, label, Icon }) => {
+                const isSelected = selectedTags.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => toggleTag(id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                      isSelected
+                        ? 'bg-indigo-600 border-indigo-700 text-white shadow-sm shadow-indigo-200'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* ── Voice Scribe Section ── */}
+          {/* Step 2: Voice Scribe */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <span style={{
-                fontSize: 10, fontWeight: 800, color: "#0891b2",
-                textTransform: "uppercase", letterSpacing: 0.8,
-                background: "#ecfeff", padding: "3px 10px",
-                borderRadius: 999, border: "1px solid #a5f3fc",
-              }}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-black text-cyan-700 uppercase tracking-wider bg-cyan-50 px-2.5 py-1 rounded-full border border-cyan-200">
                 Step 2 — Voice Note (Optional)
               </span>
-              {/* Language Selector */}
+              {/* Language selector */}
               <select
                 value={voiceLang}
                 onChange={(e) => setVoiceLang(e.target.value)}
                 disabled={listening}
-                style={{
-                  fontSize: 11, fontWeight: 600, color: "#475569",
-                  border: "1px solid #e2e8f0", borderRadius: 8,
-                  background: "#f8fafc", padding: "4px 8px",
-                  cursor: "pointer",
-                }}
+                className="text-[11px] font-semibold text-slate-600 border border-slate-200 rounded-lg bg-slate-50 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-400 cursor-pointer"
               >
-                <option value="en-IN">English (India)</option>
+                <option value="en-IN">English</option>
                 <option value="hi-IN">Hindi</option>
                 <option value="mr-IN">Marathi</option>
               </select>
             </div>
 
-            {/* Mic Action Bar & Read-only Transcript (Prompt 11.2) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {/* Mic action bar */}
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
                   onClick={listening ? stopListening : startListening}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "10px 18px",
-                    borderRadius: 14,
-                    border: "none",
-                    background: listening
-                      ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
-                      : "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)",
-                    color: "#fff",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    boxShadow: listening
-                      ? "0 0 0 4px rgba(239,68,68,0.25), 0 4px 14px rgba(239,68,68,0.35)"
-                      : "0 4px 14px rgba(6,182,212,0.35)",
-                    transition: "all 0.2s ease",
-                  }}
-                  title={listening ? "Stop recording" : "Start voice dictation"}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs text-white shadow-md transition-all ${
+                    listening
+                      ? 'bg-red-500 hover:bg-red-600 shadow-red-200 ring-4 ring-red-300/40 animate-pulse'
+                      : 'bg-cyan-600 hover:bg-cyan-700 shadow-cyan-200'
+                  }`}
                 >
-                  <span style={{ fontSize: 16 }}>{listening ? "⏹" : "🎤"}</span>
-                  <span>{listening ? "Stop Dictation" : "🎤 Tap to Speak"}</span>
+                  {listening ? (
+                    <><MicOff className="w-4 h-4" /> Stop Dictation</>
+                  ) : (
+                    <><Mic className="w-4 h-4" /> Tap to Speak</>
+                  )}
                 </button>
 
-                {transcript && (
+                {listening && (
+                  <span className="flex items-center gap-1.5 text-[11px] text-red-600 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    Listening in {voiceLang === 'hi-IN' ? 'Hindi' : voiceLang === 'mr-IN' ? 'Marathi' : 'English'}…
+                  </span>
+                )}
+
+                {transcript && !listening && (
                   <button
                     type="button"
                     onClick={() => setTranscript("")}
-                    disabled={listening}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #e2e8f0",
-                      background: "#f8fafc",
-                      color: "#64748b",
-                      fontSize: 11,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
+                    className="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:text-rose-600 font-semibold transition-colors"
                   >
-                    Clear Transcript
+                    Clear
                   </button>
                 )}
-
-                {listening && (
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#ef4444", fontWeight: 700 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
-                    Listening ({voiceLang})...
-                  </span>
-                )}
               </div>
 
-              <div>
-                <textarea
-                  rows={3}
-                  value={transcript}
-                  readOnly
-                  placeholder={
-                    listening
-                      ? "Transcribing voice dictation live... speak clearly in English, Hindi, or Marathi."
-                      : 'Dictated notes will display here. Tap "🎤 Tap to Speak" above to begin dictation.'
-                  }
-                  style={{
-                    width: "100%",
-                    resize: "none",
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    border: "1.5px solid " + (listening ? "rgba(6,182,212,0.6)" : "#e2e8f0"),
-                    fontSize: 12,
-                    color: "#1e293b",
-                    background: listening ? "rgba(236,254,255,0.6)" : "#f8fafc",
-                    fontFamily: "inherit",
-                    outline: "none",
-                    transition: "border-color 0.2s ease",
-                    boxSizing: "border-box",
-                  }}
-                />
-                <p style={{ margin: "4px 0 0", fontSize: 10, color: "#94a3b8" }}>
-                  {listening
-                    ? "🔴 Dictation active — your speech is converted to text automatically."
-                    : transcript
-                    ? "✓ Multilingual speech-to-text transcript ready for EHR record."
-                    : "Read-only voice transcript linked to visit record. Uses native SpeechRecognition."}
-                </p>
-              </div>
+              <textarea
+                rows={3}
+                value={transcript}
+                readOnly
+                placeholder={
+                  listening
+                    ? "Transcribing voice dictation live... speak clearly."
+                    : 'Dictated notes appear here. Tap "Tap to Speak" above.'
+                }
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-xs text-slate-800 bg-slate-50 resize-none focus:outline-none transition-all font-mono leading-relaxed ${
+                  listening ? 'border-cyan-400 bg-cyan-50/40' : 'border-slate-200'
+                }`}
+              />
+
+              <p className="text-[10px] text-slate-400">
+                {listening
+                  ? "Recording active — speech converts to text automatically."
+                  : transcript
+                  ? "Transcript ready for EHR record."
+                  : "Uses native Web Speech API. Works best in Chrome / Edge."}
+              </p>
             </div>
 
             {voiceError && (
-              <div style={{
-                marginTop: 8, padding: "8px 12px", borderRadius: 10,
-                background: "#fef2f2", border: "1px solid #fecaca",
-                color: "#dc2626", fontSize: 11, fontWeight: 600,
-              }}>
+              <div className="mt-2 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                 {voiceError}
               </div>
             )}
           </div>
 
-          {/* ── Backend Error ── */}
+          {/* Step 3: Schedule Follow-up (Prompt: Closed-Loop Follow-up & ASHA Routing) */}
+          <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-violet-700 uppercase tracking-wider bg-violet-50 px-2.5 py-1 rounded-full border border-violet-200 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-violet-600" />
+                Step 3 — Schedule Follow-up (Optional)
+              </span>
+              {followUpDate && (
+                <span className="text-[10px] font-bold text-violet-600 bg-violet-100/70 rounded-full px-2.5 py-0.5">
+                  Follow-up set
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
+                  <Calendar className="w-4 h-4 text-violet-600" />
+                  Follow-up Date
+                </label>
+                <input
+                  type="date"
+                  id="doctor-follow-up-date"
+                  min={new Date().toISOString().split("T")[0]}
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Clinical Instructions
+                </label>
+                <input
+                  type="text"
+                  id="doctor-follow-up-instructions"
+                  value={followUpInstructions}
+                  onChange={(e) => setFollowUpInstructions(e.target.value)}
+                  placeholder="e.g., Check BP, repeat fasting sugar"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                />
+              </div>
+            </div>
+
+            <p className="text-[10px] text-slate-400">
+              Auto-routes task to patient portal and assigned ASHA worker field-visit list.
+            </p>
+          </div>
+
+          {/* Backend error */}
           {error && (
-            <div style={{
-              padding: "10px 14px", borderRadius: 12,
-              background: "#fef2f2", border: "1.5px solid #fca5a5",
-              color: "#dc2626", fontSize: 12, fontWeight: 600,
-            }}>
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
               {error}
             </div>
           )}
 
-          {/* ── Validation hint ── */}
+          {/* Validation hint */}
           {!isValid && (
-            <div style={{
-              padding: "10px 14px", borderRadius: 12,
-              background: "#fffbeb", border: "1px solid #fde68a",
-              color: "#92400e", fontSize: 11, fontWeight: 600,
-              display: "flex", alignItems: "center", gap: 6,
-            }}>
-              <span>⚠️</span>
-              <span>Select at least one outcome tag OR provide a brief voice/text note to enable submission.</span>
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              Select at least one outcome tag OR provide a voice/text note to enable submission.
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div style={{
-          padding: "14px 24px 20px",
-          borderTop: "1px solid #f1f5f9",
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 10,
-        }}>
+        {/* ── Footer ─────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            style={{
-              padding: "10px 20px", borderRadius: 12,
-              border: "1.5px solid #e2e8f0",
-              background: "#f8fafc", color: "#475569",
-              fontSize: 13, fontWeight: 700, cursor: "pointer",
-            }}
+            className="px-5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-100 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
+            id="end-visit-save-btn"
             onClick={handleSave}
             disabled={!isValid || submitting}
-            style={{
-              padding: "10px 28px", borderRadius: 12,
-              background: isValid
-                ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
-                : "#e2e8f0",
-              border: "none",
-              color: isValid ? "#fff" : "#94a3b8",
-              fontSize: 13, fontWeight: 800,
-              cursor: isValid ? "pointer" : "not-allowed",
-              display: "flex", alignItems: "center", gap: 8,
-              boxShadow: isValid ? "0 4px 16px rgba(16,185,129,0.35)" : "none",
-              transition: "all 0.2s ease",
-            }}
+            className={`inline-flex items-center gap-2 px-6 py-2 rounded-xl text-white text-xs font-extrabold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              isValid ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-slate-300'
+            }`}
           >
             {submitting ? (
-              <>
-                <div style={{
-                  width: 14, height: 14,
-                  border: "2px solid rgba(255,255,255,0.4)",
-                  borderTopColor: "#fff",
-                  borderRadius: "50%",
-                  animation: "spin 0.6s linear infinite",
-                }} />
-                Saving Visit...
-              </>
+              <><Loader2 className="w-4 h-4 animate-spin" /> Saving Visit...</>
             ) : (
-              <>
-                <span>✓</span>
-                <span>Save &amp; End Visit</span>
-              </>
+              <><CheckCircle2 className="w-4 h-4" /> Save &amp; End Visit</>
             )}
           </button>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
