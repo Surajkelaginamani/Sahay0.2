@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Clock, CheckCircle2, RotateCw } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle2, RotateCw, Key } from 'lucide-react';
 import receptionistApi from '../services/receptionistApi';
+import PatientProfileDrawer from './PatientProfileDrawer';
 
 // ─── Status pill ───────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
@@ -29,6 +30,7 @@ export default function TodayQueue({ refreshTrigger, onCheckInSuccess }) {
   const [loading, setLoading]               = useState(false);
   const [error, setError]                   = useState('');
   const [checkingIn, setCheckingIn]         = useState({}); // { [apptId]: true }
+  const [selectedProfilePatient, setSelectedProfilePatient] = useState(null);
 
   // ── Fetch facility doctors ────────────────────────────────────────────────
   const fetchDoctors = useCallback(async () => {
@@ -266,9 +268,21 @@ export default function TodayQueue({ refreshTrigger, onCheckInSuccess }) {
 
                     {/* Patient name */}
                     <td className="py-3 px-2">
-                      <p className="font-semibold text-slate-800 text-sm leading-tight">
-                        {appt.patientFullName}
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedProfilePatient(
+                            appt.patientId
+                              ? { ...appt.patientId, fullName: appt.patientFullName }
+                              : { fullName: appt.patientFullName }
+                          )
+                        }
+                        className="font-semibold text-slate-800 hover:text-amber-700 text-sm leading-tight text-left hover:underline flex items-center gap-1.5 cursor-pointer"
+                        title="Click to view profile & reset PIN"
+                      >
+                        <span>{appt.patientFullName}</span>
+                        <Key className="w-3 h-3 text-slate-300 group-hover:text-amber-500" />
+                      </button>
                       {/* UHID (Prompt 1.2) */}
                       {appt.patientId?.uhid && (
                         <span className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
@@ -378,6 +392,16 @@ export default function TodayQueue({ refreshTrigger, onCheckInSuccess }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* ── Patient Profile Drawer & PIN Reset Modal ────────────────────── */}
+      {selectedProfilePatient && (
+        <PatientProfileDrawer
+          patient={selectedProfilePatient}
+          isOpen={Boolean(selectedProfilePatient)}
+          onClose={() => setSelectedProfilePatient(null)}
+          onPatientUpdated={() => fetchQueue()}
+        />
       )}
     </div>
   );

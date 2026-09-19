@@ -66,6 +66,17 @@ const vitalsSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+
+    // ── ABDM Verbal/Digital Proxy Consent Mandate ──────────────────────────────
+    consentProvided: {
+      type: Boolean,
+      required: [true, 'Patient verbal/digital consent is required to record health vitals (ABDM Mandate).'],
+      default: true,
+    },
+    consentTimestamp: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
     timestamps: true,

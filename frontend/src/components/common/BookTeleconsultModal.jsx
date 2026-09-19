@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { Video, X, AlertTriangle, Search, Phone, Check, Info, Lightbulb } from 'lucide-react';
 
 // ─── API helpers ────────────────────────────────────────────────────────────
 function getAuthHeader() {
@@ -263,8 +264,8 @@ export default function BookTeleconsultModal({
         {/* Header Gradient */}
         <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 px-6 py-5 flex items-center justify-between shrink-0 shadow-sm">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-xl shadow-inner">
-              📹
+            <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner">
+              <Video className="w-6 h-6" />
             </div>
             <div>
               <h2 className="text-lg font-black text-white tracking-tight">
@@ -281,9 +282,7 @@ export default function BookTeleconsultModal({
             onClick={handleClose}
             aria-label="Close modal"
             className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/30 text-white flex items-center justify-center transition-all cursor-pointer font-bold"
-          >
-            ✕
-          </button>
+          ><X className="w-4 h-4" /></button>
         </div>
 
         {/* Step Tabs for Field Workers */}
@@ -319,7 +318,7 @@ export default function BookTeleconsultModal({
                         : 'bg-slate-200 text-slate-600'
                     }`}
                   >
-                    {selectedPatient && num === 1 && !isActive ? '✓' : num}
+                    {selectedPatient && num === 1 && !isActive ? <Check className="w-3 h-3" /> : num}
                   </div>
                   <div className="truncate">
                     <p className={`text-xs font-extrabold ${isActive ? 'text-violet-900' : 'text-slate-800'}`}>
@@ -337,7 +336,7 @@ export default function BookTeleconsultModal({
         <div className="overflow-y-auto flex-1 p-6 space-y-5">
           {error && (
             <div className="flex items-start gap-2.5 bg-rose-50 border border-rose-200 rounded-2xl p-3.5 text-sm text-rose-700 shadow-sm animate-in fade-in">
-              <span className="shrink-0 text-base">⚠️</span>
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
               <div className="flex-1 font-medium">{error}</div>
             </div>
           )}
@@ -353,9 +352,7 @@ export default function BookTeleconsultModal({
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none">
-                      🔍
-                    </span>
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     <input
                       ref={searchInputRef}
                       type="text"
@@ -376,9 +373,7 @@ export default function BookTeleconsultModal({
                         }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-bold flex items-center justify-center transition-colors"
                         title="Clear search"
-                      >
-                        ✕
-                      </button>
+                      ><X className="w-4 h-4" /></button>
                     )}
                   </div>
 
@@ -399,7 +394,7 @@ export default function BookTeleconsultModal({
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1.5 ml-1">
-                  💡 Tip: Enter at least 2 characters (e.g. &ldquo;Ramesh&rdquo; or &ldquo;86684&rdquo;) and results will auto-populate.
+                  <Lightbulb className="w-3.5 h-3.5 inline mr-1 text-amber-500" />Tip: Enter at least 2 characters (e.g. &ldquo;Ramesh&rdquo; or &ldquo;86684&rdquo;) and results will auto-populate.
                 </p>
               </div>
 
@@ -449,7 +444,7 @@ export default function BookTeleconsultModal({
                               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-0.5">
                                 {p.contactPhone && (
                                   <span className="flex items-center gap-1 font-semibold text-slate-700">
-                                    📞 {p.contactPhone}
+                                    <Phone className="w-3 h-3 inline mr-1" />{p.contactPhone}
                                   </span>
                                 )}
                                 {p.gender && (
@@ -467,7 +462,7 @@ export default function BookTeleconsultModal({
                           <div className="shrink-0">
                             {isSelected ? (
                               <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-600 text-white font-extrabold text-xs shadow-sm">
-                                ✓ Selected
+                                <Check className="w-3 h-3 inline mr-0.5" />Selected
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-violet-100 hover:text-violet-700 text-slate-700 font-bold text-xs transition-colors">
@@ -485,8 +480,8 @@ export default function BookTeleconsultModal({
               {/* No Results Empty State */}
               {!loadingPatients && hasSearched && patientResults.length === 0 && patientQuery.trim().length >= 2 && (
                 <div className="p-6 bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-center space-y-2">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-200 text-slate-500 flex items-center justify-center mx-auto text-xl">
-                    🔍
+                  <div className="w-12 h-12 rounded-2xl bg-slate-200 text-slate-500 flex items-center justify-center mx-auto">
+                    <Search className="w-6 h-6" />
                   </div>
                   <h3 className="text-sm font-bold text-slate-800">
                     No patients found matching &ldquo;{patientQuery.trim()}&rdquo;
@@ -565,7 +560,7 @@ export default function BookTeleconsultModal({
                     </p>
                     {(selectedPatient?.contactPhone) && (
                       <p className="text-xs text-slate-500 font-medium">
-                        📞 {selectedPatient.contactPhone}
+                        <Phone className="w-3 h-3 inline mr-1" />{selectedPatient.contactPhone}
                       </p>
                     )}
                   </div>
@@ -679,7 +674,7 @@ export default function BookTeleconsultModal({
 
               {/* Explanatory Info Card */}
               <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3 text-xs text-indigo-800">
-                <span className="text-base shrink-0">ℹ️</span>
+                <Info className="w-4 h-4 shrink-0 text-indigo-500" />
                 <span className="leading-relaxed font-medium">
                   The hospital receptionist will review your request, confirm doctor availability, and finalize the appointment. A secure video room link will be issued immediately upon confirmation.
                 </span>
@@ -715,7 +710,7 @@ export default function BookTeleconsultModal({
                     </>
                   ) : (
                     <>
-                      <span>📹</span>
+                      <Video className="w-4 h-4" />
                       <span>Submit Teleconsult Request</span>
                     </>
                   )}

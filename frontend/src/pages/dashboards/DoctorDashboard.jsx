@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Stethoscope,
   ArrowLeft,
@@ -20,11 +21,12 @@ import ConsultationPanel from '../../features/doctor/components/ConsultationPane
 import PatientHistory from '../../features/doctor/components/PatientHistory';
 import VideoRoom from '../../components/common/VideoRoom';
 import doctorApi from '../../features/doctor/services/doctorApi';
+import { deriveQueueMetrics } from '../../features/doctor/utils/queueCalculations';
 
 // ── Stat card (desktop header strip) ─────────────────────────────────────────
 function StatCard({ Icon, label, value, sub, color }) {
   return (
-    <div className={`bg-white rounded-xl border ${color.border} p-3.5 flex items-center gap-3 shadow-sm`}>
+    <div className={`bg-white dark:bg-slate-800 rounded-xl border ${color.border} dark:border-slate-700 p-3.5 flex items-center gap-3 shadow-sm`}>
       <div className={`w-10 h-10 rounded-xl ${color.icon} flex items-center justify-center shrink-0`}>
         <Icon className="w-5 h-5" />
       </div>
@@ -61,14 +63,19 @@ function Toast({ toast }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function DoctorDashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser]                               = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [workspaceTab, setWorkspaceTab]               = useState('consultation');
   const [queueRefresh, setQueueRefresh]               = useState(0);
+  const [appointments, setAppointments]               = useState([]);
   const [completedCount, setCompletedCount]           = useState(0);
   const [queueStats, setQueueStats]                   = useState({
     total: 0, urgent: 0, checkedIn: 0, waiting: 0, reportsReady: 0, teleconsults: 0, patientWaitingInCall: 0, criticalLabs: 0, emergency: 0,
   });
+
+  // Strictly derived KPI metrics directly from appointments array
+  const derivedMetrics = useMemo(() => deriveQueueMetrics(appointments), [appointments]);
   const [toast, setToast]     = useState(null);
   // Mobile view: 'queue' | 'consultation'
   const [viewMode, setViewMode] = useState('queue');
@@ -129,8 +136,10 @@ export default function DoctorDashboard() {
     }
   };
 
-  const handleQueueLoaded = useCallback(({ summary }) => {
-    if (summary) setQueueStats(summary);
+  const handleQueueLoaded = useCallback((data) => {
+    const list = data?.appointments || data?.queue || [];
+    setAppointments(list);
+    if (data?.summary) setQueueStats(data.summary);
   }, []);
 
   const handleSelectPatient = useCallback((appt) => {
@@ -181,7 +190,7 @@ export default function DoctorDashboard() {
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-[85vh] bg-slate-50">
+    <div className="min-h-[85vh] bg-slate-50 dark:bg-slate-900">
       <Toast toast={toast} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-5">
@@ -189,14 +198,14 @@ export default function DoctorDashboard() {
         {/* ═══════════════════════════════════════════════════════════════════
             HEADER
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-sky-600 flex items-center justify-center text-white shadow-md shrink-0">
               <Stethoscope className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-lg font-extrabold text-slate-900">Doctor OPD Workspace</h1>
+                <h1 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{t('doctor.title')}</h1>
                 {/* ── Doctor Duty Status Toggle Button (Prompt: Doctor Duty Synchronization) ── */}
                 <button
                   type="button"
@@ -213,12 +222,12 @@ export default function DoctorDashboard() {
                   {isOnDuty ? (
                     <>
                       <CircleDot className="w-4 h-4 text-emerald-600 animate-pulse mr-2" />
-                      <span>On Duty • Available</span>
+                      <span>{t('doctor.duty.on')}</span>
                     </>
                   ) : (
                     <>
                       <Power className="w-4 h-4 text-slate-400 mr-2" />
-                      <span>Off Duty • Inactive</span>
+                      <span>{t('doctor.duty.off')}</span>
                     </>
                   )}
                 </button>
@@ -236,51 +245,51 @@ export default function DoctorDashboard() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 text-xs font-bold border border-sky-100 transition-all"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              Clinical Timeline
+              {t('doctor.clinicalTimeline')}
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:border-rose-200 dark:hover:border-rose-700 hover:text-rose-700 dark:hover:text-rose-400 transition-all"
             >
               <LogOut className="w-3.5 h-3.5" />
-              Logout
+              {t('common.logout')}
             </button>
           </div>
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            STATS STRIP (desktop)
+            STATS STRIP (desktop) - strictly derived from appointments array
         ═══════════════════════════════════════════════════════════════════ */}
         <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard
             Icon={Users}
-            label="Waiting in Queue"
-            value={queueStats.total}
-            sub={`${queueStats.checkedIn || 0} checked in`}
+            label={t('doctor.metrics.waiting')}
+            value={derivedMetrics.waitingCount}
+            sub={t('doctor.metrics.waitingSub', { count: derivedMetrics.checkedInCount || 0 })}
             color={{ border: 'border-sky-100', icon: 'bg-sky-100 text-sky-600', text: 'text-sky-800' }}
           />
           <StatCard
             Icon={AlertTriangle}
-            label="Urgent Priority"
-            value={queueStats.urgent}
-            sub={queueStats.criticalLabs > 0 ? `${queueStats.criticalLabs} Critical Lab${queueStats.criticalLabs > 1 ? 's' : ''}` : 'Triage required'}
-            color={queueStats.criticalLabs > 0
+            label={t('doctor.metrics.urgent')}
+            value={derivedMetrics.urgentCount}
+            sub={derivedMetrics.criticalLabsCount > 0 ? t('doctor.metrics.criticalLabSub', { count: derivedMetrics.criticalLabsCount }) : t('doctor.metrics.urgentSub')}
+            color={derivedMetrics.criticalLabsCount > 0
               ? { border: 'border-red-300 ring-2 ring-red-200', icon: 'bg-red-100 text-red-600 animate-pulse', text: 'text-red-700' }
               : { border: 'border-rose-100', icon: 'bg-rose-100 text-rose-500', text: 'text-rose-700' }
             }
           />
           <StatCard
             Icon={CheckCircle2}
-            label="Consultations Today"
-            value={completedCount}
-            sub="Finalized sessions"
+            label={t('doctor.metrics.completed')}
+            value={derivedMetrics.completedTodayCount}
+            sub={t('doctor.metrics.completedSub')}
             color={{ border: 'border-emerald-100', icon: 'bg-emerald-100 text-emerald-600', text: 'text-emerald-700' }}
           />
           <StatCard
             Icon={Video}
-            label="Virtual OPD Queue"
-            value={queueStats.teleconsults || 0}
-            sub={queueStats.patientWaitingInCall > 0 ? `${queueStats.patientWaitingInCall} patient waiting in call` : 'Teleconsult sessions'}
+            label={t('doctor.metrics.virtual')}
+            value={derivedMetrics.virtualCount}
+            sub={derivedMetrics.patientWaitingInCallCount > 0 ? t('doctor.metrics.virtualWaitingSub', { count: derivedMetrics.patientWaitingInCallCount }) : t('doctor.metrics.virtualSub')}
             color={{ border: 'border-violet-100', icon: 'bg-violet-100 text-violet-600', text: 'text-violet-800' }}
           />
         </div>
@@ -296,7 +305,7 @@ export default function DoctorDashboard() {
               className="flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-sky-700 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Queue
+              {t('doctor.queue.backToQueue')}
             </button>
             <span className="text-xs font-semibold text-slate-400 truncate max-w-[140px]">
               {selectedAppointment.patientFullName}
@@ -317,21 +326,21 @@ export default function DoctorDashboard() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-extrabold text-white">Virtual OPD Teleconsultation</h2>
+                    <h2 className="text-sm font-extrabold text-white">{t('doctor.teleconsult.title')}</h2>
                     {selectedAppointment.status === 'Patient Waiting in Room' ? (
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-emerald-950 uppercase animate-pulse flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-950 animate-ping" />
-                        Patient Waiting in Call
+                        {t('doctor.teleconsult.patientWaiting')}
                       </span>
                     ) : (
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-violet-400 text-violet-950 uppercase">
-                        Virtual OPD Active
+                        {t('doctor.teleconsult.active')}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-violet-200 mt-0.5">
-                    Patient: <strong className="text-white">{selectedAppointment.patientFullName}</strong>
-                    {selectedAppointment.timeSlot && ` · Slot: ${selectedAppointment.timeSlot}`}
+                    {t('doctor.teleconsult.patient')}: <strong className="text-white">{selectedAppointment.patientFullName}</strong>
+                    {selectedAppointment.timeSlot && ` · ${t('doctor.teleconsult.slot')}: ${selectedAppointment.timeSlot}`}
                   </p>
                 </div>
               </div>
@@ -340,7 +349,7 @@ export default function DoctorDashboard() {
                 onClick={() => { setSelectedAppointment(null); setViewMode('queue'); }}
                 className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-violet-200 text-xs font-bold transition-all border border-white/10"
               >
-                Exit Video Session
+                {t('doctor.teleconsult.exit')}
               </button>
             </div>
 
@@ -359,9 +368,9 @@ export default function DoctorDashboard() {
                 {/* Tab bar for teleconsult */}
                 <div className="flex items-center bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm gap-1">
                   {[
-                    { id: 'consultation', label: 'Consultation' },
-                    { id: 'labReports',   label: 'Lab Reports', critical: selectedAppointment?.isCriticalLab || selectedAppointment?.labOrders?.some((o) => o.isCritical) },
-                    { id: 'history',      label: 'History' },
+                    { id: 'consultation', label: t('doctor.tabs.consultation') },
+                    { id: 'labReports',   label: t('doctor.tabs.labReports'), critical: selectedAppointment?.isCriticalLab || selectedAppointment?.labOrders?.some((o) => o.isCritical) },
+                    { id: 'history',      label: t('doctor.tabs.history') },
                   ].map(({ id, label, critical }) => (
                     <button
                       key={id}
@@ -426,14 +435,14 @@ export default function DoctorDashboard() {
                   {/* Tab bar */}
                   <div className="flex items-center bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm gap-1">
                     {[
-                      { id: 'consultation', label: 'Current Consultation' },
+                      { id: 'consultation', label: t('doctor.tabs.consultation') },
                       {
                         id: 'labReports',
-                        label: 'Lab Reports',
+                        label: t('doctor.tabs.labReports'),
                         critical: selectedAppointment?.isCriticalLab || selectedAppointment?.labOrders?.some((o) => o.isCritical),
                         count: selectedAppointment?.labOrders?.length || 0,
                       },
-                      { id: 'history', label: 'Medical History' },
+                      { id: 'history', label: t('doctor.tabs.history') },
                     ].map(({ id, label, critical, count }) => (
                       <button
                         key={id}
@@ -485,15 +494,15 @@ export default function DoctorDashboard() {
                   <div className="w-16 h-16 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
                     <Stethoscope className="w-8 h-8 text-teal-400" />
                   </div>
-                  <h3 className="text-base font-extrabold text-slate-800">Select a Patient to Begin Consultation</h3>
+                  <h3 className="text-base font-extrabold text-slate-800">{t('doctor.emptyState.title')}</h3>
                   <p className="text-xs text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
-                    Choose a waiting or triaged patient from the queue on the left to review nurse vitals, order investigations, or prescribe medicines.
+                    {t('doctor.emptyState.subtitle')}
                   </p>
-                  {queueStats.total > 0 && (
+                  {derivedMetrics.waitingCount > 0 && (
                     <p className="text-xs text-teal-600 font-semibold mt-3">
-                      {queueStats.total} patient{queueStats.total > 1 ? 's' : ''} waiting
-                      {queueStats.criticalLabs > 0 && (
-                        <span className="text-red-600 ml-1">· {queueStats.criticalLabs} Critical Lab{queueStats.criticalLabs > 1 ? 's' : ''}</span>
+                      {t('doctor.queue.waitingCount', { count: derivedMetrics.waitingCount })}
+                      {derivedMetrics.criticalLabsCount > 0 && (
+                        <span className="text-red-600 ml-1">· {t('doctor.metrics.criticalLabCount', { count: derivedMetrics.criticalLabsCount })}</span>
                       )}
                     </p>
                   )}

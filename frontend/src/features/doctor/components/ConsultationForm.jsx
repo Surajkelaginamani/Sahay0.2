@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import doctorApi from '../services/doctorApi';
+import { Thermometer, Stethoscope, Heart, Wind, Scale, Ruler, FlaskConical, X } from 'lucide-react';
 
 // Default empty medicine row
 const emptyMedication = () => ({
@@ -298,12 +299,12 @@ export default function ConsultationForm({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {[
-            { key: 'temp', label: 'Temperature', placeholder: '98.6 °F', icon: '🌡️' },
-            { key: 'bp', label: 'Blood Pressure', placeholder: '120/80 mmHg', icon: '🩺' },
-            { key: 'pulse', label: 'Pulse Rate', placeholder: '72 bpm', icon: '💓' },
-            { key: 'spO2', label: 'SpO2', placeholder: '98 %', icon: '🫁' },
-            { key: 'weight', label: 'Weight', placeholder: '68 kg', icon: '⚖️' },
-            { key: 'height', label: 'Height', placeholder: '170 cm', icon: '📏' },
+            { key: 'temp', label: 'Temperature', placeholder: '98.6 °F', icon: 'thermometer' },
+            { key: 'bp', label: 'Blood Pressure', placeholder: '120/80 mmHg', icon: 'stethoscope' },
+            { key: 'pulse', label: 'Pulse Rate', placeholder: '72 bpm', icon: 'heart' },
+            { key: 'spO2', label: 'SpO2', placeholder: '98 %', icon: 'wind' },
+            { key: 'weight', label: 'Weight', placeholder: '68 kg', icon: 'scale' },
+            { key: 'height', label: 'Height', placeholder: '170 cm', icon: 'ruler' },
           ].map(({ key, label, placeholder, icon }) => (
             <div key={key} className="space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
@@ -516,14 +517,12 @@ export default function ConsultationForm({
                 key={i}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-violet-200 text-xs font-semibold text-violet-800 shadow-xs"
               >
-                <span>🧪 {inv.testName}</span>
+                <span><FlaskConical className="w-3.5 h-3.5 inline mr-1 text-cyan-600" />{inv.testName}</span>
                 <button
                   type="button"
                   onClick={() => removeInvestigation(i)}
                   className="text-slate-400 hover:text-rose-600"
-                >
-                  ✕
-                </button>
+                ><X className="w-3.5 h-3.5" /></button>
               </span>
             ))}
           </div>

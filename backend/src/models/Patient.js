@@ -96,6 +96,12 @@ const patientSchema = new mongoose.Schema(
       relation: { type: String, trim: true },
     },
 
+    // ── Guardian / Identity Verification ──────────────────────────────────────
+    fatherOrGuardianName: {
+      type: String,
+      trim: true,
+    },
+
     // ── Clinical Allergies (Prompt 5.1) ───────────────────────────────────────
     allergies: {
       type: [String],
@@ -106,6 +112,19 @@ const patientSchema = new mongoose.Schema(
     pin: {
       type: String,
       trim: true,
+    },
+    isTemporaryPin: {
+      type: Boolean,
+      default: false,
+    },
+    pinResetAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    // ── Physical Card Security Recovery Code Hash (6-character code) ──────────
+    recoveryCodeHash: {
+      type: String,
     },
 
     // ── Digital Consent for ABDM Compliance (Prompt 9.1) ───────────────────────
@@ -124,6 +143,7 @@ const patientSchema = new mongoose.Schema(
       virtuals: true,
       transform(doc, ret) {
         delete ret.pin;
+        delete ret.recoveryCodeHash;
         return ret;
       },
     },

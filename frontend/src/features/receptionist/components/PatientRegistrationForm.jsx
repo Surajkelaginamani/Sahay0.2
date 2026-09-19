@@ -83,12 +83,14 @@ export default function PatientRegistrationForm({ onSuccess }) {
         }
       }
 
+      const recoveryCode = res.data?.rawCode || res.data?.recoveryCode || newPatient?.recoveryCode;
       const successMsg = 'Patient registered. They can log in using their phone number and default password: Sahay@123';
       setSuccessAlert(successMsg);
 
       onSuccess?.({
         type: 'registered',
-        patient: newPatient,
+        patient: { ...newPatient, recoveryCode },
+        recoveryCode,
         queueInfo,
         message: successMsg,
       });

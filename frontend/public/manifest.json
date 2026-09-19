@@ -1,0 +1,18 @@
+{
+  "name": "SAHAY - National Healthcare Network",
+  "short_name": "SAHAY",
+  "description": "Offline-First National Clinical Healthcare Platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0d9488",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

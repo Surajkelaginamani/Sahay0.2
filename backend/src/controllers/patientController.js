@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 import User from '../models/User.js';
 import Patient from '../models/Patient.js';
 import SyncConflict from '../models/SyncConflict.js';
@@ -21,6 +23,7 @@ export const registerPatient = async (req, res) => {
       name,
       email, phone, contactPhone, password, pin,
       dob, gender, bloodGroup, address, abhaId,
+      fatherOrGuardianName: rawGuardian, guardianName, fatherName,
       isSelfRegister,
       forceCreateNew,
       consentProvided, // Prompt 9.1: Digital Consent for ABDM compliance
@@ -158,6 +161,11 @@ export const registerPatient = async (req, res) => {
       role: 'Patient',
     });
 
+    // ── Generate 6-Character Recovery Code for Physical Health Card ─────────
+    const rawCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const recoveryCodeHash = await bcrypt.hash(rawCode, 10);
+    const resolvedGuardianName = (rawGuardian || guardianName || fatherName || '').trim() || undefined;
+
     // Step 2 (Profile): Create Patient document with full form data (Prompt 7.1 & 13.2)
     const patient = await Patient.create({
       firstName,
@@ -168,6 +176,8 @@ export const registerPatient = async (req, res) => {
       bloodGroup: bloodGroup || undefined,
       address: address || {},
       abhaId: abhaId?.trim() || undefined,
+      fatherOrGuardianName: resolvedGuardianName,
+      recoveryCodeHash,
       pin: effectivePin || undefined,
       userId: createdUser._id,
       consentProvided: true,
@@ -190,6 +200,8 @@ export const registerPatient = async (req, res) => {
       patientId: patient._id,
       patientProfileId: patient._id,
       uhid: patient.uhid,
+      rawCode,
+      recoveryCode: rawCode,
       patient,
     });
   } catch (error) {
@@ -343,6 +355,7 @@ export const loginPatient = async (req, res) => {
       token: generateToken(user._id, user.role),
       patientId: patient?._id || null,
       patientProfileId: patient?._id || null,
+      isTemporaryPin: Boolean(patient?.isTemporaryPin || user?.isTemporaryPin),
       patient: patient || null,
     });
   } catch (error) {
@@ -762,6 +775,10 @@ export const updatePatientAllergies = async (req, res) => {
         }
       });
       patient.allergies = uniqueCleaned;
+    }
+
+    if (typeof patient.consentProvided !== 'boolean') {
+      patient.consentProvided = true;
     }
 
     await patient.save();

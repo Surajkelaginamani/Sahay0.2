@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import doctorApi from '../services/doctorApi';
+import { Video, Siren, AlertTriangle, FlaskConical, Microscope, Calendar, CreditCard, Coffee } from 'lucide-react';
 
-// ─── Status pill ───────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Status pill ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function StatusPill({ status }) {
   if (status === 'Patient Waiting in Room') {
     return (
@@ -23,7 +24,7 @@ function StatusPill({ status }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border bg-purple-100 text-purple-900 border-purple-300 shadow-xs animate-pulse">
         <span className="w-2 h-2 rounded-full bg-purple-600 animate-ping" />
-        📹 Teleconsult Req.
+        ≡ƒô╣ Teleconsult Req.
       </span>
     );
   }
@@ -31,7 +32,7 @@ function StatusPill({ status }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border bg-violet-100 text-violet-900 border-violet-300">
         <span className="w-1.5 h-1.5 rounded-full bg-violet-600" />
-        📹 Scheduled
+        ≡ƒô╣ Scheduled
       </span>
     );
   }
@@ -39,7 +40,7 @@ function StatusPill({ status }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border bg-indigo-100 text-indigo-900 border-indigo-300">
         <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-        📹 Live Call
+        ≡ƒô╣ Live Call
       </span>
     );
   }
@@ -66,7 +67,7 @@ function StatusPill({ status }) {
   );
 }
 
-// ─── Patient Card ─────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Patient Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function PatientCard({ appt, isSelected, onSelect }) {
   const isEmergency              = appt.urgency === 'Emergency';
   const isUrgent                 = !isEmergency && (appt.urgency === 'Urgent' || appt.priority === 'Urgent');
@@ -137,7 +138,7 @@ function PatientCard({ appt, isSelected, onSelect }) {
             </span>
           ) : (
             <span className="w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0">
-              {isReportsReady && isCriticalLab ? '🚨' : isPatientWaiting ? '📹' : isEmergency ? '🚨' : '—'}
+              {isReportsReady && isCriticalLab ? '≡ƒÜ¿' : isPatientWaiting ? '≡ƒô╣' : isEmergency ? '≡ƒÜ¿' : 'ΓÇö'}
             </span>
           )}
 
@@ -153,20 +154,20 @@ function PatientCard({ appt, isSelected, onSelect }) {
                   ? 'bg-red-900/60 border border-red-400/50 text-white'
                   : 'bg-violet-50 border border-violet-200 text-violet-700'
               }`}>
-                🪪 {patient.uhid}
+                ≡ƒ¬¬ {patient.uhid}
               </span>
             )}
             <div className={`flex items-center gap-1.5 text-[10px] mt-0.5 ${isReportsReady && isCriticalLab ? 'text-red-100' : 'text-slate-400'}`}>
               {patient?.gender && <span>{patient.gender}</span>}
               {age !== null && (
                 <>
-                  <span>·</span>
+                  <span>┬╖</span>
                   <span>{age} yrs</span>
                 </>
               )}
               {patient?.bloodGroup && (
                 <>
-                  <span>·</span>
+                  <span>┬╖</span>
                   <span className={`font-semibold ${isReportsReady && isCriticalLab ? 'text-white underline' : 'text-rose-600'}`}>{patient.bloodGroup}</span>
                 </>
               )}
@@ -178,15 +179,15 @@ function PatientCard({ appt, isSelected, onSelect }) {
         <div className="flex flex-col items-end gap-1 shrink-0">
           {isReportsReady && isCriticalLab ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white text-red-700 text-[9px] font-black uppercase tracking-wider shadow-xs animate-pulse">
-              🚨 CRITICAL LAB
+              ≡ƒÜ¿ CRITICAL LAB
             </span>
           ) : appt.urgency === 'Emergency' ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs animate-pulse">
-              🚨 Emergency
+              ≡ƒÜ¿ Emergency
             </span>
           ) : appt.urgency === 'Urgent' || appt.priority === 'Urgent' ? (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-bold">
-              ⚠️ Urgent
+              ΓÜá∩╕Å Urgent
             </span>
           ) : (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-medium">
@@ -214,7 +215,7 @@ function PatientCard({ appt, isSelected, onSelect }) {
       {!isPatientWaiting && isTeleconsultRequested && (
         <div className="mt-2 text-[11px] text-purple-900 bg-purple-100/90 px-2.5 py-1.5 rounded-xl border border-purple-300 flex items-center justify-between shadow-xs">
           <span className="flex items-center gap-1.5 font-extrabold">
-            <span className="text-xs animate-bounce">📹</span>
+            <span className="text-xs animate-bounce">≡ƒô╣</span>
             <span>Live Video Teleconsultation</span>
           </span>
           <span className="text-[9px] font-black uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded-md animate-pulse">
@@ -239,14 +240,14 @@ function PatientCard({ appt, isSelected, onSelect }) {
       {(appt.type === 'Teleconsultation' || appt.status === 'Teleconsult Scheduled') && !isInTeleconsult && !isTeleconsultRequested && (
         <div className="mt-2 text-[11px] text-violet-900 bg-violet-50/90 px-2.5 py-1.5 rounded-xl border border-violet-200 flex items-center justify-between shadow-2xs">
           <span className="flex items-center gap-1.5 font-bold">
-            <span>📅</span>
+            <span>≡ƒôà</span>
             <span>
               {appt.scheduledDate
                 ? new Date(appt.scheduledDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
                 : 'Today'}
             </span>
-            <span className="text-violet-300">·</span>
-            <span>⏰</span>
+            <span className="text-violet-300">┬╖</span>
+            <span>ΓÅ░</span>
             <span className="text-violet-700">{appt.timeSlot || 'Scheduled Slot'}</span>
           </span>
           <span className="text-[9px] font-black uppercase tracking-wider bg-violet-600 text-white px-2 py-0.5 rounded-md">
@@ -263,7 +264,7 @@ function PatientCard({ appt, isSelected, onSelect }) {
             : 'text-teal-800 bg-teal-100/70 border-teal-200'
         }`}>
           <span className="flex items-center gap-1 font-bold">
-            <span>{isCriticalLab ? '🚨' : '🔬'}</span>
+            <span>{isCriticalLab ? '≡ƒÜ¿' : '≡ƒö¼'}</span>
             <span className="truncate">{completedTest || 'Lab Report Completed'}</span>
           </span>
           <span className={`text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-md ${
@@ -280,7 +281,7 @@ function PatientCard({ appt, isSelected, onSelect }) {
       {isCriticalLab && (
         <div className="mt-2 text-[10px] font-bold bg-red-950/80 border border-red-300/40 text-red-100 px-2.5 py-1.5 rounded-xl flex items-center justify-between gap-1 shadow-xs">
           <span className="flex items-center gap-1.5 truncate">
-            <span className="text-xs shrink-0 animate-bounce">⚠️</span>
+            <span className="text-xs shrink-0 animate-bounce">ΓÜá∩╕Å</span>
             <span className="truncate">{criticalReason || 'Out of normal reference range'}</span>
           </span>
           <span className="text-[9px] font-black uppercase tracking-wider bg-white text-red-700 px-1.5 py-0.5 rounded shadow-xs shrink-0">
@@ -306,7 +307,7 @@ function PatientCard({ appt, isSelected, onSelect }) {
   );
 }
 
-// ─── DoctorQueue Component (Prompt 8.4) ────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ DoctorQueue Component (Prompt 8.4) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 export default function DoctorQueue({
   selectedAppointmentId,
   onSelectPatient,
@@ -328,7 +329,7 @@ export default function DoctorQueue({
   const [showReportsReady, setShowReportsReady] = useState(true);
   const [showOngoing, setShowOngoing]           = useState(true);
 
-  // ── Fetch Queue ─────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Fetch Queue ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const fetchQueue = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -393,7 +394,7 @@ export default function DoctorQueue({
     fetchQueue();
   }, [fetchQueue, refreshTrigger]);
 
-  // ── Helper filter ───────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Helper filter ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const filterList = useCallback(
     (list) => {
       const q = searchQuery.trim().toLowerCase();
@@ -425,7 +426,7 @@ export default function DoctorQueue({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col h-full overflow-hidden">
-      {/* ── Header ───────────────────────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Header ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <div className="p-4 border-b border-slate-100 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -441,7 +442,7 @@ export default function DoctorQueue({
           <div className="flex items-center gap-1.5">
             {summary.emergency > 0 && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black animate-pulse shadow-xs">
-                <span>🚨</span>
+                <span>≡ƒÜ¿</span>
                 <span>{summary.emergency} Emergency</span>
               </span>
             )}
@@ -453,13 +454,13 @@ export default function DoctorQueue({
             )}
             {summary.reportsReady > 0 && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-extrabold border border-teal-200 animate-pulse">
-                <span>🔬</span>
+                <span>≡ƒö¼</span>
                 <span>{summary.reportsReady} Ready</span>
               </span>
             )}
             {summary.urgent > 0 && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                <span>⚠️</span>
+                <span>ΓÜá∩╕Å</span>
                 <span>{summary.urgent}</span>
               </span>
             )}
@@ -478,7 +479,7 @@ export default function DoctorQueue({
           </div>
         </div>
 
-        {/* ── Queue Section Switcher (Prompt 8.4) ─────────────────────────── */}
+        {/* ΓöÇΓöÇ Queue Section Switcher (Prompt 8.4) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
         <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1 text-[11px] font-bold">
           <button
             type="button"
@@ -525,7 +526,7 @@ export default function DoctorQueue({
                 : 'text-violet-700 hover:text-violet-900'
             }`}
           >
-            📹 Virtual ({teleconsultQueue.length})
+            ≡ƒô╣ Virtual ({teleconsultQueue.length})
             {teleconsultQueue.some((a) => a.status === 'Patient Waiting in Room') ? (
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 absolute top-1 right-1 animate-ping" />
             ) : teleconsultQueue.length > 0 && queueTab !== 'TELECONSULT' ? (
@@ -534,7 +535,7 @@ export default function DoctorQueue({
           </button>
         </div>
 
-        {/* ── Search & Filter bar ─────────────────────────────────────────── */}
+        {/* ΓöÇΓöÇ Search & Filter bar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
         <div className="space-y-2">
           <div className="relative">
             <span className="absolute inset-y-0 left-2.5 flex items-center pointer-events-none text-slate-400">
@@ -591,7 +592,7 @@ export default function DoctorQueue({
         </div>
       </div>
 
-      {/* ── Error Banner ─────────────────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Error Banner ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       {error && (
         <div className="p-3 mx-4 my-2 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center justify-between">
           <span>{error}</span>
@@ -599,7 +600,7 @@ export default function DoctorQueue({
         </div>
       )}
 
-      {/* ── Queue List Body ───────────────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Queue List Body ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4 min-h-[300px] max-h-[620px]">
         {/* Loading skeleton */}
         {loading && (
@@ -637,7 +638,7 @@ export default function DoctorQueue({
           </div>
         )}
 
-        {/* ── SECTION 1: Reports Ready (Secondary Review Queue - Prompt 8.4) ─── */}
+        {/* ΓöÇΓöÇ SECTION 1: Reports Ready (Secondary Review Queue - Prompt 8.4) ΓöÇΓöÇΓöÇ */}
         {!loading && (queueTab === 'ALL' || queueTab === 'REPORTS_READY') && filteredReviewQueue.length > 0 && (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between px-1">
@@ -646,7 +647,7 @@ export default function DoctorQueue({
                 onClick={() => setShowReportsReady(!showReportsReady)}
                 className="flex items-center gap-1.5 text-xs font-extrabold text-teal-800 hover:text-teal-900 transition-colors"
               >
-                <span>🔬 Reports Ready</span>
+                <span>≡ƒö¼ Reports Ready</span>
                 <span className="px-1.5 py-0.5 rounded-md bg-teal-100 text-teal-800 text-[10px]">
                   {filteredReviewQueue.length}
                 </span>
@@ -678,7 +679,7 @@ export default function DoctorQueue({
         {/* If user explicitly selected REPORTS_READY tab but there are none */}
         {!loading && queueTab === 'REPORTS_READY' && filteredReviewQueue.length === 0 && (
           <div className="p-8 text-center text-slate-400 border border-dashed border-teal-200 rounded-2xl bg-teal-50/30">
-            <span className="text-xl">🧪</span>
+            <span className="text-xl">≡ƒº¬</span>
             <p className="text-xs font-bold text-teal-900 mt-2">No Reports Ready for Review</p>
             <p className="text-[11px] text-teal-600 mt-0.5">
               Patients will appear here automatically when the Lab Head uploads test results.
@@ -686,7 +687,7 @@ export default function DoctorQueue({
           </div>
         )}
 
-        {/* ── SECTION 2: Ongoing Queue (Primary Queue - Prompt 8.4) ──────────── */}
+        {/* ΓöÇΓöÇ SECTION 2: Ongoing Queue (Primary Queue - Prompt 8.4) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
         {!loading && (queueTab === 'ALL' || queueTab === 'ONGOING') && (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between px-1">
@@ -695,7 +696,7 @@ export default function DoctorQueue({
                 onClick={() => setShowOngoing(!showOngoing)}
                 className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 hover:text-slate-900 transition-colors"
               >
-                <span>⏳ Ongoing Queue</span>
+                <span>ΓÅ│ Ongoing Queue</span>
                 <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px]">
                   {filteredActiveQueue.length}
                 </span>
@@ -727,7 +728,7 @@ export default function DoctorQueue({
         {/* If user explicitly selected ONGOING tab but there are none */}
         {!loading && queueTab === 'ONGOING' && filteredActiveQueue.length === 0 && (
           <div className="p-8 text-center text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-            <span className="text-xl">☕</span>
+            <span className="text-xl">Γÿò</span>
             <p className="text-xs font-bold text-slate-700 mt-2">No Patients in Ongoing Queue</p>
             <p className="text-[11px] text-slate-400 mt-0.5">
               All waiting consultation appointments have been seen.
@@ -735,12 +736,12 @@ export default function DoctorQueue({
           </div>
         )}
 
-        {/* ── SECTION 3: Teleconsultations (Virtual OPD) (Prompt 17.4 & 18.3) ───────── */}
+        {/* ΓöÇΓöÇ SECTION 3: Teleconsultations (Virtual OPD) (Prompt 17.4 & 18.3) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
         {!loading && (queueTab === 'ALL' || queueTab === 'TELECONSULT') && teleconsultQueue.length > 0 && (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5 text-xs font-extrabold text-violet-900">
-                <span>📹 Teleconsultations (Virtual OPD)</span>
+                <span>≡ƒô╣ Teleconsultations (Virtual OPD)</span>
                 <span className="px-1.5 py-0.5 rounded-md bg-violet-100 text-violet-800 text-[10px]">{teleconsultQueue.length}</span>
               </div>
               {teleconsultQueue.some((a) => a.status === 'Patient Waiting in Room') ? (
@@ -768,7 +769,7 @@ export default function DoctorQueue({
         {/* If user selected TELECONSULT tab but there are none */}
         {!loading && queueTab === 'TELECONSULT' && teleconsultQueue.length === 0 && (
           <div className="p-8 text-center text-slate-400 border border-dashed border-violet-200 rounded-2xl bg-violet-50/30">
-            <span className="text-2xl">📹</span>
+            <span className="text-2xl">≡ƒô╣</span>
             <p className="text-xs font-bold text-violet-900 mt-2">No Scheduled Teleconsults</p>
             <p className="text-[11px] text-violet-600 mt-0.5">
               Teleconsultation requests from ASHA workers and nurses will appear here once confirmed by the receptionist.

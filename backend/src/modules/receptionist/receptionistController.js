@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import Patient from '../../models/Patient.js';
 import Appointment from '../../models/Appointment.js';
 import User from '../../models/User.js';
@@ -30,6 +31,7 @@ export const registerPatient = async (req, res) => {
       firstName, lastName, dob, gender,
       contactPhone, phone, address, abhaId,
       email, password, pin,
+      fatherOrGuardianName: rawGuardian, guardianName, fatherName,
       forceCreateNew,
       consentProvided, // Prompt 9.1: Digital Consent for ABDM compliance
     } = req.body;
@@ -139,6 +141,11 @@ export const registerPatient = async (req, res) => {
       await user.save();
     }
 
+    // ── Generate 6-Character Recovery Code for Physical Health Card ─────────
+    const rawCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const recoveryCodeHash = await bcrypt.hash(rawCode, 10);
+    const resolvedGuardian = (rawGuardian || guardianName || fatherName || '').trim() || undefined;
+
     // ── Step 2: Create Patient document linked to User._id (Prompt 12.1) ───────
     const patient = await Patient.create({
       firstName:            firstName.trim(),
@@ -148,6 +155,8 @@ export const registerPatient = async (req, res) => {
       contactPhone:         cleanPhone            || undefined,
       address:              address               || {},
       abhaId:               abhaId?.trim()        || undefined,
+      fatherOrGuardianName: resolvedGuardian,
+      recoveryCodeHash,
       pin:                  effectivePin, // Prompt 7.1
       registeredAtFacility: req.user.hospitalId,
       userId:               user._id,
@@ -166,6 +175,8 @@ export const registerPatient = async (req, res) => {
       success: true,
       message: 'Patient registered. They can log in using their phone number and default password: Sahay@123',
       defaultPassword: 'Sahay@123',
+      rawCode,
+      recoveryCode: rawCode,
       patient: {
         _id:                  patient._id,
         uhid:                 patient.uhid,           // Prompt 1.2
@@ -176,6 +187,8 @@ export const registerPatient = async (req, res) => {
         gender:               patient.gender,
         contactPhone:         patient.contactPhone,
         abhaId:               patient.abhaId,
+        fatherOrGuardianName: patient.fatherOrGuardianName,
+        recoveryCode:         rawCode,
         registeredAtFacility: patient.registeredAtFacility,
         userId:               user._id,
         email:                user.email,

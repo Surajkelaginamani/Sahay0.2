@@ -106,10 +106,18 @@ export const captureVitals = async (req, res) => {
       spO2,
       notes,
       urgency,
+      consentProvided,
     } = req.body;
 
     if (!appointmentId) {
       return res.status(400).json({ message: 'Appointment ID is required.' });
+    }
+
+    // ABDM Verbal/Digital Proxy Consent Mandate
+    if (consentProvided !== true && consentProvided !== 'true') {
+      return res.status(400).json({
+        message: 'Patient verbal/digital consent is required to record health vitals (ABDM Mandate).',
+      });
     }
 
     if (!bloodPressure || !bloodSugar || !height || !weight) {
@@ -146,6 +154,8 @@ export const captureVitals = async (req, res) => {
       spO2:          spO2 ? String(spO2).trim() : undefined,
       bmi:           computedBmi || undefined,
       notes:         notes?.trim() || undefined,
+      consentProvided: true,
+      consentTimestamp: new Date(),
     });
 
     // 2. Snapshot vitals directly on the appointment document
@@ -159,6 +169,8 @@ export const captureVitals = async (req, res) => {
       spO2:          spO2 ? String(spO2).trim() : undefined,
       bmi:           computedBmi || undefined,
       notes:         notes?.trim() || undefined,
+      consentProvided: true,
+      consentTimestamp: new Date(),
       recordedBy:    nurseId,
       recordedAt:    new Date(),
     };
@@ -174,6 +186,9 @@ export const captureVitals = async (req, res) => {
       const patientDoc = await Patient.findById(patientId);
       if (patientDoc) {
         patientDoc.allergies = Array.from(new Set(req.body.allergies.map((a) => String(a).trim()).filter(Boolean)));
+        if (typeof patientDoc.consentProvided !== 'boolean') {
+          patientDoc.consentProvided = true;
+        }
         await patientDoc.save();
       }
     }
@@ -230,6 +245,9 @@ export const forwardToDoctor = async (req, res) => {
       const patientDoc = await Patient.findById(appointment.patientId);
       if (patientDoc) {
         patientDoc.allergies = Array.from(new Set(req.body.allergies.map((a) => String(a).trim()).filter(Boolean)));
+        if (typeof patientDoc.consentProvided !== 'boolean') {
+          patientDoc.consentProvided = true;
+        }
         await patientDoc.save();
       }
     }

@@ -20,16 +20,35 @@ export const getDoctorQueue = async (req, res) => {
   try {
     const doctorId = req.user._id;
 
+    // Calculate today's bounds for completed consultations
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
     // Prompt 4.1: Modify MongoDB query with custom sort for urgency (Emergency: 0, Urgent: 1, Routine: 2, tie-break by createdAt)
     const rawAppointments = await Appointment.aggregate([
       {
         $match: {
           assignedDoctorId: doctorId,
-          status: { $in: [
-            'Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready',
-            'Teleconsult Requested', 'Teleconsult Scheduled', 'Teleconsult Confirmed',
-            'Patient Waiting in Room', 'In Teleconsult',
-          ]},
+          $or: [
+            {
+              status: { $in: [
+                'Waiting', 'CheckedIn', 'Waiting for Doctor', 'Reports Ready',
+                'Teleconsult Requested', 'Teleconsult Scheduled', 'Teleconsult Confirmed',
+                'Patient Waiting in Room', 'In Teleconsult',
+              ]},
+            },
+            {
+              status: { $in: ['Completed', 'Closed'] },
+              $or: [
+                { consultationEndTime: { $gte: startOfDay, $lte: endOfDay } },
+                { updatedAt: { $gte: startOfDay, $lte: endOfDay } },
+                { appointmentDate: { $gte: startOfDay, $lte: endOfDay } },
+              ],
+            },
+          ],
         },
       },
       {
@@ -147,13 +166,20 @@ export const getDoctorQueue = async (req, res) => {
       return dateA - dateB;
     });
 
-    const waiting    = enriched.filter((a) => a.status === 'Waiting');
+    const isToday = (date) => {
+      if (!date) return false;
+      const d = new Date(date);
+      return d >= startOfDay && d <= endOfDay;
+    };
+
+    const waiting    = enriched.filter((a) => ['Waiting', 'Waiting for Doctor', 'CheckedIn'].includes(a.status));
     const inProgress = enriched.filter((a) => ['CheckedIn', 'Waiting for Doctor', 'In Progress'].includes(a.status));
-    const completed  = enriched.filter((a) => a.status === 'Completed');
+    const completed  = enriched.filter((a) => ['Completed', 'Closed'].includes(a.status) && (isToday(a.consultationEndTime) || isToday(a.updatedAt) || isToday(a.appointmentDate)));
+    const activeWaiting = enriched.filter((a) => !['Completed', 'Closed'].includes(a.status));
 
     // Calculate queue summary metrics
     const summary = {
-      total:             enriched.length,
+      total:             activeWaiting.length,
       active:            activeQueue.length,
       reportsReady:      reviewQueue.length,
       criticalLabs:      reviewQueue.filter((a) => a.isCriticalLab || a.labOrders?.some((o) => o.isCritical)).length,
@@ -164,6 +190,7 @@ export const getDoctorQueue = async (req, res) => {
       routine:           enriched.filter((a) => (!a.urgency || a.urgency === 'Routine') && a.priority !== 'Urgent').length,
       checkedIn:         enriched.filter((a) => a.status === 'CheckedIn').length,
       waiting:           waiting.length,
+      completedToday:    completed.length,
     };
 
     res.status(200).json({

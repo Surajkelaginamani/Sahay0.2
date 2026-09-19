@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { hospitalAdminAPI } from '../../services/api';
+import { Users, Stethoscope, Leaf, FlaskConical } from 'lucide-react';
 
 // ─── Role config ─────────────────────────────────────────────────────────────
 const STAFF_ROLES = [
@@ -62,6 +64,7 @@ function Toast({ toasts, removeToast }) {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function HospitalAdminDashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [staff, setStaff] = useState([]);
   const [loadingStaff, setLoadingStaff] = useState(true);
@@ -251,7 +254,7 @@ export default function HospitalAdminDashboard() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-extrabold text-gov-900 tracking-tight">
-                  {user.hospitalName || 'Hospital Administration'}
+                  {user.hospitalName || t('admin.title')}
                 </h1>
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -272,21 +275,21 @@ export default function HospitalAdminDashboard() {
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            Sign Out
+            {t('common.signOut')}
           </button>
         </div>
 
         {/* ── Stats Row ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Total Staff', value: loadingStaff ? '…' : staff.length, icon: '👥', color: 'bg-sky-50 text-sky-700' },
-            { label: 'Doctors', value: loadingStaff ? '…' : staff.filter((s) => s.role === 'Doctor').length, icon: '🩺', color: 'bg-mint-50 text-mint-700' },
-            { label: 'ASHA Workers', value: loadingStaff ? '…' : staff.filter((s) => s.role === 'ASHA').length, icon: '🌿', color: 'bg-emerald-50 text-emerald-700' },
-            { label: 'Lab & Admin', value: loadingStaff ? '…' : staff.filter((s) => ['LabHead', 'FacilityAdmin'].includes(s.role)).length, icon: '🔬', color: 'bg-purple-50 text-purple-700' },
+            { label: 'Total Staff', value: loadingStaff ? '…' : staff.length, icon: 'users', color: 'bg-sky-50 text-sky-700' },
+            { label: 'Doctors', value: loadingStaff ? '…' : staff.filter((s) => s.role === 'Doctor').length, icon: 'stethoscope', color: 'bg-mint-50 text-mint-700' },
+            { label: 'ASHA Workers', value: loadingStaff ? '…' : staff.filter((s) => s.role === 'ASHA').length, icon: 'leaf', color: 'bg-emerald-50 text-emerald-700' },
+            { label: 'Lab & Admin', value: loadingStaff ? '…' : staff.filter((s) => ['LabHead', 'FacilityAdmin'].includes(s.role)).length, icon: 'flask', color: 'bg-purple-50 text-purple-700' },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${stat.color}`}>
-                {stat.icon}
+                {adminIconMap[stat.icon] ?? stat.icon}
               </div>
               <div>
                 <p className="text-xl font-extrabold text-gov-900">{stat.value}</p>
@@ -303,9 +306,9 @@ export default function HospitalAdminDashboard() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs sticky top-24 space-y-6">
               <div className="pb-4 border-b border-slate-100">
-                <h2 className="text-lg font-bold text-gov-900">Create Staff Account</h2>
+                <h2 className="text-lg font-bold text-gov-900">{t('admin.staffForm.title')}</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Add a new staff member to your hospital. They will be able to log in with their credentials.
+                  {t('admin.subtitle')}
                 </p>
               </div>
 
@@ -322,7 +325,7 @@ export default function HospitalAdminDashboard() {
                 {/* Name */}
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Full Name *
+                    {t('admin.staffForm.name')} *
                   </label>
                   <input
                     type="text"
@@ -338,7 +341,7 @@ export default function HospitalAdminDashboard() {
                 {/* Email */}
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Official Email *
+                    {t('admin.staffForm.email')} *
                   </label>
                   <input
                     type="email"
@@ -355,7 +358,7 @@ export default function HospitalAdminDashboard() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-medium text-slate-700">
-                      Temporary Password *
+                      {t('admin.staffForm.password')} *
                     </label>
                     <div className="flex items-center gap-2">
                       <button
@@ -413,7 +416,7 @@ export default function HospitalAdminDashboard() {
                 {/* Role Dropdown */}
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Staff Role *
+                    {t('admin.staffForm.role')} *
                   </label>
                   <select
                     name="role"
@@ -451,7 +454,7 @@ export default function HospitalAdminDashboard() {
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                       </svg>
-                      Create Staff Account
+                      {t('admin.staffForm.addButton')}
                     </>
                   )}
                 </button>
@@ -465,9 +468,9 @@ export default function HospitalAdminDashboard() {
               {/* Table Header */}
               <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
                 <div>
-                  <h2 className="text-lg font-bold text-gov-900">Registered Staff Members</h2>
+                  <h2 className="text-lg font-bold text-gov-900">{t('admin.staffList.title')}</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    All staff associated with your hospital facility.
+                    {t('admin.staffList.subtitle')}
                   </p>
                 </div>
                 <button
@@ -478,7 +481,7 @@ export default function HospitalAdminDashboard() {
                   <svg className={`w-3.5 h-3.5 ${loadingStaff ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Refresh
+                  {t('common.refresh')}
                 </button>
               </div>
 
@@ -486,7 +489,7 @@ export default function HospitalAdminDashboard() {
               {loadingStaff ? (
                 <div className="py-16 text-center">
                   <span className="inline-block w-8 h-8 border-2 border-slate-300 border-t-sky-600 rounded-full animate-spin mb-3"></span>
-                  <p className="text-sm text-slate-500">Loading staff records...</p>
+                  <p className="text-sm text-slate-500">{t('admin.staffList.loading')}</p>
                 </div>
               ) : staff.length === 0 ? (
                 <div className="py-16 text-center space-y-3">
@@ -496,9 +499,9 @@ export default function HospitalAdminDashboard() {
                     </svg>
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-800">No Staff Members Yet</h4>
+                    <h4 className="text-sm font-bold text-slate-800">{t('admin.staffList.noStaff')}</h4>
                     <p className="text-xs text-slate-500 mt-1">
-                      Use the form to create your first staff account.
+                      {t('admin.staffList.noStaffSub')}
                     </p>
                   </div>
                 </div>
@@ -508,19 +511,19 @@ export default function HospitalAdminDashboard() {
                     <thead>
                       <tr className="bg-slate-50/80 border-b border-slate-200">
                         <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          Name
+                          {t('common.name')}
                         </th>
                         <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          Email
+                          {t('common.email')}
                         </th>
                         <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          Role
+                          {t('common.role')}
                         </th>
                         <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
-                          Added On
+                          {t('common.addedOn')}
                         </th>
                         <th className="px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-right whitespace-nowrap">
-                          Actions
+                          {t('common.actions')}
                         </th>
                       </tr>
                     </thead>
@@ -574,7 +577,7 @@ export default function HospitalAdminDashboard() {
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                                 </svg>
-                                <span>Reset Pass</span>
+                                <span>{t('admin.staffList.resetPass')}</span>
                               </button>
                               <button
                                 type="button"
@@ -596,11 +599,11 @@ export default function HospitalAdminDashboard() {
                   {/* Table Footer */}
                   <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
                     <span>
-                      <strong>{staff.length}</strong> staff member(s) registered
+                      {t('admin.staffList.staffCount', { count: staff.length })}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
-                      Live Hospital Registry
+                      {t('admin.staffList.liveRegistry')}
                     </span>
                   </div>
                 </div>
@@ -617,7 +620,7 @@ export default function HospitalAdminDashboard() {
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Reset Staff Password</h3>
+                <h3 className="text-base font-bold text-slate-900">{t('admin.resetModal.title')}</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Update password for <strong className="text-slate-800">{resetModal.staff.name}</strong> ({resetModal.staff.role})
                 </p>
@@ -643,7 +646,7 @@ export default function HospitalAdminDashboard() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-medium text-slate-700">
-                    New Password *
+                    {t('admin.resetModal.newPassword')}
                   </label>
                   <button
                     type="button"
@@ -661,7 +664,7 @@ export default function HospitalAdminDashboard() {
                     autoComplete="new-password"
                     value={resetModal.newPassword}
                     onChange={(e) => setResetModal((prev) => ({ ...prev, newPassword: e.target.value, error: '' }))}
-                    placeholder="Minimum 6 characters"
+                    placeholder={t('admin.resetModal.minChars')}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                   />
                 </div>
@@ -671,7 +674,7 @@ export default function HospitalAdminDashboard() {
                     onClick={() => setResetModal((prev) => ({ ...prev, newPassword: 'Staff@' + Math.floor(1000 + Math.random() * 9000) }))}
                     className="text-[11px] text-sky-700 hover:underline font-semibold"
                   >
-                    Generate random password
+                    {t('admin.resetModal.generateRandom')}
                   </button>
                 </div>
               </div>
@@ -682,7 +685,7 @@ export default function HospitalAdminDashboard() {
                   onClick={() => setResetModal({ isOpen: false, staff: null, newPassword: '', showPassword: false, loading: false, error: '' })}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -690,7 +693,7 @@ export default function HospitalAdminDashboard() {
                   className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {resetModal.loading && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  <span>Save New Password</span>
+                  <span>{t('admin.resetModal.save')}</span>
                 </button>
               </div>
             </form>

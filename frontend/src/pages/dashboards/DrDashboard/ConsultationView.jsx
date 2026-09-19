@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useRedundancyCheck } from '../../../utils/useRedundancyCheck';
 
 // Helper to read the auth token from localStorage
@@ -10,21 +11,21 @@ const getToken = () =>
 // --------------------------------
 function PrescriptionRow({ item, index, onChange, onRemove }) {
   return (
-    <div className="grid grid-cols-12 gap-2 items-center bg-slate-50 rounded-xl p-3">
+    <div className="grid grid-cols-12 gap-2 items-center bg-slate-50 dark:bg-slate-700 rounded-xl p-3">
       <input
-        className="col-span-4 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-300 bg-white"
+        className="col-span-4 text-xs border border-slate-200 dark:border-slate-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-300 bg-white dark:bg-slate-900 dark:text-slate-100"
         placeholder="Medicine name"
         value={item.medicineName}
         onChange={(e) => onChange(index, 'medicineName', e.target.value)}
       />
       <input
-        className="col-span-2 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-300 bg-white"
+        className="col-span-2 text-xs border border-slate-200 dark:border-slate-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-300 bg-white dark:bg-slate-900 dark:text-slate-100"
         placeholder="Dosage"
         value={item.dosage}
         onChange={(e) => onChange(index, 'dosage', e.target.value)}
       />
       <input
-        className="col-span-3 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-300 bg-white"
+        className="col-span-3 text-xs border border-slate-200 dark:border-slate-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-300 bg-white dark:bg-slate-900 dark:text-slate-100"
         placeholder="Frequency"
         value={item.frequency}
         onChange={(e) => onChange(index, 'frequency', e.target.value)}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // Helper to read the auth token from localStorage
 const getToken = () =>
@@ -15,9 +16,9 @@ function QueueCard({ appointment, onStartConsultation, onViewTimeline }) {
     : 'P';
 
   const statusColors = {
-    Waiting: 'bg-amber-100 text-amber-700 border-amber-200',
-    'In Progress': 'bg-sky-100 text-sky-700 border-sky-200',
-    Completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    Waiting: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700',
+    'In Progress': 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-700',
+    Completed: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700',
   };
 
   const handleConsult = async () => {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CreditCard } from 'lucide-react';
 
 const STATUS_CONFIG = {
   Ordered: {
@@ -65,17 +66,22 @@ export default function TestQueueTable({
     { id: 'Completed', label: 'Completed' },
   ];
 
-  // Client-side search query filtering
+  // Client-side status and search query filtering
   const filteredOrders = orders.filter((order) => {
+    if (activeFilter && activeFilter !== 'ALL' && order.status !== activeFilter) {
+      return false;
+    }
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const patientName = order.patientId?.name || '';
     const patientEmail = order.patientId?.email || '';
+    const patientUhid = order.patientId?.uhid || '';
     const doctorName = order.doctorId?.name || '';
     const testName = order.testName || '';
     return (
       patientName.toLowerCase().includes(q) ||
       patientEmail.toLowerCase().includes(q) ||
+      patientUhid.toLowerCase().includes(q) ||
       doctorName.toLowerCase().includes(q) ||
       testName.toLowerCase().includes(q)
     );
@@ -279,8 +285,9 @@ export default function TestQueueTable({
                           <p className="font-semibold text-slate-900 text-sm">{patientName}</p>
                           {/* UHID (Prompt 1.2) */}
                           {order.patientId?.uhid && (
-                            <span className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
-                              🪪 {order.patientId.uhid}
+                            <span className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
+                              <CreditCard className="w-2.5 h-2.5 text-violet-600" />
+                              <span>{order.patientId.uhid}</span>
                             </span>
                           )}
                           <p className="text-xs text-slate-400">{patientEmail}</p>

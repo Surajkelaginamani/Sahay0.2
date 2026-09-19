@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import ashaApi from '../../services/ashaApi';
 import BookTeleconsultModal from '../../components/common/BookTeleconsultModal';
 import VideoRoom from '../../components/common/VideoRoom';
-import { MapPin, FileText, CheckCircle2, Loader2, Calendar } from 'lucide-react';
+import { Calendar, CheckCircle, CheckCircle2, ClipboardList, CreditCard, FileText, Loader2, MapPin, PartyPopper, Phone, Upload, Video } from 'lucide-react';
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ toasts, removeToast }) {
@@ -53,7 +54,7 @@ function StatusPill({ status }) {
 // ─── Skeleton card ─────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3 animate-pulse">
+    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 space-y-3 animate-pulse">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0" />
         <div className="flex-1 space-y-2">
@@ -69,6 +70,7 @@ function SkeletonCard() {
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 export default function AshaDashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser]       = useState(null);
   const [activeTab, setActiveTab] = useState('refer'); // 'refer' | 'active'
 
@@ -261,7 +263,7 @@ export default function AshaDashboard() {
         reasonForReferral: referralReason.trim(),
         clinicalNotes: clinicalNotes.trim(),
       });
-      addToast('success', '✅ Referral Created', res.data.message);
+      addToast('success', 'Referral Created', res.data.message);
       // Reset form
       setSelectedPatient(null);
       setPatientQuery('');
@@ -300,7 +302,7 @@ export default function AshaDashboard() {
         onClose={() => setShowTeleconsultModal(false)}
         callerRole={user?.role}
         onSuccess={(appt) => {
-          addToast('success', '📹 Teleconsult Requested!', 'Your request has been submitted for hospital review.');
+          addToast('success', 'Teleconsult Requested!', 'Your request has been submitted for hospital review.');
           setShowTeleconsultModal(false);
           loadMyTeleconsults();
           setActiveTab('teleconsults');
@@ -339,20 +341,20 @@ export default function AshaDashboard() {
         {/* ── Tab bar ── */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 flex gap-1.5">
           {[
-            { id: 'refer', label: '📤 Refer', active: 'bg-emerald-500 text-white' },
+            { id: 'refer', label: 'Refer', active: 'bg-emerald-500 text-white' },
             {
               id: 'field-tasks',
-              label: followUps.length > 0 ? `📍 Visits (${followUps.length})` : '📍 Visits',
+              label: followUps.length > 0 ? `Visits (${followUps.length})` : 'Visits',
               active: 'bg-indigo-600 text-white',
             },
             {
               id: 'active',
-              label: pendingCount > 0 ? `📋 Referrals (${pendingCount})` : '📋 Referrals',
+              label: pendingCount > 0 ? `Referrals (${pendingCount})` : 'Referrals',
               active: 'bg-sky-600 text-white',
             },
             {
               id: 'teleconsults',
-              label: scheduledTeleconsults.length > 0 ? `📹 Video (${scheduledTeleconsults.length})` : '📹 Video',
+              label: scheduledTeleconsults.length > 0 ? `Video (${scheduledTeleconsults.length})` : 'Video',
               active: 'bg-violet-600 text-white',
             },
           ].map((tab) => (
@@ -371,7 +373,7 @@ export default function AshaDashboard() {
         {/* ── Book Teleconsult Quick Action Card ── */}
         {activeTab === 'refer' && (
           <div className="bg-gradient-to-r from-violet-600 to-purple-700 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-violet-200/50">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl shrink-0">📹</div>
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0"><Video className="w-6 h-6" /></div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-white text-sm">Book Video Doctor Consult</p>
               <p className="text-violet-200 text-xs mt-0.5">Schedule a teleconsultation at a hospital for a villager</p>
@@ -434,7 +436,7 @@ export default function AshaDashboard() {
                       <p className="font-bold text-emerald-900 text-sm truncate">{selectedPatient.fullName}</p>
                       {selectedPatient.uhid && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white border border-emerald-300 text-[9px] font-bold text-emerald-800 font-mono tracking-wide">
-                          🪪 {selectedPatient.uhid}
+                          <CreditCard className="w-3 h-3 inline mr-1 text-slate-400" />{selectedPatient.uhid}
                         </span>
                       )}
                       <p className="text-xs text-emerald-700">{selectedPatient.gender} · {selectedPatient.contactPhone || 'No phone'}</p>
@@ -470,7 +472,7 @@ export default function AshaDashboard() {
                               {/* UHID (Prompt 1.2) */}
                               {p.uhid && (
                                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
-                                  🪪 {p.uhid}
+                                  <CreditCard className="w-3 h-3 inline mr-1 text-slate-400" />{p.uhid}
                                 </span>
                               )}
                               <p className="text-xs text-slate-500">{p.gender} · {p.contactPhone || '—'} · {p.abhaId ? `ABHA: ${p.abhaId}` : 'No ABHA'}</p>
@@ -556,7 +558,7 @@ export default function AshaDashboard() {
               disabled={submitting || !selectedPatient || !selectedHospital || !referralReason.trim()}
               className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold text-base shadow-lg shadow-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed hover:from-emerald-600 hover:to-teal-700 active:scale-[0.98] transition-all"
             >
-              {submitting ? '⏳ Submitting Referral…' : '📤 Submit Referral'}
+              {submitting ? <><Loader2 className="w-4 h-4 inline mr-1.5 animate-spin" />Submitting Referral…</> : <><Upload className="w-4 h-4 inline mr-1.5" />Submit Referral</>}
             </button>
 
             {/* Mini guide */}
@@ -649,7 +651,7 @@ export default function AshaDashboard() {
                             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             <span className="truncate">{villageLocation}</span>
                             {p.contactPhone && (
-                              <span className="text-slate-400">· 📞 {p.contactPhone}</span>
+                              <span className="text-slate-400">· <Phone className="w-3 h-3 inline mx-0.5" />{p.contactPhone}</span>
                             )}
                           </p>
                         </div>
@@ -725,8 +727,8 @@ export default function AshaDashboard() {
               {[
                 { id: 'all',       label: `All (${referrals.length})` },
                 { id: 'Pending',   label: `⏳ Pending (${referrals.filter(r=>r.status==='Pending').length})` },
-                { id: 'Arrived',   label: `✅ Arrived (${referrals.filter(r=>r.status==='Arrived').length})` },
-                { id: 'Completed', label: `🎉 Done (${referrals.filter(r=>r.status==='Completed').length})` },
+                { id: 'Arrived',   label: `Arrived (${referrals.filter(r=>r.status==='Arrived').length})` },
+                { id: 'Completed', label: `Done (${referrals.filter(r=>r.status==='Completed').length})` },
               ].map((f) => (
                 <button
                   key={f.id}
@@ -851,7 +853,7 @@ export default function AshaDashboard() {
 
             {myTeleconsults.length === 0 && !loadingTeleconsults ? (
               <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                <div className="text-4xl mb-3">📹</div>
+                <div className="mb-3"><Video className="w-10 h-10 text-violet-500 mx-auto" /></div>
                 <p className="text-sm font-bold text-slate-700">No teleconsults booked yet</p>
                 <p className="text-xs text-slate-400 mt-1">Book a video consultation for a villager from the "Refer Patient" tab</p>
                 <button
@@ -912,7 +914,7 @@ export default function AshaDashboard() {
                             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white font-extrabold text-sm
                               hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-200"
                           >
-                            📹 Enter Waiting Room / Start Call
+                            <Video className="w-4 h-4 inline mr-1.5" />Enter Waiting Room / Start Call
                           </button>
                         )}
 

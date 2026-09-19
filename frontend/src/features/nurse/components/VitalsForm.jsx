@@ -1,4 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Stethoscope,
+  Activity,
+  Ruler,
+  Scale,
+  Thermometer,
+  Heart,
+  Wind,
+  Tag,
+  ShieldCheck,
+  CheckCircle2,
+  X,
+} from 'lucide-react';
 import nurseApi from '../services/nurseApi';
 
 export default function VitalsForm({
@@ -20,6 +33,9 @@ export default function VitalsForm({
   const [notes, setNotes]                 = useState('');
   const [urgency, setUrgency]             = useState('Routine');
 
+  // ── ABDM Mandate: Verbal Proxy Consent State ────────────────────────────────
+  const [consentProvided, setConsentProvided] = useState(false);
+
   // ── Prompt 5.2: Known Allergies Tag-Input State ─────────────────────────────
   const [allergies, setAllergies]         = useState([]);
   const [newAllergyInput, setNewAllergyInput] = useState('');
@@ -40,6 +56,7 @@ export default function VitalsForm({
       const existingAllergies = appointment.patientId?.allergies || [];
       setAllergies(Array.isArray(existingAllergies) ? [...existingAllergies] : []);
       setNewAllergyInput('');
+      setConsentProvided(false);
     }
   }, [appointment]);
 
@@ -86,6 +103,11 @@ export default function VitalsForm({
     e.preventDefault();
     if (!appointment) return;
 
+    if (!consentProvided) {
+      setError('Patient verbal/digital consent is required to record health vitals (ABDM Mandate).');
+      return;
+    }
+
     if (!bloodPressure.trim() || !bloodSugar.trim() || !height.trim() || !weight.trim()) {
       setError('Please fill in all core vitals: Blood Pressure, Blood Sugar, Height, and Weight.');
       return;
@@ -106,6 +128,7 @@ export default function VitalsForm({
       notes:         notes.trim() || undefined,
       urgency,
       allergies,
+      consentProvided: true,
     };
 
     try {
@@ -208,9 +231,10 @@ export default function VitalsForm({
           <button
             type="button"
             onClick={onCancel}
-            className="text-xs font-semibold text-slate-400 hover:text-slate-700 p-1"
+            aria-label="Cancel triage vitals"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-white/70 transition-colors"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -247,7 +271,10 @@ export default function VitalsForm({
           {/* Blood Pressure */}
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-              <span>🩺 Blood Pressure *</span>
+              <span className="flex items-center gap-1.5">
+                <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+                Blood Pressure *
+              </span>
               <span className="text-[10px] text-slate-400 font-normal">mmHg</span>
             </label>
             <input
@@ -264,7 +291,10 @@ export default function VitalsForm({
           {/* Blood Sugar */}
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-              <span>🩸 Blood Sugar *</span>
+              <span className="flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-rose-500" />
+                Blood Sugar *
+              </span>
               <span className="text-[10px] text-slate-400 font-normal">mg/dL</span>
             </label>
             <input
@@ -281,7 +311,10 @@ export default function VitalsForm({
           {/* Height */}
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-              <span>📏 Height *</span>
+              <span className="flex items-center gap-1.5">
+                <Ruler className="w-3.5 h-3.5 text-indigo-500" />
+                Height *
+              </span>
               <span className="text-[10px] text-slate-400 font-normal">cm</span>
             </label>
             <input
@@ -300,7 +333,10 @@ export default function VitalsForm({
           {/* Weight */}
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-              <span>⚖️ Weight *</span>
+              <span className="flex items-center gap-1.5">
+                <Scale className="w-3.5 h-3.5 text-sky-500" />
+                Weight *
+              </span>
               <span className="text-[10px] text-slate-400 font-normal">kg</span>
             </label>
             <input
@@ -340,7 +376,10 @@ export default function VitalsForm({
 
         <div className="grid grid-cols-3 gap-2.5">
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500">🌡️ Temp (°F)</label>
+            <label className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+              <Thermometer className="w-3 h-3 text-amber-500" />
+              Temp (°F)
+            </label>
             <input
               type="text"
               value={temperature}
@@ -352,7 +391,10 @@ export default function VitalsForm({
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500">💓 Pulse (bpm)</label>
+            <label className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+              <Heart className="w-3 h-3 text-rose-500" />
+              Pulse (bpm)
+            </label>
             <input
               type="text"
               value={pulse}
@@ -364,7 +406,10 @@ export default function VitalsForm({
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500">🫁 SpO2 (%)</label>
+            <label className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+              <Wind className="w-3 h-3 text-cyan-500" />
+              SpO2 (%)
+            </label>
             <input
               type="text"
               value={spO2}
@@ -409,8 +454,8 @@ export default function VitalsForm({
               }`}
           >
             <option value="Routine">Routine (Standard)</option>
-            <option value="Urgent">⚠️ Urgent (Priority)</option>
-            <option value="Emergency">🚨 Emergency (Immediate Doctor Attention)</option>
+            <option value="Urgent">Urgent (Priority)</option>
+            <option value="Emergency">Emergency (Immediate Doctor Attention)</option>
           </select>
         </div>
       </div>
@@ -442,14 +487,17 @@ export default function VitalsForm({
                 key={`${allergy}-${idx}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold shadow-xs transition-all"
               >
-                <span>🏷️ {allergy}</span>
+                <span className="inline-flex items-center gap-1">
+                  <Tag className="w-3 h-3" />
+                  {allergy}
+                </span>
                 <button
                   type="button"
                   onClick={() => handleRemoveAllergy(idx)}
                   title={`Remove ${allergy}`}
-                  className="w-4 h-4 rounded-full flex items-center justify-center text-rose-600 hover:text-white hover:bg-rose-600 transition-colors cursor-pointer text-xs"
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-rose-600 hover:text-white hover:bg-rose-600 transition-colors cursor-pointer"
                 >
-                  ×
+                  <X className="w-2.5 h-2.5" />
                 </button>
               </span>
             ))}
@@ -494,6 +542,24 @@ export default function VitalsForm({
         </div>
       </div>
 
+      {/* ── Mandatory ABDM Verbal Proxy Consent ─────────────────────────── */}
+      <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-start gap-3 mt-4">
+        <input
+          type="checkbox"
+          id="abdm-verbal-consent-checkbox"
+          name="consentProvided"
+          checked={consentProvided}
+          onChange={(e) => setConsentProvided(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer shrink-0"
+        />
+        <label
+          htmlFor="abdm-verbal-consent-checkbox"
+          className="text-sm text-slate-700 cursor-pointer select-none leading-relaxed"
+        >
+          I confirm the patient has provided verbal/digital consent to record these health vitals (ABDM Mandate).
+        </label>
+      </div>
+
       {/* ── Submit Action ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 pt-2">
         <button
@@ -506,8 +572,9 @@ export default function VitalsForm({
 
         <button
           type="submit"
-          disabled={submitting}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-bold text-xs shadow-md shadow-teal-600/20 transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+          id="save-forward-doctor-btn"
+          disabled={!consentProvided || submitting}
+          className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs shadow-md shadow-teal-600/20 transition-all flex items-center gap-2 cursor-pointer"
         >
           {submitting ? (
             <>
@@ -522,7 +589,7 @@ export default function VitalsForm({
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
-              <span>Push to Doctor Queue</span>
+              <span>Save / Forward to Doctor</span>
             </>
           )}
         </button>

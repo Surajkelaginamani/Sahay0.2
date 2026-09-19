@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { govtAPI } from '../../services/api';
+import { AlertTriangle, Hospital } from 'lucide-react';
 
 // ─── Toast Notification Component ───────────────────────────────────────────
 function Toast({ toasts, removeToast }) {
@@ -55,7 +57,7 @@ function Toast({ toasts, removeToast }) {
 // ─── Stat Card ──────────────────────────────────────────────────────────────
 function StatCard({ icon, value, label, subtitle, iconBg, iconColor, badge, loading }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center gap-4 shadow-xs hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 flex items-center gap-4 shadow-xs hover:shadow-md transition-shadow">
       <div className={`w-12 h-12 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center shrink-0`}>
         {icon}
       </div>
@@ -106,6 +108,7 @@ const SEVERITY_DOT = {
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 export default function GovtDashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
 
   // ── Active Tab ──
@@ -457,7 +460,7 @@ export default function GovtDashboard() {
                 </div>
               ) : fetchError ? (
                 <div className="px-8 py-16 text-center space-y-2">
-                  <div className="text-rose-500 text-2xl">⚠</div>
+                  <AlertTriangle className="w-6 h-6 text-rose-500" />
                   <p className="text-sm font-semibold text-slate-800">Failed to Load</p>
                   <p className="text-xs text-slate-500">{fetchError}</p>
                   <button onClick={fetchPending} className="mt-3 px-4 py-2 text-xs font-semibold text-white bg-gov-900 rounded-xl hover:bg-black transition-colors">Retry</button>
@@ -593,7 +596,7 @@ export default function GovtDashboard() {
                 </div>
               ) : filteredFacilities.length === 0 ? (
                 <div className="px-8 py-16 text-center space-y-2">
-                  <div className="text-3xl">🏥</div>
+                  <div><Hospital className="w-8 h-8 text-slate-600" /></div>
                   <p className="text-sm font-semibold text-slate-700">
                     {facilitySearch ? 'No matching facilities found' : 'No accredited hospitals yet'}
                   </p>

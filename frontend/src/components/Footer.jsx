@@ -3,19 +3,21 @@ import { Link } from 'react-router-dom';
 
 export default function Footer() {
   return (
-    <footer className="bg-gov-900 text-slate-300 mt-auto border-t border-slate-800">
+    <footer className="bg-gov-900 dark:bg-slate-950 text-slate-300 mt-auto border-t border-slate-800 dark:border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Col 1: About */}
           <div className="space-y-3 md:col-span-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-mint-500 flex items-center justify-center text-white font-bold text-sm">
-                +
-              </div>
+              <img
+                src="/logo_1.png"
+                alt="SAHAY Logo"
+                className="w-8 h-8 object-contain drop-shadow-sm shrink-0"
+              />
               <span className="text-xl font-bold text-white tracking-tight">SAHAY</span>
             </div>
             <p className="text-sm text-slate-400 max-w-md leading-relaxed">
-              Smart Access to Healthcare (SAHAY) is a unified digital health infrastructure designed to streamline citizen healthcare access, hospital facility management, and government regulatory oversight.
+              Smart Access to Healthcare and Assistance for You (SAHAY) is a unified digital health infrastructure designed to streamline citizen healthcare access, hospital facility management, and government regulatory oversight.
             </p>
             <p className="text-xs text-slate-500">
               National Health Portal Integration • Government of India Compliance
@@ -51,7 +53,7 @@ export default function Footer() {
 
           {/* Col 3: Support */}
           <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-white tracking-wide uppercase">Emergency & Help</h4>
+            <h4 className="text-sm font-semibold text-white tracking-wide uppercase">Emergency &amp; Help</h4>
             <ul className="space-y-1.5 text-sm text-slate-400">
               <li>National Toll-Free: <strong>1075</strong></li>
               <li>Emergency Medical: <strong>108 / 112</strong></li>

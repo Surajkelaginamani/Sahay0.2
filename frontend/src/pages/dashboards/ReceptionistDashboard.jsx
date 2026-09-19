@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Building2,
   UserPlus,
@@ -20,6 +21,10 @@ import {
   Users,
   AlertTriangle,
   ChevronRight,
+  Key,
+  CreditCard,
+  Printer,
+  Hash,
 } from 'lucide-react';
 import PatientRegistrationForm from '../../features/receptionist/components/PatientRegistrationForm';
 import PatientSearch           from '../../features/receptionist/components/PatientSearch';
@@ -95,10 +100,12 @@ const TAB_ACTIVE_CLASSES = {
   emerald: 'bg-emerald-600 text-white shadow-sm shadow-emerald-200',
   orange:  'bg-orange-500 text-white shadow-sm shadow-orange-200',
 };
+const TAB_INACTIVE_CLASSES = 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700';
 
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 export default function ReceptionistDashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [user, setUser]                       = useState(null);
   const [activeTab, setActiveTab]             = useState('queue');
@@ -126,6 +133,7 @@ export default function ReceptionistDashboard() {
   const [confirming, setConfirming]                   = useState(null);
   const [confirmDoctorId, setConfirmDoctorId]         = useState({});
   const [confirmTimeSlot, setConfirmTimeSlot]         = useState({});
+  const [printedCardPatient, setPrintedCardPatient]   = useState(null);
 
   // ── Toast helper ────────────────────────────────────────────────────────
   const showToast = useCallback((type, title, message) => {
@@ -148,6 +156,16 @@ export default function ReceptionistDashboard() {
     setUser(parsed);
   }, [navigate]);
 
+  // ── Load facility doctors ───────────────────────────────────────────────
+  const loadFacilityDoctors = useCallback(async () => {
+    try {
+      const res = await receptionistApi.getFacilityDoctors();
+      setFacilityDoctors(res.data.doctors || []);
+    } catch {
+      // non-blocking
+    }
+  }, []);
+
   // ── Load incoming referrals ──────────────────────────────────────────────
   const loadIncomingReferrals = useCallback(async () => {
     setLoadingReferrals(true);
@@ -165,24 +183,12 @@ export default function ReceptionistDashboard() {
   const loadPendingTeleconsults = useCallback(async () => {
     setLoadingTeleconsults(true);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('sahay_token');
-      const res = await axios.get('/api/receptionist/teleconsults/pending', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setPendingTeleconsults(res.data.teleconsults || []);
+      const res = await receptionistApi.getPendingTeleconsults();
+      setPendingTeleconsults(res.data.appointments || []);
     } catch {
       // non-blocking
     } finally {
       setLoadingTeleconsults(false);
-    }
-  }, []);
-
-  const loadFacilityDoctors = useCallback(async () => {
-    try {
-      const res = await receptionistApi.getFacilityDoctors();
-      setFacilityDoctors(res.data.doctors || []);
-    } catch {
-      // non-blocking
     }
   }, []);
 
@@ -242,9 +248,16 @@ export default function ReceptionistDashboard() {
     navigate('/auth/hospital/login');
   };
 
-  // ── Registration / Queue callbacks ─────────────────────────────────────
-  const handlePatientRegistered = useCallback(({ type, patient, queueInfo, message }) => {
+  // ── Registration / Queue callbacks ────────────────────────────────     
+  const handlePatientRegistered = useCallback(({ type, patient, queueInfo, recoveryCode, message }) => {
     if (type === 'registered') {
+      const code = recoveryCode || patient?.recoveryCode;
+      if (code) {
+        setPrintedCardPatient({
+          ...patient,
+          recoveryCode: code,
+        });
+      }
       const alertMsg = message || 'Patient registered. They can log in using their phone number and default password: Sahay@123';
       if (queueInfo) {
         const docText = queueInfo.doctorName ? ` for Dr. ${queueInfo.doctorName}` : '';
@@ -292,13 +305,13 @@ export default function ReceptionistDashboard() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-amber-50/20 to-rose-50/20 px-4 sm:px-8 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-amber-50/20 to-rose-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 px-4 sm:px-8 py-8">
       <Toast toast={toast} />
 
       <div className="max-w-6xl mx-auto space-y-6">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-6 sm:px-8 py-6
+        <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm px-6 sm:px-8 py-6
           flex flex-col md:flex-row md:items-center justify-between gap-5"
         >
           <div className="flex items-center gap-4">
@@ -310,13 +323,13 @@ export default function ReceptionistDashboard() {
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  Reception Desk
+                  {t('reception.title')}
                 </h1>
                 <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1
                   rounded-full bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1.5"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                  Live
+                  {t('reception.live')}
                 </span>
               </div>
               <p className="text-sm text-slate-500 mt-1 flex flex-wrap items-center gap-1.5">
@@ -346,7 +359,7 @@ export default function ReceptionistDashboard() {
                 hover:from-rose-600 hover:to-pink-700 active:scale-[0.98] transition-all"
             >
               <UserPlus className="w-4 h-4 mr-1" />
-              <span>Register Walk-in</span>
+              <span>{t('reception.newWalkIn')}</span>
             </button>
 
             <button
@@ -357,13 +370,13 @@ export default function ReceptionistDashboard() {
                 hover:text-rose-700 transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign Out</span>
+              <span className="hidden sm:inline">{t('common.signOut')}</span>
             </button>
           </div>
         </div>
 
         {/* ── Responsive Tab Strip (Single horizontal scrolling row) ──────── */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 overflow-x-auto scrollbar-none py-1 flex whitespace-nowrap gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-1.5 overflow-x-auto scrollbar-none py-1 flex whitespace-nowrap gap-2">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -372,6 +385,15 @@ export default function ReceptionistDashboard() {
               : tab.id === 'conflicts' && conflictsCount > 0
               ? conflictsCount
               : null;
+            const tabLabel = tab.id === 'queue'
+              ? t('reception.tabs.queue')
+              : tab.id === 'appointments'
+              ? t('reception.tabs.appointments')
+              : tab.id === 'inbound'
+              ? t('reception.tabs.inbound')
+              : tab.id === 'conflicts'
+              ? t('reception.tabs.conflicts')
+              : tab.label;
 
             return (
               <button
@@ -382,12 +404,12 @@ export default function ReceptionistDashboard() {
                   text-sm font-semibold transition-all relative shrink-0
                   ${isActive
                     ? TAB_ACTIVE_CLASSES[tab.color]
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                    : TAB_INACTIVE_CLASSES
                   }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">{tab.label}</span>
-                <span className="sm:hidden">{tab.shortLabel}</span>
+                <span className="hidden sm:inline">{tabLabel}</span>
+                <span className="sm:hidden">{tabLabel}</span>
                 {badge ? (
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black leading-none ${
                     isActive ? 'bg-white text-slate-900' : 'bg-rose-500 text-white'
@@ -401,10 +423,10 @@ export default function ReceptionistDashboard() {
         </div>
 
         {/* ── Tab panels ──────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
 
           {/* Panel header */}
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
             {(() => {
               const tab = TABS.find((t) => t.id === activeTab);
               const Icon = tab?.icon || ListOrdered;
@@ -414,18 +436,27 @@ export default function ReceptionistDashboard() {
                 emerald: 'bg-emerald-100 text-emerald-700',
                 orange:  'bg-orange-100 text-orange-700',
               };
+              const currentTabLabel = tab?.id === 'queue'
+                ? t('reception.tabs.queue')
+                : tab?.id === 'appointments'
+                ? t('reception.tabs.appointments')
+                : tab?.id === 'inbound'
+                ? t('reception.tabs.inbound')
+                : tab?.id === 'conflicts'
+                ? t('reception.tabs.conflicts')
+                : tab?.label;
               return (
                 <>
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${colorMap[tab?.color || 'amber']}`}>
                     <Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-slate-800">{tab?.label}</h2>
+                    <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">{currentTabLabel}</h2>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      {activeTab === 'queue'        && "Real-time OPD queue, triage priority, and on-duty doctor status"}
-                      {activeTab === 'appointments' && "Schedule new consultations and view upcoming bookings"}
-                      {activeTab === 'inbound'      && "Triaged ASHA field referrals and incoming teleconsultation requests"}
-                      {activeTab === 'conflicts'    && "Review and resolve duplicate patient sync conflicts from offline devices"}
+                      {activeTab === 'queue'        && t('reception.panelDesc.queue')}
+                      {activeTab === 'appointments' && t('reception.panelDesc.appointments')}
+                      {activeTab === 'inbound'      && t('reception.panelDesc.inbound')}
+                      {activeTab === 'conflicts'    && t('reception.panelDesc.conflicts')}
                     </p>
                   </div>
                 </>
@@ -468,7 +499,7 @@ export default function ReceptionistDashboard() {
                     }`}
                   >
                     <Calendar className="w-3.5 h-3.5" />
-                    Upcoming Appointments
+                    {t('reception.upcomingAppointments')}
                   </button>
                   <button
                     onClick={() => setApptSubTab('book')}
@@ -479,7 +510,7 @@ export default function ReceptionistDashboard() {
                     }`}
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Book Appointment
+                    {t('reception.scheduleAppointment')}
                   </button>
                 </div>
 
@@ -505,7 +536,7 @@ export default function ReceptionistDashboard() {
                     }`}
                   >
                     <Inbox className="w-3.5 h-3.5" />
-                    Incoming Referrals
+                    {t('reception.inboundReferrals')}
                     {incomingReferrals.length > 0 && (
                       <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black">
                         {incomingReferrals.length}
@@ -521,7 +552,7 @@ export default function ReceptionistDashboard() {
                     }`}
                   >
                     <Video className="w-3.5 h-3.5" />
-                    Teleconsult Requests
+                    {t('reception.teleconsultRequests')}
                     {pendingTeleconsults.length > 0 && (
                       <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black">
                         {pendingTeleconsults.length}
@@ -530,12 +561,11 @@ export default function ReceptionistDashboard() {
                   </button>
                 </div>
 
-                {/* Sub-tab 1: ASHA Referrals */}
                 {inboundSubTab === 'referrals' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-slate-500 font-medium">
-                        {loadingReferrals ? 'Loading…' : `${incomingReferrals.length} pending incoming referral(s)`}
+                        {loadingReferrals ? t('common.loading') : `${incomingReferrals.length} pending incoming referral(s)`}
                       </p>
                       <button
                         id="refresh-referrals-btn"
@@ -544,7 +574,7 @@ export default function ReceptionistDashboard() {
                         className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-50 flex items-center gap-1.5"
                       >
                         <RotateCw className={`w-3.5 h-3.5 ${loadingReferrals ? 'animate-spin' : ''}`} />
-                        Refresh
+                        {t('common.refresh')}
                       </button>
                     </div>
 
@@ -553,8 +583,8 @@ export default function ReceptionistDashboard() {
                         <div className="w-14 h-14 rounded-2xl bg-emerald-50 mx-auto flex items-center justify-center mb-3">
                           <Inbox className="w-7 h-7 text-emerald-400" />
                         </div>
-                        <p className="text-sm font-semibold text-slate-600">No pending referrals</p>
-                        <p className="text-xs text-slate-400 mt-1">ASHA worker referrals to your facility will appear here.</p>
+                        <p className="text-sm font-semibold text-slate-600">{t('reception.noPendingReferrals')}</p>
+                        <p className="text-xs text-slate-400 mt-1">{t('reception.noPendingReferralsDesc')}</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -574,12 +604,12 @@ export default function ReceptionistDashboard() {
                                 </div>
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
                                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                  Pending
+                                  {t('common.pending')}
                                 </span>
                               </div>
 
                               <div className="bg-white rounded-xl px-3 py-2 border border-emerald-100">
-                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Reason for Referral</p>
+                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">{t('reception.reasonForReferral')}</p>
                                 <p className="text-sm text-slate-800 font-medium">{ref.reasonForReferral}</p>
                               </div>
 
@@ -610,7 +640,7 @@ export default function ReceptionistDashboard() {
                                   }}
                                   className="text-xs font-bold text-sky-700 underline hover:text-sky-900 shrink-0"
                                 >
-                                  Open Search
+                                  {t('reception.openSearch')}
                                 </button>
                               </div>
                             </div>
@@ -626,7 +656,7 @@ export default function ReceptionistDashboard() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-slate-500 font-medium">
-                        {loadingTeleconsults ? 'Loading…' : `${pendingTeleconsults.length} pending request(s)`}
+                        {loadingTeleconsults ? t('common.loading') : `${pendingTeleconsults.length} pending request(s)`}
                       </p>
                       <button
                         id="refresh-teleconsults-btn"
@@ -635,7 +665,7 @@ export default function ReceptionistDashboard() {
                         className="text-xs font-semibold text-violet-600 hover:text-violet-800 disabled:opacity-50 flex items-center gap-1.5"
                       >
                         <RotateCw className={`w-3.5 h-3.5 ${loadingTeleconsults ? 'animate-spin' : ''}`} />
-                        Refresh
+                        {t('common.refresh')}
                       </button>
                     </div>
 
@@ -644,8 +674,8 @@ export default function ReceptionistDashboard() {
                         <div className="w-14 h-14 rounded-2xl bg-violet-50 mx-auto flex items-center justify-center mb-3">
                           <Video className="w-7 h-7 text-violet-500" />
                         </div>
-                        <p className="text-sm font-semibold text-slate-600">No pending teleconsult requests</p>
-                        <p className="text-xs text-slate-400 mt-1">Requests from ASHA workers, nurses, and patients will appear here.</p>
+                        <p className="text-sm font-semibold text-slate-600">{t('reception.noPendingTeleconsults')}</p>
+                        <p className="text-xs text-slate-400 mt-1">{t('reception.noPendingTeleconsultsDesc')}</p>
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -666,7 +696,7 @@ export default function ReceptionistDashboard() {
                                 <div className="flex flex-col items-end gap-1">
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                    Awaiting Review
+                                    {t('reception.awaitingReview')}
                                   </span>
                                   <span className="text-[10px] text-violet-700 font-bold bg-violet-100 px-2 py-0.5 rounded-full">
                                     {tc.teleconsultSource || 'External'} Request
@@ -676,20 +706,20 @@ export default function ReceptionistDashboard() {
 
                               <div className="grid grid-cols-2 gap-3 text-xs">
                                 <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Requested Date</p>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">{t('reception.requestedDate')}</p>
                                   <p className="font-bold text-slate-800">
                                     {tc.scheduledDate ? new Date(tc.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                                   </p>
                                 </div>
                                 <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Time Preference</p>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">{t('reception.timePreference')}</p>
                                   <p className="font-bold text-slate-800">{tc.timeSlot || '—'}</p>
                                 </div>
                               </div>
 
                               {tc.chiefComplaint && (
                                 <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
-                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Chief Complaint</p>
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">{t('reception.chiefComplaint')}</p>
                                   <p className="text-sm text-slate-800 font-medium">{tc.chiefComplaint}</p>
                                 </div>
                               )}
@@ -701,14 +731,14 @@ export default function ReceptionistDashboard() {
 
                               <div className="space-y-2">
                                 <label className="block text-xs font-bold text-slate-700">
-                                  Assign Doctor <span className="text-rose-500">*</span>
+                                  {t('reception.assignDoctor')} <span className="text-rose-500">*</span>
                                 </label>
                                 <select
                                   value={confirmDoctorId[tc._id] || ''}
                                   onChange={(e) => setConfirmDoctorId((prev) => ({ ...prev, [tc._id]: e.target.value }))}
                                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
                                 >
-                                  <option value="">— Select an available doctor —</option>
+                                  <option value="">{t('reception.selectDoctor')}</option>
                                   {facilityDoctors.map((doc) => (
                                     <option key={doc._id} value={doc._id}>
                                       Dr. {doc.name} {doc.specialty ? `(${doc.specialty})` : ''}
@@ -717,7 +747,7 @@ export default function ReceptionistDashboard() {
                                 </select>
                                 <input
                                   type="text"
-                                  placeholder="Confirm time slot (e.g. 10:30 AM)"
+                                  placeholder={t('reception.confirmTimeSlotPlaceholder')}
                                   value={confirmTimeSlot[tc._id] || ''}
                                   onChange={(e) => setConfirmTimeSlot((prev) => ({ ...prev, [tc._id]: e.target.value }))}
                                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
@@ -734,12 +764,12 @@ export default function ReceptionistDashboard() {
                                 {confirming === tc._id ? (
                                   <>
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    Confirming…
+                                    {t('common.confirming')}
                                   </>
                                 ) : (
                                   <>
                                     <CheckCircle2 className="w-4 h-4" />
-                                    Confirm &amp; Generate Room Link
+                                    {t('reception.confirmAndGenerateRoom')}
                                   </>
                                 )}
                               </button>
@@ -865,6 +895,92 @@ export default function ReceptionistDashboard() {
               )}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Physical Printed SAHAY Health Card Modal ──────────────────────── */}
+      {printedCardPatient && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Physical SAHAY Health Card</h3>
+                  <p className="text-xs text-slate-500">Provide this physical credential card to the citizen</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPrintedCardPatient(null)}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Printable Card Design */}
+            <div className="bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-sky-500/20 space-y-4 print:shadow-none print:border-slate-800">
+              <div className="flex items-center justify-between border-b border-white/15 pb-2.5">
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-sky-300">National Health Network</p>
+                  <p className="text-sm font-extrabold text-white">SAHAY Citizen Health Card</p>
+                </div>
+                <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-mono font-bold text-sky-200 border border-white/15">
+                  ABDM Verified
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs text-slate-400">Patient Name</p>
+                <p className="text-lg font-black tracking-tight text-white">
+                  {printedCardPatient.fullName || `${printedCardPatient.firstName || ''} ${printedCardPatient.lastName || ''}`.trim()}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="bg-white/10 p-2.5 rounded-xl border border-white/10">
+                  <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Unique Health ID (UHID)</p>
+                  <p className="font-mono text-sm font-black text-violet-300 tracking-wider mt-0.5">
+                    {printedCardPatient.uhid || '—'}
+                  </p>
+                </div>
+                <div className="bg-amber-500/20 p-2.5 rounded-xl border border-amber-400/30">
+                  <p className="text-[9px] uppercase tracking-wider text-amber-300 font-bold flex items-center gap-1">
+                    <Key className="w-3 h-3 text-amber-300" />
+                    Recovery Code (Card Key)
+                  </p>
+                  <p className="font-mono text-sm font-black text-amber-200 tracking-widest mt-0.5">
+                    {printedCardPatient.recoveryCode || '—'}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-400 leading-relaxed border-t border-white/10 pt-2">
+                Notice: Keep this card safe. The 6-character Recovery Code is required to reset forgotten PINs at any SAHAY clinic reception.
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Physical Card</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrintedCardPatient(null)}
+                className="py-2.5 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

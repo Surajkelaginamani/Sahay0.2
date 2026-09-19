@@ -1,23 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import LabMetrics from '../../features/laboratory/components/LabMetrics';
 import TestQueueTable from '../../features/laboratory/components/TestQueueTable';
 import labApi from '../../features/laboratory/services/labApi';
 
 export default function LabDashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
 
-  // Dashboard Data State
-  const [metrics, setMetrics] = useState({
-    Ordered: 0,
-    SampleCollected: 0,
-    Processing: 0,
-    Completed: 0,
-    total: 0,
-  });
+  // Main data array state that populates the Diagnostic Test Queue table
   const [orders, setOrders] = useState([]);
-  const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [toast, setToast] = useState(null);
@@ -42,25 +36,12 @@ export default function LabDashboard() {
     setUser(parsed);
   }, [navigate]);
 
-  // Fetch metrics data
-  const fetchMetrics = useCallback(async () => {
-    setLoadingMetrics(true);
-    try {
-      const res = await labApi.getMetrics();
-      setMetrics(res.data);
-    } catch (err) {
-      console.error('Failed to fetch metrics:', err);
-    } finally {
-      setLoadingMetrics(false);
-    }
-  }, []);
-
-  // Fetch test queue
-  const fetchQueue = useCallback(async (filter) => {
+  // Fetch complete test queue (both DiagnosticOrder and LabOrder)
+  const fetchQueue = useCallback(async () => {
     setLoadingOrders(true);
     try {
       const [diagRes, pendingRes] = await Promise.allSettled([
-        labApi.getQueue(filter),
+        labApi.getQueue('ALL'),
         labApi.getPendingTests(),
       ]);
 
@@ -80,6 +61,7 @@ export default function LabDashboard() {
             : lo.patientId.name || 'Patient',
           email: lo.patientId.contactPhone || lo.patientId.email || '—',
           phone: lo.patientId.contactPhone,
+          uhid: lo.patientId.uhid,
         } : { name: 'Patient' },
         doctorId: lo.doctorId ? {
           name: lo.doctorId.name,
@@ -105,18 +87,30 @@ export default function LabDashboard() {
   // Initial load
   useEffect(() => {
     if (user) {
-      fetchMetrics();
-      fetchQueue(activeFilter);
+      fetchQueue();
     }
-  }, [user, fetchMetrics, fetchQueue, activeFilter]);
+  }, [user, fetchQueue]);
+
+  // Derived KPI metrics strictly calculated using .filter() on the main orders array
+  const testsOrdered = orders.filter((o) => o.status === 'Ordered').length;
+  const samplesCollected = orders.filter((o) => o.status === 'SampleCollected').length;
+  const inProcessing = orders.filter((o) => o.status === 'Processing').length;
+  const reportsReady = orders.filter((o) => o.status === 'Completed').length;
+
+  const derivedMetrics = {
+    Ordered: testsOrdered,
+    SampleCollected: samplesCollected,
+    Processing: inProcessing,
+    Completed: reportsReady,
+    total: orders.length,
+  };
 
   // Status transition handler (e.g. Ordered -> SampleCollected -> Processing)
   const handleStatusUpdate = async (orderId, nextStatus) => {
     try {
       await labApi.updateStatus(orderId, nextStatus);
       showToast('success', `Test status progressed to '${nextStatus}'.`);
-      fetchMetrics();
-      fetchQueue(activeFilter);
+      fetchQueue();
     } catch (err) {
       showToast('error', err.response?.data?.message || 'Failed to update test status.');
     }
@@ -138,8 +132,7 @@ export default function LabDashboard() {
         await labApi.submitReport(payload);
         showToast('success', 'Diagnostic report submitted and verified successfully.');
       }
-      fetchMetrics();
-      fetchQueue(activeFilter);
+      fetchQueue();
     } catch (err) {
       showToast('error', err.response?.data?.message || 'Failed to submit lab report.');
       throw err;
@@ -162,7 +155,7 @@ export default function LabDashboard() {
   if (!user) return null;
 
   return (
-    <div className="min-h-[85vh] bg-gradient-to-br from-slate-50 via-teal-50/25 to-sky-50/30 px-4 sm:px-8 py-8">
+    <div className="min-h-[85vh] bg-gradient-to-br from-slate-50 via-teal-50/25 to-sky-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 px-4 sm:px-8 py-8">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -187,7 +180,7 @@ export default function LabDashboard() {
 
       <div className="max-w-7xl mx-auto space-y-8">
         {/* ── Top Header Banner ────────────────────────────────────────── */}
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/80 dark:border-slate-700 p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-500 via-teal-600 to-sky-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -197,8 +190,8 @@ export default function LabDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  Laboratory &amp; Diagnostics
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+                  {t('lab.title')}
                 </h1>
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
@@ -215,11 +208,8 @@ export default function LabDashboard() {
           {/* Quick Actions */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                fetchMetrics();
-                fetchQueue(activeFilter);
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              onClick={fetchQueue}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
               <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -229,7 +219,7 @@ export default function LabDashboard() {
             </button>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:border-rose-200 dark:hover:border-rose-700 hover:text-rose-700 dark:hover:text-rose-400 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -256,8 +246,8 @@ export default function LabDashboard() {
             )}
           </div>
           <LabMetrics
-            metrics={metrics}
-            loading={loadingMetrics}
+            metrics={derivedMetrics}
+            loading={loadingOrders}
             activeFilter={activeFilter}
             onFilterSelect={handleFilterChange}
           />
@@ -272,10 +262,7 @@ export default function LabDashboard() {
             onFilterChange={handleFilterChange}
             onStatusUpdate={handleStatusUpdate}
             onSubmitReport={handleSubmitReport}
-            onRefresh={() => {
-              fetchMetrics();
-              fetchQueue(activeFilter);
-            }}
+            onRefresh={fetchQueue}
           />
         </section>
       </div>

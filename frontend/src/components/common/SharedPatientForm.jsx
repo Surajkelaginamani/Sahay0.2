@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AlertTriangle, ClipboardList, CreditCard, Info, Key, MapPin, Phone, Shield, UserPlus, X } from 'lucide-react';
 
 // ─── Field config ──────────────────────────────────────────────────────────────
 const GENDERS    = ['Male', 'Female', 'Other'];
@@ -6,6 +7,7 @@ const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 const EMPTY_FORM = {
   firstName: '', lastName: '', dob: '', gender: 'Male',
+  fatherOrGuardianName: '',
   bloodGroup: '', contactPhone: '',
   address: { village: '', district: '', state: '', pincode: '' },
   abhaId: '',
@@ -92,6 +94,9 @@ export default function SharedPatientForm({
     if (!form.lastName.trim())  e.lastName  = 'Last name is required';
     if (!form.dob)              e.dob       = 'Date of birth is required';
     if (!form.gender)           e.gender    = 'Gender is required';
+    if (!form.fatherOrGuardianName.trim()) {
+      e.fatherOrGuardianName = 'Father or Guardian name is required';
+    }
     if (!form.contactPhone.trim()) {
       e.contactPhone = 'Phone number is required';
     } else if (!/^\d{10}$/.test(form.contactPhone.trim())) {
@@ -137,6 +142,7 @@ export default function SharedPatientForm({
       name:         `${form.firstName.trim()} ${form.lastName.trim()}`,
       dob:          form.dob,
       gender:       form.gender,
+      fatherOrGuardianName: form.fatherOrGuardianName.trim(),
       email:        form.email.trim().toLowerCase() || undefined,
       contactPhone: form.contactPhone.trim() || undefined,
       phone:        form.contactPhone.trim() || undefined,
@@ -220,13 +226,14 @@ export default function SharedPatientForm({
       {adviceNotice && (
         <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200 flex items-start justify-between gap-3 text-xs text-sky-900 animate-in fade-in">
           <div className="flex items-start gap-2.5">
-            <span className="text-base text-sky-600">ℹ️</span>
+            <Info className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">{adviceNotice.message}</p>
               {adviceNotice.uhid && adviceNotice.uhid !== '—' && (
                 <div className="mt-1.5 flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-sky-200 font-mono font-bold text-violet-700">
-                    🪪 {adviceNotice.uhid}
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-sky-200 font-mono font-bold text-violet-700 text-xs">
+                    <CreditCard className="w-3.5 h-3.5 text-violet-600" />
+                    ID: {adviceNotice.uhid}
                   </span>
                   <span className="text-[11px] text-sky-600 font-medium">Use this ID to find existing profile</span>
                 </div>
@@ -237,9 +244,7 @@ export default function SharedPatientForm({
             type="button"
             onClick={() => setAdviceNotice(null)}
             className="text-sky-400 hover:text-sky-600 text-xs font-bold"
-          >
-            ✕
-          </button>
+          ><X className="w-4 h-4" /></button>
         </div>
       )}
       <div className="flex items-center gap-2 mb-1">
@@ -298,15 +303,26 @@ export default function SharedPatientForm({
         </div>
       </div>
 
-      {/* Phone */}
-      <div>
-        <Label required>Contact Phone</Label>
-        <Input
-          type="tel" placeholder="10-digit mobile number"
-          value={form.contactPhone}
-          onChange={(e) => setField('contactPhone', e.target.value)}
-          error={errors.contactPhone}
-        />
+      {/* Phone & Guardian Name row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Label required>Contact Phone</Label>
+          <Input
+            type="tel" placeholder="10-digit mobile number"
+            value={form.contactPhone}
+            onChange={(e) => setField('contactPhone', e.target.value)}
+            error={errors.contactPhone}
+          />
+        </div>
+        <div>
+          <Label required>Father / Guardian Name</Label>
+          <Input
+            type="text" placeholder="e.g. Suresh Kumar"
+            value={form.fatherOrGuardianName}
+            onChange={(e) => setField('fatherOrGuardianName', e.target.value)}
+            error={errors.fatherOrGuardianName}
+          />
+        </div>
       </div>
 
       {/* ABHA ID */}
@@ -510,7 +526,7 @@ export default function SharedPatientForm({
         </label>
         {!consentProvided && (
           <p className="text-[11px] text-amber-600 font-semibold mt-1.5 pl-7 flex items-center gap-1">
-            <span>⚠️</span>
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
             <span>Mandatory consent required by ABDM guidelines to create a health record.</span>
           </p>
         )}
@@ -550,7 +566,7 @@ export default function SharedPatientForm({
             <div className="p-5 border-b border-amber-100 bg-amber-50/80 flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg shrink-0 border border-amber-200">
-                  ⚠️
+                  <AlertTriangle className="w-4 h-4 text-amber-500 inline" />
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900">
@@ -566,9 +582,7 @@ export default function SharedPatientForm({
                 onClick={() => setConfirmationModal({ isOpen: false, matches: [], payload: null })}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-white/60 transition-colors"
                 title="Dismiss"
-              >
-                ✕
-              </button>
+              ><X className="w-4 h-4" /></button>
             </div>
 
             {/* Modal Body: Matched patient cards */}
@@ -596,20 +610,20 @@ export default function SharedPatientForm({
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
                           <span>DOB: <strong>{match.dob ? new Date(match.dob).toLocaleDateString('en-IN') : '—'}</strong></span>
-                          {match.contactPhone && <span>· 📞 {match.contactPhone}</span>}
+                          {match.contactPhone && <span>· <Phone className="w-3 h-3 inline mr-1" />{match.contactPhone}</span>}
                         </div>
                       </div>
 
                       {match.uhid && match.uhid !== '—' && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 border border-violet-200 text-xs font-bold text-violet-700 font-mono tracking-wide shrink-0">
-                          🪪 {match.uhid}
+                          <CreditCard className="w-3 h-3 inline mr-1 text-slate-400" />{match.uhid}
                         </span>
                       )}
                     </div>
 
                     {addressStr ? (
                       <div className="text-xs text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100 flex items-start gap-1.5">
-                        <span className="text-slate-400">📍</span>
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
                         <span className="truncate">{addressStr}</span>
                       </div>
                     ) : (
@@ -640,7 +654,7 @@ export default function SharedPatientForm({
                 onClick={() => handleUseExisting(confirmationModal.matches[0])}
                 className="w-full sm:flex-1 py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors flex items-center justify-center gap-2"
               >
-                <span>📋</span> Use Existing Profile
+                <ClipboardList className="w-4 h-4 inline mr-1" />Use Existing Profile
               </button>
               <button
                 type="button"
@@ -651,7 +665,7 @@ export default function SharedPatientForm({
                 {isProceeding ? (
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <span>👤➕</span>
+                  <UserPlus className="w-4 h-4" />
                 )}
                 This is a Different Person (Proceed)
               </button>

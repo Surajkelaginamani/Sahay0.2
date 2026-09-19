@@ -303,6 +303,14 @@ export default function HospitalLogin() {
                   )}
                 </button>
               </div>
+              <div className="flex justify-end mt-1.5">
+                <Link
+                  to="/staff/forgot-password"
+                  className="text-xs text-slate-500 hover:text-sky-700 transition-colors"
+                >
+                  Forgot Password?
+                </Link>
+              </div>
             </div>
 
             <button
@@ -346,7 +354,7 @@ export default function HospitalLogin() {
 
         {/* Trust badge */}
         <p className="text-center text-[11px] text-slate-400">
-          🔒 Secured by SAHAY — Smart Access to Healthcare, Government of India
+          Secured by SAHAY — Smart Access to Healthcare and Assistance for You, Government of India
         </p>
       </div>
     </div>

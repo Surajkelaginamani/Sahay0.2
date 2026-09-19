@@ -1,0 +1,542 @@
+{
+  "navbar": {
+    "overview": "Overview",
+    "subtitle": "Smart Access to Healthcare and Assistance for You",
+    "patientPortal": "Patient Portal",
+    "hospitalPortal": "Hospital Portal",
+    "governmentPortal": "Government Portal",
+    "signedInAs": "Signed in as",
+    "goToDashboard": "Go to Dashboard",
+    "dashboard": "Dashboard",
+    "signOut": "Sign Out",
+    "registerHospital": "Register Hospital",
+    "accessPortal": "Access Portal",
+    "announcement": "Official Digital Healthcare Platform • Ministry of Health & Family Welfare",
+    "helpline": "National Health Helpline",
+    "emergency": "Emergency",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "language": "Language"
+  },
+  "common": {
+    "loading": "Loading...",
+    "updating": "Updating...",
+    "error": "Error",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "refresh": "Refresh",
+    "export": "Export",
+    "print": "Print",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "viewAll": "View All",
+    "noData": "No data available",
+    "today": "Today",
+    "status": "Status",
+    "name": "Name",
+    "date": "Date",
+    "time": "Time",
+    "actions": "Actions",
+    "notes": "Notes",
+    "success": "Success",
+    "warning": "Warning",
+    "urgent": "Urgent",
+    "routine": "Routine",
+    "pending": "Pending",
+    "completed": "Completed",
+    "active": "Active",
+    "inactive": "Inactive",
+    "logout": "Logout",
+    "signOut": "Sign Out",
+    "welcomeBack": "Welcome back",
+    "onDuty": "On Duty • Available",
+    "offDuty": "Off Duty • Inactive",
+    "syncData": "Sync Live Data",
+    "dispensaryActive": "Dispensary Active",
+    "critical": "CRITICAL",
+    "immediateAction": "Immediate Action",
+    "email": "Email",
+    "role": "Role",
+    "addedOn": "Added On",
+    "medicine": "Medicine",
+    "dosage": "Dosage",
+    "frequency": "Frequency",
+    "duration": "Duration",
+    "instructions": "Instructions",
+    "viewPdf": "View PDF",
+    "confirming": "Confirming...",
+    "live": "Live"
+  },
+  "reception": {
+    "title": "Reception Desk",
+    "walkIn": "Walk-In Registration",
+    "queue": "Today's Queue",
+    "appointments": "Appointments",
+    "doctors": "Doctors on Duty",
+    "searchPatient": "Search Patient",
+    "registerPatient": "Register Patient",
+    "newWalkIn": "New Walk-In",
+    "scheduleAppointment": "Schedule Appointment",
+    "upcomingAppointments": "Upcoming Appointments",
+    "mergeResolution": "Merge / Duplicate Resolution",
+    "totalPatients": "Total Patients Today",
+    "waitingCount": "Waiting",
+    "seenCount": "Seen",
+    "availableDoctors": "Doctors Available",
+    "tabs": {
+      "walkIn": "Walk-In",
+      "queue": "Queue",
+      "appointments": "Appointments",
+      "doctors": "Duty Roster",
+      "inbound": "Inbound & Teleconsult",
+      "conflicts": "Sync Conflicts"
+    },
+    "live": "Live",
+    "inboundReferrals": "Incoming Referrals",
+    "teleconsultRequests": "Teleconsult Requests",
+    "noPendingReferrals": "No pending referrals",
+    "noPendingReferralsDesc": "ASHA worker referrals to your facility will appear here.",
+    "reasonForReferral": "Reason for Referral",
+    "openSearch": "Open Search",
+    "noPendingTeleconsults": "No pending teleconsult requests",
+    "noPendingTeleconsultsDesc": "Requests from ASHA workers, nurses, and patients will appear here.",
+    "awaitingReview": "Awaiting Review",
+    "requestedDate": "Requested Date",
+    "timePreference": "Time Preference",
+    "chiefComplaint": "Chief Complaint",
+    "assignDoctor": "Assign Doctor",
+    "selectDoctor": "— Select an available doctor —",
+    "confirmTimeSlotPlaceholder": "Confirm time slot (e.g. 10:30 AM)",
+    "confirmAndGenerateRoom": "Confirm & Generate Room Link",
+    "panelDesc": {
+      "queue": "Real-time OPD queue, triage priority, and on-duty doctor status",
+      "appointments": "Schedule new consultations and view upcoming bookings",
+      "inbound": "Triaged ASHA field referrals and incoming teleconsultation requests",
+      "conflicts": "Review and resolve duplicate patient sync conflicts from offline devices"
+    }
+  },
+  "patient": {
+    "header": {
+      "uhid": "Unique Health ID (UHID)",
+      "syncRecords": "Sync Records",
+      "years": "{{count}} years",
+      "blood": "Blood: {{group}}",
+      "verifiedCitizen": "Verified Citizen",
+      "abha": "Ayushman Bharat Health Account (ABHA)"
+    },
+    "title": "My Health Portal",
+    "queueTracker": "Queue Tracker",
+    "appointments": "My Appointments",
+    "records": "Health Records",
+    "prescriptions": "Prescriptions",
+    "labResults": "Lab Results",
+    "teleconsult": "Teleconsult",
+    "myQueue": "My Queue Status",
+    "bookAppointment": "Book Appointment",
+    "bookTeleconsult": "Book Video Consult",
+    "upcomingVisits": "Upcoming Visits",
+    "logout": "Logout",
+    "tabs": {
+      "timeline": "Health Timeline",
+      "prescriptions": "Prescriptions",
+      "labs": "Lab Results",
+      "hospitals": "My Hospitals",
+      "teleconsults": "My Video Consults"
+    },
+    "stats": {
+      "appointments": "Appointments",
+      "prescriptions": "Prescriptions",
+      "labs": "Lab Orders",
+      "teleconsults": "Video Consults"
+    },
+    "emptyRecords": "No Past Medical Records Found",
+    "emptyRecordsDesc": "Your check-up visits, prescriptions, and lab tests will populate automatically here.",
+    "emptyPrescriptions": "No Digital Prescriptions on File",
+    "emptyPrescriptionsDesc": "Prescribed medicines from consultations will be organized here.",
+    "prescriptionsFromFacility": "{{count}} prescription(s) from this facility",
+    "emptyLabs": "No Diagnostic Reports on File",
+    "emptyLabsDesc": "Laboratory tests and investigation reports will appear here when completed.",
+    "labsFromFacility": "{{count}} lab report(s) from this facility",
+    "emptyHospitals": "No Hospital History Yet",
+    "emptyHospitalsDesc": "Facilities you check into will appear here automatically.",
+    "scheduleVideoCall": "Schedule Doctor Video Call",
+    "scheduleVideoCallNow": "Schedule Doctor Video Call Now",
+    "emptyTeleconsults": "No scheduled video consults yet",
+    "emptyTeleconsultsDesc": "Book a video appointment to consult specialist hospital doctors from your home.",
+    "startCall": "Enter Waiting Room / Start Call",
+    "awaitingReview": "Awaiting hospital review and doctor assignment…"
+  },
+  "doctor": {
+    "title": "Doctor OPD Workspace",
+    "clinicalInsight": "Clinical Insights",
+    "patientQueue": "Patient Queue",
+    "consultations": "Consultations",
+    "prescribe": "Prescribe",
+    "labOrders": "Lab Orders",
+    "referrals": "Referrals",
+    "timeline": "Patient Timeline",
+    "currentPatient": "Current Patient",
+    "waitingPatients": "Waiting Patients",
+    "clinicalTimeline": "Clinical Timeline",
+    "logout": "Logout",
+    "metrics": {
+      "waiting": "Waiting in Queue",
+      "waitingSub": "{{count}} checked in",
+      "urgent": "Urgent Priority",
+      "urgentSub": "Triage required",
+      "criticalLabSub": "{{count}} Critical Lab",
+      "completed": "Consultations Today",
+      "completedSub": "Finalized sessions",
+      "virtual": "Virtual OPD Queue",
+      "virtualSub": "Teleconsult sessions",
+      "virtualWaitingSub": "{{count}} patient waiting in call",
+      "criticalLabCount": "{{count}} Critical Lab(s)"
+    },
+    "duty": {
+      "on": "On Duty • Available",
+      "off": "Off Duty • Inactive",
+      "toggleTitle": "Click to toggle between On Duty and Off Duty status"
+    },
+    "queue": {
+      "title": "Patient Queue",
+      "all": "All",
+      "emergency": "Emergency",
+      "urgent": "Urgent",
+      "routine": "Routine",
+      "backToQueue": "Back to Queue",
+      "waitingCount": "{{count}} patients waiting",
+      "waitingCount_one": "{{count}} patient waiting",
+      "waitingCount_other": "{{count}} patients waiting",
+      "opdTriage": "OPD Triage · Today",
+      "waiting": "Waiting",
+      "critical": "Critical",
+      "doneToday": "Done Today",
+      "reports": "Reports",
+      "virtual": "Virtual",
+      "searchPlaceholder": "Search by name, UHID, complaint...",
+      "queueClear": "Queue is Clear",
+      "noWaitingPatients": "No waiting patients right now.",
+      "noMatchingPatients": "No matching patients",
+      "resetFilters": "Reset filters",
+      "reportsReady": "Reports Ready",
+      "noReportsReady": "No Reports Ready",
+      "noReportsReadyDesc": "Lab reports appear here once uploaded by Lab Head.",
+      "ongoingQueue": "Ongoing Queue",
+      "noActivePatients": "No active patients",
+      "allConsultationsComplete": "All consultations complete.",
+      "virtualOpd": "Virtual OPD",
+      "noTeleconsults": "No Teleconsults",
+      "noTeleconsultsDesc": "Virtual OPD sessions appear once confirmed by receptionist."
+    },
+    "emptyState": {
+      "title": "Select a Patient to Begin Consultation",
+      "subtitle": "Choose a waiting or triaged patient from the queue on the left to review nurse vitals, order investigations, or prescribe medicines."
+    },
+    "tabs": {
+      "queue": "Queue",
+      "consultation": "Current Consultation",
+      "labReports": "Lab Reports",
+      "history": "Medical History",
+      "timeline": "Timeline",
+      "insights": "Insights"
+    },
+    "teleconsult": {
+      "title": "Virtual OPD Teleconsultation",
+      "active": "Virtual OPD Active",
+      "patientWaiting": "Patient Waiting in Call",
+      "patient": "Patient",
+      "slot": "Slot",
+      "exit": "Exit Video Session"
+    },
+    "emptyStateTitle": "Select a Patient to Begin Consultation"
+  },
+  "nurse": {
+    "workflowCoordination": "Clinical Workflow Coordination",
+    "title": "Nurse & Triage Station",
+    "onDuty": "On Duty",
+    "triage": "Triage Queue",
+    "vitals": "Capture Vitals",
+    "labCoordination": "Lab Coordination",
+    "referrals": "Referrals",
+    "vitalsToday": "Vitals Captured Today",
+    "urgentCases": "Urgent Cases",
+    "routineCases": "Routine Cases",
+    "totalQueue": "Total Queue",
+    "forwardToDoctor": "Forward to Doctor",
+    "refresh": "Refresh",
+    "logout": "Logout",
+    "scheduleTeleconsult": "Schedule Teleconsult",
+    "metrics": {
+      "waitingAtTriage": "Waiting at Triage",
+      "waitingAtTriageSub": "{{count}} urgent flag(s)",
+      "urgentPriority": "Urgent Priority",
+      "urgentPrioritySub": "Immediate attention required",
+      "vitalsRecorded": "Vitals Recorded Today",
+      "vitalsRecordedSub": "Forwarded to doctor OPD",
+      "routinePatients": "Routine Patients",
+      "routinePatientsSub": "Standard screening"
+    },
+    "tabs": {
+      "triage": "Triage",
+      "triageVitals": "Triage & Vitals Queue",
+      "labCoordination": "Lab Coordination",
+      "outboundReferrals": "Outbound Referrals",
+      "teleconsults": "My Teleconsults",
+      "referrals": "Referrals",
+      "transfer": "Transfer"
+    },
+    "criticalLab": {
+      "banner_one": "High Priority: Critical Lab Result Detected ({{count}})",
+      "banner_other": "High Priority: Critical Lab Results Detected ({{count}})",
+      "action": "Immediate Action",
+      "desc": "One or more laboratory findings fall outside physiological normal ranges. Please notify the doctor immediately.",
+      "reviewBtn": "Review Critical Labs ({{count}}) →"
+    }
+  },
+  "lab": {
+    "title": "Laboratory & Diagnostics",
+    "pendingTests": "Pending Tests",
+    "results": "Test Results",
+    "uploadResult": "Upload Result",
+    "testOrders": "Test Orders",
+    "nationalLabGrid": "National Lab Grid",
+    "syncLiveData": "Sync Live Data",
+    "logout": "Sign Out",
+    "workloadMetrics": "Laboratory Workload Metrics",
+    "clearFilter": "Clear Card Filter ({{filter}})",
+    "tabs": {
+      "pending": "Pending",
+      "results": "Results",
+      "orders": "Orders"
+    }
+  },
+  "pharmacy": {
+    "title": "Hospital Pharmacy & Dispensary",
+    "prescriptions": "Prescriptions",
+    "dispensed": "Dispensed",
+    "inventory": "Inventory",
+    "pendingDispense": "Pending Dispense",
+    "logout": "Logout",
+    "header": {
+      "title": "Hospital Pharmacy & Dispensary",
+      "active": "Dispensary Active"
+    },
+    "tabs": {
+      "queue": "Prescription Queue",
+      "inventory": "Inventory Status",
+      "prescriptions": "Prescriptions",
+      "history": "History"
+    },
+    "stats": {
+      "pending": "Pending Prescriptions",
+      "pendingSub": "Awaiting dispensing",
+      "dispensed": "Dispensed Today",
+      "dispensedSub": "Fulfilled prescriptions",
+      "items": "Inventory Items",
+      "itemsSub": "Medication catalog",
+      "lowStock": "Low Stock Alerts",
+      "lowStockSub": "{{outOfStock}} out of stock · {{low}} low"
+    },
+    "restock": {
+      "title": "Restock Medication",
+      "currentStock": "Current Stock:",
+      "threshold": "Low Stock Threshold:",
+      "unitsToAdd": "Units to Add (+):",
+      "cancel": "Cancel",
+      "confirm": "Confirm Restock",
+      "confirming": "Updating...",
+      "queueTitle": "Patient Prescription Queue"
+    }
+  },
+  "asha": {
+    "title": "ASHA Community Health Worker",
+    "community": "Community Health",
+    "homeVisits": "Home Visits",
+    "beneficiaries": "Beneficiaries",
+    "reports": "Reports",
+    "logout": "Logout",
+    "tabs": {
+      "refer": "Refer Patient",
+      "active": "Active Referrals",
+      "visits": "Visits",
+      "beneficiaries": "Beneficiaries",
+      "reports": "Reports"
+    }
+  },
+  "admin": {
+    "title": "Hospital Administration",
+    "subtitle": "Staff & Facility Management",
+    "overview": "Overview",
+    "staff": "Staff Management",
+    "departments": "Departments",
+    "reports": "Reports",
+    "logout": "Logout",
+    "staffForm": {
+      "title": "Add Staff Member",
+      "name": "Full Name",
+      "email": "Email Address",
+      "password": "Temporary Password",
+      "role": "Staff Role",
+      "addButton": "Add Staff Member",
+      "adding": "Adding..."
+    },
+    "staffList": {
+      "title": "Current Staff",
+      "noStaff": "No staff members yet.",
+      "deactivate": "Deactivate",
+      "deactivating": "Deactivating...",
+      "subtitle": "All staff associated with your hospital facility.",
+      "loading": "Loading staff records...",
+      "noStaffSub": "Use the form to create your first staff account.",
+      "resetPass": "Reset Pass",
+      "staffCount": "{{count}} staff member(s) registered",
+      "liveRegistry": "Live Hospital Registry"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "staff": "Staff",
+      "departments": "Departments",
+      "reports": "Reports"
+    },
+    "resetModal": {
+      "title": "Reset Staff Password",
+      "newPassword": "New Password *",
+      "minChars": "Minimum 6 characters",
+      "generateRandom": "Generate random password",
+      "save": "Save New Password"
+    }
+  },
+  "govt": {
+    "title": "NHM Government Portal",
+    "subtitle": "National Health Mission — Oversight & Governance",
+    "analytics": "Analytics",
+    "hospitals": "Hospitals",
+    "publicHealth": "Public Health",
+    "reports": "Reports",
+    "logout": "Logout",
+    "tabs": {
+      "pending": "Pending Approvals",
+      "directory": "Accredited Facilities",
+      "audit": "Audit Log"
+    },
+    "stats": {
+      "pending": "Pending Approvals",
+      "registered": "Registered Facilities",
+      "rejected": "Rejected",
+      "states": "States Covered"
+    },
+    "actions": {
+      "approve": "Approve",
+      "approving": "Approving...",
+      "reject": "Reject",
+      "rejecting": "Rejecting..."
+    }
+  },
+  "landing": {
+    "hero": {
+      "badges": {
+        "abdm": "ABDM & DISHA Compliant",
+        "verified": "Government Verified Hospitals",
+        "asha": "ASHA & Rural Grid Support",
+        "encrypted": "End-to-End Encrypted"
+      },
+      "badge": "Official NHM Digital Health Platform",
+      "title": "Smart Access to Healthcare and Assistance for You (SAHAY)",
+      "subtitle": "Connecting patients, hospitals, ASHA workers, and government in one secure, AI-powered platform.",
+      "cta": {
+        "patient": "Patient Portal",
+        "hospital": "Hospital Portal",
+        "govt": "Government Portal"
+      }
+    },
+    "portals": {
+      "tag": "Dedicated Portals",
+      "heading": "Select Your",
+      "headingHighlight": "Access Portal",
+      "subheading": "SAHAY provides role-tailored authentication for patients, accredited hospitals, and regulatory officers.",
+      "patient": {
+        "badge": "Citizens",
+        "f1": "Integrated Digital Health Locker",
+        "f2": "Direct Doctor & ASHA Worker Linkage",
+        "f3": "Secure Password-Protected Access",
+        "title": "Patient Portal",
+        "desc": "Book appointments, track your queue, view health records, and join video consultations."
+      },
+      "hospital": {
+        "badge": "Accredited Clinics",
+        "f1": "Official Registration & Accreditation",
+        "f2": "Departmental Staff Management",
+        "f3": "Strict Regulatory Status Verification",
+        "title": "Hospital Portal",
+        "desc": "Manage OPD queues, triage, lab reports, pharmacy dispensing, and teleconsultations."
+      },
+      "govt": {
+        "badge": "Regulatory Officers",
+        "f1": "Verification of Pending Facilities",
+        "f2": "Fraud & Impersonation Prevention",
+        "f3": "National Healthcare Governance",
+        "title": "Government Portal",
+        "desc": "Monitor district health data, approve hospital registrations, and audit system activity."
+      },
+      "asha": {
+        "title": "ASHA / ANM Workers",
+        "desc": "Submit field referrals, track beneficiaries, and coordinate community health programmes."
+      }
+    },
+    "arch": {
+      "tag": "Core Architecture",
+      "title": "Built for National Trust,",
+      "titleHighlight": "Security & Compliance",
+      "subtitle": "SAHAY bridges the digital gap between urban tertiary care and rural health outposts with strict multi-role governance and end-to-end encryption.",
+      "p1Title": "Mandatory Verification",
+      "p1Desc": "Hospitals cannot access patient data or issue prescriptions until an authorized government officer certifies their registration.",
+      "p2Title": "Role-Based Access",
+      "p2Desc": "Distinct security perimeters ensure patients, doctors, hospital admins, and government officials only access authorized views.",
+      "p3Title": "Encrypted Passwords & JWT",
+      "p3Desc": "Bcrypt 10-round salted password protection and JSON Web Tokens ensure high cryptographic privacy.",
+      "p4Title": "National Scalability",
+      "p4Desc": "Decoupled frontend and Express REST architecture primed for integration with central health registries."
+    },
+    "stats": {
+      "hospitals": "Hospitals",
+      "patients": "Patients",
+      "states": "States",
+      "uptime": "Uptime"
+    },
+    "features": {
+      "abha": {
+        "title": "ABHA Integration",
+        "desc": "Every patient linked to their Ayushman Bharat Health Account for lifelong, portable records."
+      },
+      "ai": {
+        "title": "AI Triage & Queue",
+        "desc": "Smart priority scoring ensures urgent patients are seen first, reducing wait times."
+      },
+      "teleconsult": {
+        "title": "Video Teleconsultation",
+        "desc": "HD video consultations built-in — connect rural patients with specialist doctors instantly."
+      },
+      "offline": {
+        "title": "Offline-First Design",
+        "desc": "Works in low-connectivity areas. Syncs automatically when internet is restored."
+      }
+    },
+    "footer": {
+      "ministry": "Ministry of Health & Family Welfare",
+      "rights": "All rights reserved.",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "helpline": "Helpline"
+    }
+  }
+}

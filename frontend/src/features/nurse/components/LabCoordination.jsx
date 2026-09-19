@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import nurseApi from '../services/nurseApi';
+import { X, Phone, FlaskConical, Check, Siren, AlertTriangle } from 'lucide-react';
 
 export default function LabCoordination({ onActionSuccess }) {
   const [loading, setLoading]           = useState(true);
@@ -91,9 +92,7 @@ export default function LabCoordination({ onActionSuccess }) {
           <button
             onClick={() => setLocalMessage(null)}
             className="text-slate-400 hover:text-slate-600 font-bold"
-          >
-            ✕
-          </button>
+          ><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -175,7 +174,7 @@ export default function LabCoordination({ onActionSuccess }) {
                         <p className="font-extrabold text-slate-900">{pName}</p>
                         <p className="text-[11px] text-slate-400">
                           {appt.patientId?.gender ? `${appt.patientId.gender} · ` : ''}
-                          {appt.patientId?.contactPhone ? `📞 ${appt.patientId.contactPhone}` : ''}
+                          {appt.patientId?.contactPhone && <><Phone className="w-3 h-3 inline mr-1" />{appt.patientId.contactPhone}</>}
                           {appt.patientId?.abhaId ? ` · ABHA: ${appt.patientId.abhaId}` : ''}
                         </p>
                       </td>
@@ -186,7 +185,7 @@ export default function LabCoordination({ onActionSuccess }) {
 
                       <td className="px-4 py-3.5">
                         <span className="inline-block px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 font-bold text-[11px]">
-                          🧪 {testDetails}
+                          <FlaskConical className="w-3.5 h-3.5 inline mr-1 text-cyan-600" />{testDetails}
                         </span>
                         {appt.latestLabOrder?.notes && (
                           <p className="text-[10px] text-slate-400 mt-0.5 italic">
@@ -198,7 +197,7 @@ export default function LabCoordination({ onActionSuccess }) {
                       <td className="px-4 py-3.5">
                         {appt.labForwarded ? (
                           <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-bold">
-                            <span>✓</span> Forwarded to Lab
+                            <><Check className="w-3.5 h-3.5 inline mr-1 text-emerald-600" />Forwarded to Lab</>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 font-semibold">
@@ -292,17 +291,17 @@ export default function LabCoordination({ onActionSuccess }) {
                           <p className="font-extrabold text-slate-900">{pName}</p>
                           {isCritical && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white font-black text-[9px] uppercase tracking-wider animate-pulse shadow-xs">
-                              🚨 CRITICAL LAB RESULT
+                              <Siren className="w-4 h-4 inline mr-1.5 text-rose-600" />CRITICAL LAB RESULT
                             </span>
                           )}
                         </div>
                         <p className="text-[11px] text-slate-400 mt-0.5">
                           {appt.patientId?.gender ? `${appt.patientId.gender} · ` : ''}
-                          {appt.patientId?.contactPhone ? `📞 ${appt.patientId.contactPhone}` : ''}
+                          {appt.patientId?.contactPhone && <><Phone className="w-3 h-3 inline mr-1" />{appt.patientId.contactPhone}</>}
                         </p>
                         {isCritical && criticalOrder?.criticalReason && (
                           <p className="text-[10px] font-bold text-red-700 mt-1">
-                            ⚠️ {criticalOrder.criticalReason}
+                            <AlertTriangle className="w-3.5 h-3.5 inline mr-1 text-amber-500" />{criticalOrder.criticalReason}
                           </p>
                         )}
                       </td>
@@ -319,7 +318,7 @@ export default function LabCoordination({ onActionSuccess }) {
                               : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           }`}
                         >
-                          {isCritical ? '⚠️ ' : '✓ '}
+                          {isCritical ? <AlertTriangle className="w-3.5 h-3.5 inline mr-1 text-amber-500" /> : <Check className="w-3.5 h-3.5 inline mr-1 text-emerald-600" />}
                           {testDetails}
                         </span>
                       </td>
@@ -331,7 +330,7 @@ export default function LabCoordination({ onActionSuccess }) {
                           </span>
                         ) : isCritical ? (
                           <span className="inline-flex items-center gap-1 text-[11px] text-red-700 font-black animate-pulse">
-                            🚨 Urgent Doctor Attention Required
+                            <Siren className="w-4 h-4 inline mr-1.5 text-rose-600" />Urgent Doctor Attention Required
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] text-teal-700 font-semibold">
@@ -364,7 +363,7 @@ export default function LabCoordination({ onActionSuccess }) {
                             {isDoctorNotified
                               ? 'Re-Notify Doctor'
                               : isCritical
-                              ? '🚨 Escalate Critical Lab to Doctor'
+                              ? 'Escalate Critical Lab to Doctor'
                               : 'Notify Doctor (Move to Review Queue)'}
                           </span>
                         </button>

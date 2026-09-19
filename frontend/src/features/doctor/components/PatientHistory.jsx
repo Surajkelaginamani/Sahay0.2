@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import doctorApi from '../services/doctorApi';
 import AiClinicalInsightCard from './AiClinicalInsightCard';
+import { Tag, Mic } from 'lucide-react';
 
 export default function PatientHistory({ patientId, patient: initialPatient }) {
   const [loading, setLoading] = useState(true);
@@ -371,7 +372,7 @@ export default function PatientHistory({ patientId, patient: initialPatient }) {
                             key={tIdx}
                             className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold shadow-xs hover:bg-indigo-100 transition-colors"
                           >
-                            <span className="text-[10px]">🏷️</span>
+                            <Tag className="w-3 h-3 text-slate-400" />
                             <span>{tag}</span>
                           </span>
                         ))}
@@ -385,7 +386,7 @@ export default function PatientHistory({ patientId, patient: initialPatient }) {
                     event.raw.appointmentId?.voiceNoteTranscript) && (
                     <div className="mt-2.5 p-3 rounded-2xl bg-gradient-to-r from-cyan-50/90 via-sky-50/70 to-blue-50/60 border border-cyan-200/80 shadow-xs">
                       <div className="flex items-center gap-1.5 text-cyan-900 font-extrabold text-[11px] mb-1">
-                        <span className="p-1 rounded-lg bg-cyan-100/80 text-xs">🎙️</span>
+                        <span className="p-1 rounded-lg bg-cyan-100/80"><Mic className="w-3 h-3 text-cyan-600" /></span>
                         <span>Voice Scribe Note</span>
                         <span className="text-[10px] font-normal text-cyan-700 bg-cyan-100/50 px-2 py-0.5 rounded-full ml-auto font-mono">
                           ABDM Scribed

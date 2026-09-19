@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import patientApi from '../../services/patientApi';
 import VideoRoom from '../../components/common/VideoRoom';
@@ -28,7 +29,7 @@ import {
 
 function StatCard({ icon, label, value, sub, color }) {
   return (
-    <div className={`bg-white rounded-2xl border ${color.border} p-4 flex items-center gap-3.5 shadow-sm`}>
+    <div className={`bg-white dark:bg-slate-800 rounded-2xl border ${color.border} dark:border-slate-700 p-4 flex items-center gap-3.5 shadow-sm`}>
       <div className={`w-11 h-11 rounded-xl ${color.icon} flex items-center justify-center shrink-0`}>
         {icon}
       </div>
@@ -43,6 +44,7 @@ function StatCard({ icon, label, value, sub, color }) {
 
 export default function PatientDashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [patientData, setPatientData] = useState(null);
   const [hospitals, setHospitals] = useState([]);
@@ -260,7 +262,7 @@ export default function PatientDashboard() {
   };
 
   return (
-    <div className="min-h-[85vh] bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 px-4 sm:px-8 py-8">
+    <div className="min-h-[85vh] bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 px-4 sm:px-8 py-8">
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-6 right-6 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl border bg-white border-violet-200 text-sm font-medium max-w-sm transition-all animate-bounce-short">
@@ -316,16 +318,16 @@ export default function PatientDashboard() {
                   </h1>
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold inline-flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                    Verified Citizen
+                    {t('patient.header.verifiedCitizen')}
                   </span>
                 </div>
 
                 <p className="text-xs text-slate-300 flex flex-wrap items-center gap-2">
                   {patientData?.gender && <span className="capitalize">{patientData.gender}</span>}
-                  {age !== null && <span>· {age} years</span>}
+                  {age !== null && <span>· {t('patient.header.years', { count: age })}</span>}
                   {bloodGroup && (
                     <span className="inline-flex items-center gap-1 font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md">
-                      Blood: {bloodGroup}
+                      {t('patient.header.blood', { group: bloodGroup })}
                     </span>
                   )}
                   {patientData?.contactPhone && (
@@ -338,7 +340,7 @@ export default function PatientDashboard() {
                 <div className="pt-2 flex flex-wrap items-center gap-3">
                   <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm">
                     <p className="text-[9px] uppercase tracking-wider font-bold text-sky-200">
-                      Ayushman Bharat Health Account (ABHA)
+                      {t('patient.header.abha')}
                     </p>
                     <p className="text-sm font-mono font-black text-white tracking-widest mt-0.5">
                       {abhaId}
@@ -349,7 +351,7 @@ export default function PatientDashboard() {
                   {patientData?.uhid && (
                     <div className="bg-violet-500/20 px-3 py-1.5 rounded-xl border border-violet-400/30 backdrop-blur-sm">
                       <p className="text-[9px] uppercase tracking-wider font-bold text-violet-300">
-                        Unique Health ID (UHID)
+                        {t('patient.header.uhid')}
                       </p>
                       <p className="text-sm font-mono font-black text-white tracking-widest mt-0.5">
                         {patientData.uhid}
@@ -374,13 +376,13 @@ export default function PatientDashboard() {
                 disabled={loading}
                 className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border border-white/15 backdrop-blur-sm disabled:opacity-50"
               >
-                Sync Records
+                {t('patient.header.syncRecords')}
               </button>
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-bold transition-all shadow-md shadow-rose-950/40"
               >
-                Sign Out
+                {t('common.signOut')}
               </button>
             </div>
           </div>
@@ -511,7 +513,7 @@ export default function PatientDashboard() {
               className="px-5 py-3 rounded-2xl bg-white text-violet-900 font-extrabold text-xs hover:bg-violet-50 transition-all shadow-lg shadow-violet-950/30 flex items-center gap-2"
             >
               <Video className="w-4 h-4 mr-1 text-violet-900" />
-              <span>Schedule Doctor Video Call</span>
+              <span>{t('patient.bookTeleconsult')}</span>
             </button>
           </div>
         </div>
@@ -519,11 +521,11 @@ export default function PatientDashboard() {
         {/* ── Tabbed Records Navigation (Prompt 9.3 & 17.4) ─────────────────── */}
         <div className="flex flex-wrap items-center bg-white p-2 rounded-2xl border border-slate-200 shadow-sm gap-2">
           {[
-            { id: 'timeline', label: 'Medical History Timeline', count: timeline.length, icon: History },
-            { id: 'prescriptions', label: 'Digital Prescriptions', count: prescriptions.length, icon: Pill },
-            { id: 'labs', label: 'Diagnostic Lab Reports', count: labOrders.length, icon: FlaskConical },
-            { id: 'hospitals', label: 'Hospitals Visited', count: hospitals.length, icon: Building2 },
-            { id: 'teleconsults', label: 'My Video Consults', count: myTeleconsults.length, icon: Video },
+            { id: 'timeline', label: t('patient.tabs.timeline'), count: timeline.length, icon: History },
+            { id: 'prescriptions', label: t('patient.tabs.prescriptions'), count: prescriptions.length, icon: Pill },
+            { id: 'labs', label: t('patient.tabs.labs'), count: labOrders.length, icon: FlaskConical },
+            { id: 'hospitals', label: t('patient.tabs.hospitals'), count: hospitals.length, icon: Building2 },
+            { id: 'teleconsults', label: t('patient.tabs.teleconsults'), count: myTeleconsults.length, icon: Video },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -578,9 +580,9 @@ export default function PatientDashboard() {
               ) : timeline.length === 0 ? (
                 <div className="py-16 text-center text-slate-400">
                   <FileText className="w-10 h-10 text-slate-300 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700 mt-2">No Past Medical Records Found</p>
+                  <p className="text-xs font-bold text-slate-700 mt-2">{t('patient.emptyRecords')}</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Your check-up visits, prescriptions, and lab tests will populate automatically here.
+                    {t('patient.emptyRecordsDesc')}
                   </p>
                 </div>
               ) : (
@@ -700,9 +702,9 @@ export default function PatientDashboard() {
               {prescriptions.length === 0 ? (
                 <div className="bg-white rounded-3xl border border-slate-100 p-16 text-center text-slate-400">
                   <Pill className="w-10 h-10 text-slate-300 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700 mt-2">No Digital Prescriptions on File</p>
+                  <p className="text-xs font-bold text-slate-700 mt-2">{t('patient.emptyPrescriptions')}</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Prescribed medicines from consultations will be organized here.
+                    {t('patient.emptyPrescriptionsDesc')}
                   </p>
                 </div>
               ) : (
@@ -718,7 +720,7 @@ export default function PatientDashboard() {
                         <div>
                           <h3 className="text-sm font-extrabold text-slate-900">{hospitalName}</h3>
                           <p className="text-[11px] text-slate-500">
-                            {Object.values(grouped[hospitalName]).flat().length} prescription(s) from this facility
+                            {t('patient.prescriptionsFromFacility', { count: Object.values(grouped[hospitalName]).flat().length })}
                           </p>
                         </div>
                       </div>
@@ -765,10 +767,10 @@ export default function PatientDashboard() {
                                   {/* Medications Table */}
                                   <div className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
                                     <div className="bg-slate-100/60 px-4 py-2 grid grid-cols-12 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                                      <div className="col-span-5">Medicine</div>
-                                      <div className="col-span-2">Dosage</div>
-                                      <div className="col-span-3">Frequency</div>
-                                      <div className="col-span-2">Duration</div>
+                                      <div className="col-span-5">{t('common.medicine')}</div>
+                                      <div className="col-span-2">{t('common.dosage')}</div>
+                                      <div className="col-span-3">{t('common.frequency')}</div>
+                                      <div className="col-span-2">{t('common.duration')}</div>
                                     </div>
                                     {(rx.medications || []).map((med, idx) => (
                                       <div key={idx} className="px-4 py-2.5 grid grid-cols-12 text-xs items-center">
@@ -793,7 +795,7 @@ export default function PatientDashboard() {
 
                                   {rx.instructions && (
                                     <div className="bg-white p-3 rounded-xl text-xs text-slate-600 border border-slate-100">
-                                      <span className="font-bold text-slate-500 text-[10px] uppercase mr-1">Instructions:</span>
+                                      <span className="font-bold text-slate-500 text-[10px] uppercase mr-1">{t('common.instructions')}:</span>
                                       {rx.instructions}
                                     </div>
                                   )}
@@ -816,9 +818,9 @@ export default function PatientDashboard() {
               {labOrders.length === 0 ? (
                 <div className="bg-white rounded-3xl border border-slate-100 p-16 text-center text-slate-400">
                   <FlaskConical className="w-10 h-10 text-slate-300 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700 mt-2">No Diagnostic Reports on File</p>
+                  <p className="text-xs font-bold text-slate-700 mt-2">{t('patient.emptyLabs')}</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Laboratory tests and investigation reports will appear here when completed.
+                    {t('patient.emptyLabsDesc')}
                   </p>
                 </div>
               ) : (
@@ -834,7 +836,7 @@ export default function PatientDashboard() {
                         <div>
                           <h3 className="text-sm font-extrabold text-slate-900">{hospitalName}</h3>
                           <p className="text-[11px] text-slate-500">
-                            {Object.values(grouped[hospitalName]).flat().length} lab report(s) from this facility
+                            {t('patient.labsFromFacility', { count: Object.values(grouped[hospitalName]).flat().length })}
                           </p>
                         </div>
                       </div>
@@ -884,7 +886,7 @@ export default function PatientDashboard() {
                                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 text-[10px] font-bold transition-all border border-sky-200"
                                         >
                                           <FileText className="w-3 h-3" />
-                                          <span>View PDF</span>
+                                          <span>{t('common.viewPdf')}</span>
                                         </a>
                                       )}
                                     </div>
@@ -932,9 +934,9 @@ export default function PatientDashboard() {
                 {hospitals.length === 0 ? (
                   <div className="py-12 text-center text-slate-400">
                     <Building2 className="w-10 h-10 text-slate-300 mx-auto" />
-                    <p className="text-xs font-bold text-slate-700 mt-2">No Hospital History Yet</p>
+                    <p className="text-xs font-bold text-slate-700 mt-2">{t('patient.emptyHospitals')}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Facilities you check into will appear here automatically.
+                      {t('patient.emptyHospitalsDesc')}
                     </p>
                   </div>
                 ) : (
@@ -1001,7 +1003,7 @@ export default function PatientDashboard() {
                     <svg className={`w-3.5 h-3.5 ${loadingTeleconsults ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                     </svg>
-                    <span>Refresh</span>
+                    <span>{t('common.refresh')}</span>
                   </button>
                   <button
                     id="patient-new-video-call-btn"
@@ -1009,7 +1011,7 @@ export default function PatientDashboard() {
                     className="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white text-xs font-extrabold shadow-sm shadow-violet-200 hover:opacity-90 transition-all flex items-center gap-1.5"
                   >
                     <span>+</span>
-                    <span>Schedule Doctor Video Call</span>
+                    <span>{t('patient.scheduleVideoCall')}</span>
                   </button>
                 </div>
               </div>
@@ -1017,7 +1019,7 @@ export default function PatientDashboard() {
               {loadingTeleconsults && (
                 <div className="text-center py-12 bg-white rounded-3xl border border-slate-100">
                   <div className="w-8 h-8 border-3 border-violet-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                  <p className="text-xs text-slate-500 font-semibold">Loading your video consultations…</p>
+                  <p className="text-xs text-slate-500 font-semibold">{t('common.loading')}</p>
                 </div>
               )}
 
@@ -1026,15 +1028,15 @@ export default function PatientDashboard() {
                   <div className="w-14 h-14 rounded-2xl bg-violet-50 mx-auto flex items-center justify-center mb-3">
                     <Video className="w-7 h-7 text-violet-600" />
                   </div>
-                  <p className="text-sm font-bold text-slate-700">No scheduled video consults yet</p>
+                  <p className="text-sm font-bold text-slate-700">{t('patient.emptyTeleconsults')}</p>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                    Book a video appointment to consult specialist hospital doctors from your home.
+                    {t('patient.emptyTeleconsultsDesc')}
                   </p>
                   <button
                     onClick={() => setShowBookTeleconsultModal(true)}
                     className="mt-4 px-5 py-2.5 rounded-xl bg-violet-600 text-white font-bold text-xs hover:bg-violet-700 transition-colors shadow-md shadow-violet-200"
                   >
-                    Schedule Doctor Video Call Now
+                    {t('patient.scheduleVideoCallNow')}
                   </button>
                 </div>
               )}
@@ -1103,14 +1105,14 @@ export default function PatientDashboard() {
                                 hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-200"
                             >
                               <Video className="w-4 h-4 mr-1 text-white" />
-                              <span>Enter Waiting Room / Start Call</span>
+                              <span>{t('patient.startCall')}</span>
                             </button>
                           )}
 
                           {isRequested && (
                             <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-xs text-amber-700">
                               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                              Awaiting hospital review and doctor assignment…
+                              {t('patient.awaitingReview')}
                             </div>
                           )}
                         </div>

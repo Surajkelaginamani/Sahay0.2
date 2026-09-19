@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Landing from './pages/Landing';
@@ -7,6 +8,9 @@ import PatientAuth from './pages/auth/PatientAuth';
 import PatientLogin from './pages/auth/PatientLogin';
 import HospitalRegister from './pages/auth/HospitalRegister';
 import HospitalLogin from './pages/auth/HospitalLogin';
+import StaffLogin from './pages/auth/StaffLogin';
+import StaffForgotPassword from './pages/auth/StaffForgotPassword';
+import StaffResetPassword from './pages/auth/StaffResetPassword';
 import GovtLogin from './pages/auth/GovtLogin';
 import PatientDashboard from './pages/dashboards/PatientDashboard';
 import HospitalAdminDashboard from './pages/dashboards/HospitalAdminDashboard';
@@ -18,11 +22,14 @@ import AshaDashboard from './pages/dashboards/AshaDashboard';
 import ReceptionistDashboard from './pages/dashboards/ReceptionistDashboard';
 import NurseDashboard from './pages/dashboards/NurseDashboard';
 import PharmacyDashboard from './pages/dashboards/PharmacyDashboard';
+import OfflineSyncToast from './components/common/OfflineSyncToast';
 
 function App() {
   return (
+    <ThemeProvider>
     <Router>
-      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 selection:bg-mint-100 selection:text-mint-900">
+      <OfflineSyncToast />
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 selection:bg-mint-100 selection:text-mint-900">
         <Navbar />
         <main className="flex-1">
           <Routes>
@@ -34,6 +41,9 @@ function App() {
             <Route path="/auth/patient/login" element={<div className="min-h-[80vh] flex items-center justify-center px-4 py-12"><div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-6"><div className="text-center space-y-2"><div className="w-12 h-12 mx-auto rounded-xl bg-mint-100 text-mint-700 flex items-center justify-center font-bold text-xl"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></div><h2 className="text-2xl font-bold text-gov-900">Patient Login</h2><p className="text-xs text-slate-500">Official Citizen Healthcare Portal • National Health Network</p></div><PatientLogin /><div className="text-center pt-2"><Link to="/" className="text-xs font-medium text-slate-500 hover:text-slate-800">← Back to National Portals Overview</Link></div></div></div>} />
             <Route path="/auth/hospital/register" element={<HospitalRegister />} />
             <Route path="/auth/hospital/login" element={<HospitalLogin />} />
+            <Route path="/staff/login" element={<StaffLogin />} />
+            <Route path="/staff/forgot-password" element={<StaffForgotPassword />} />
+            <Route path="/staff/reset-password/:token" element={<StaffResetPassword />} />
             <Route path="/auth/govt" element={<GovtLogin />} />
 
             {/* Dashboards */}
@@ -66,6 +76,7 @@ function App() {
         <Footer />
       </div>
     </Router>
+    </ThemeProvider>
   );
 }
 

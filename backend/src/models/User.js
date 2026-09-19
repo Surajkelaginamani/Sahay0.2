@@ -36,6 +36,17 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    isTemporaryPin: {
+      type: Boolean,
+      default: false,
+    },
+    // ── Staff Password Reset Token (Prompt: Auth Recovery) ────────────────────
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpire: {
+      type: Date,
+    },
     password: {
       type: String,
       required: function () {

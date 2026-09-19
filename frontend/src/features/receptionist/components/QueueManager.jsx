@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, Check } from 'lucide-react';
 import receptionistApi from '../services/receptionistApi';
 
 // ─── Status badge config ───────────────────────────────────────────────────────
@@ -227,8 +228,8 @@ export default function QueueManager({ onCheckInSuccess, refreshTrigger }) {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-sm font-semibold text-slate-800 truncate">{fullName}</p>
                               {appt.priority === 'Urgent' && (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold border border-rose-200">
-                                  ⚠ URGENT
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[9px] font-bold border border-rose-200">
+                                  <AlertTriangle className="w-2.5 h-2.5" /> URGENT
                                 </span>
                               )}
                             </div>
@@ -280,7 +281,9 @@ export default function QueueManager({ onCheckInSuccess, refreshTrigger }) {
                           </span>
                         )}
                         {appt.status === 'Completed' && (
-                          <span className="text-[11px] text-emerald-600 font-medium">✓ Done</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
+                            <Check className="w-3 h-3" /> Done
+                          </span>
                         )}
                         {appt.status === 'Cancelled' && (
                           <span className="text-[11px] text-slate-400">Cancelled</span>

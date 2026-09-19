@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { CheckCircle2, Smartphone, AlertTriangle } from 'lucide-react';
 import receptionistApi from '../services/receptionistApi';
 
 // ─── Small helpers ─────────────────────────────────────────────────────────────
@@ -69,8 +70,8 @@ function ConflictCard({ conflict, onResolved }) {
         {/* Left: Existing DB record */}
         <div className="p-5 space-y-3">
           <div className="flex items-center gap-2 mb-3">
-            <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-700 text-[10px] font-black uppercase tracking-wider border border-sky-200">
-              ✅ Existing Record (DB)
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-700 text-[10px] font-black uppercase tracking-wider border border-sky-200">
+              <CheckCircle2 className="w-3 h-3" /> Existing Record (DB)
             </span>
           </div>
           {existing ? (
@@ -96,8 +97,8 @@ function ConflictCard({ conflict, onResolved }) {
         {/* Right: Incoming ASHA sync data */}
         <div className="p-5 space-y-3 bg-amber-50/40">
           <div className="flex items-center gap-2 mb-3">
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-wider border border-amber-200">
-              📲 Incoming ASHA Sync
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-wider border border-amber-200">
+              <Smartphone className="w-3 h-3" /> Incoming ASHA Sync
             </span>
           </div>
           <div className="space-y-3">
@@ -217,7 +218,9 @@ export default function MergeResolution() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm">⚠️</span>
+            <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm">
+              <AlertTriangle className="w-4 h-4" />
+            </span>
             Data Conflict Resolution
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 ml-10">

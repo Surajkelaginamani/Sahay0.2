@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getStoredAuth } from "../utils/auth";
 
 const landingStyles = `
@@ -170,6 +171,7 @@ const landingStyles = `
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const auth = getStoredAuth();
@@ -236,32 +238,27 @@ export default function Landing() {
             {/* Live badge */}
             <div className="fade-up-1 inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-xs font-semibold stat-chip text-slate-700" style={{background:"rgba(255,255,255,0.88)"}}>
               <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" style={{ boxShadow: "0 0 8px 2px rgba(6,182,212,0.6)" }} />
-              <span>National Digital Health Platform — Republic of India</span>
+              <span>{t('landing.hero.badge')}</span>
               <span className="ml-1 px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-700 border border-cyan-200 text-[10px] font-bold tracking-wide">LIVE</span>
             </div>
 
             {/* Headline */}
             <h1 className="fade-up-2 hero-heading text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight text-slate-800">
-              Smart Access to Healthcare{" "}
-              <span className="hero-sahay">(SAHAY)</span>
+              {t('landing.hero.title')}
             </h1>
 
             {/* Subtitle */}
             <p className="fade-up-3 hero-sub text-lg sm:text-xl text-slate-700 max-w-xl leading-relaxed">
-              A unified, secure, and interoperable government healthcare portal connecting{" "}
-              <span className="text-cyan-700 font-semibold">citizens</span>,{" "}
-              <span className="text-sky-700 font-semibold">accredited medical institutions</span>, and{" "}
-              <span className="text-blue-800 font-semibold">health ministry officials</span>{" "}
-              across the nation.
+              {t('landing.hero.subtitle')}
             </p>
 
             {/* Stat chips */}
             <div className="fade-up-4 pt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600">
               {[
-                { icon: "M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z", color: "text-cyan-600", label: "ABDM & DISHA Compliant", fill: true },
-                { icon: "M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z", color: "text-sky-600", label: "Government Verified Hospitals", fill: true },
-                { icon: "M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z", color: "text-blue-800", label: "ASHA & Rural Grid Support", fill: true },
-                { icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", color: "text-cyan-700", label: "End-to-End Encrypted", fill: false },
+                { icon: "M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z", color: "text-cyan-600", label: t('landing.hero.badges.abdm'), fill: true },
+                { icon: "M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z", color: "text-sky-600", label: t('landing.hero.badges.verified'), fill: true },
+                { icon: "M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z", color: "text-blue-800", label: t('landing.hero.badges.asha'), fill: true },
+                { icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", color: "text-cyan-700", label: t('landing.hero.badges.encrypted'), fill: false },
               ].map(({ icon, color, label, fill }) => (
                 <div key={label} className="flex items-center gap-2 stat-chip px-3.5 py-2 rounded-xl">
                   <svg className={`w-4 h-4 ${color}`} fill={fill ? "currentColor" : "none"} viewBox={fill ? "0 0 20 20" : "0 0 24 24"} stroke={fill ? undefined : "currentColor"}>
@@ -285,19 +282,19 @@ export default function Landing() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                Access as Citizen
+                {t('landing.hero.cta.patient')}
               </Link>
               <Link to="/auth/hospital/login" id="hero-hospital-cta" className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-2xl text-white font-bold text-sm portal-btn-sky">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
-                Hospital Portal
+                {t('landing.hero.cta.hospital')}
               </Link>
               <Link to="/auth/govt" id="hero-govt-cta" className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-2xl text-white font-bold text-sm portal-btn-dark">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                Govt Officer Login
+                {t('landing.hero.cta.govt')}
               </Link>
             </div>
           </div>
@@ -318,13 +315,14 @@ export default function Landing() {
           <div className="relative max-w-7xl mx-auto space-y-12">
             <div className="text-center space-y-3">
               <span className="inline-block text-xs font-bold uppercase tracking-widest text-cyan-600 bg-cyan-50 border border-cyan-200 px-3 py-1 rounded-full">
-                Dedicated Portals
+                {t('landing.portals.tag')}
               </span>
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-800">
-                Select Your <span className="shimmer-text">Access Portal</span>
+                {t('landing.portals.heading')}{" "}
+                <span className="shimmer-text">{t('landing.portals.headingHighlight')}</span>
               </h2>
               <p className="text-sm sm:text-base text-slate-500 max-w-2xl mx-auto">
-                SAHAY provides role-tailored authentication for patients, accredited hospitals, and regulatory officers.
+                {t('landing.portals.subheading')}
               </p>
             </div>
 
@@ -342,14 +340,16 @@ export default function Landing() {
                 </div>
                 <div className="flex-1 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-slate-800">Patient Portal</h3>
-                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200">Citizens</span>
+                    <h3 className="text-xl font-bold text-slate-800">{t('landing.portals.patient.title')}</h3>
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200">
+                      {t('landing.portals.patient.badge')}
+                    </span>
                   </div>
                   <p className="text-sm text-slate-600 leading-relaxed">
-                    Register or log in to view your complete electronic health record, consult doctors, and track health history seamlessly.
+                    {t('landing.portals.patient.desc')}
                   </p>
                   <ul className="text-xs text-slate-500 space-y-2 pt-2">
-                    {["Integrated Digital Health Locker", "Direct Doctor & ASHA Worker Linkage", "Secure Password-Protected Access"].map((f) => (
+                    {[t('landing.portals.patient.f1'), t('landing.portals.patient.f2'), t('landing.portals.patient.f3')].map((f) => (
                       <li key={f} className="flex items-center gap-2">
                         <span className="flex-shrink-0 w-4 h-4 rounded-full bg-cyan-100 border border-cyan-300 flex items-center justify-center">
                           <svg className="w-2.5 h-2.5 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
@@ -364,7 +364,7 @@ export default function Landing() {
                 <div className="pt-8 mt-6 border-t border-cyan-100">
                   <Link to="/auth/patient" id="card-patient-login"
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-bold text-sm portal-btn-teal">
-                    Enter Patient Portal
+                    {t('landing.portals.patient.title')}
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
@@ -384,14 +384,16 @@ export default function Landing() {
                 </div>
                 <div className="flex-1 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-slate-800">Hospital Portal</h3>
-                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200">Accredited Clinics</span>
+                    <h3 className="text-xl font-bold text-slate-800">{t('landing.portals.hospital.title')}</h3>
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+                      {t('landing.portals.hospital.badge')}
+                    </span>
                   </div>
                   <p className="text-sm text-slate-600 leading-relaxed">
-                    Hospital administrators can manage beds, doctors, and patient admissions. New facilities must undergo government verification.
+                    {t('landing.portals.hospital.desc')}
                   </p>
                   <ul className="text-xs text-slate-500 space-y-2 pt-2">
-                    {["Official Registration & Accreditation", "Departmental Staff Management", "Strict Regulatory Status Verification"].map((f) => (
+                    {[t('landing.portals.hospital.f1'), t('landing.portals.hospital.f2'), t('landing.portals.hospital.f3')].map((f) => (
                       <li key={f} className="flex items-center gap-2">
                         <span className="flex-shrink-0 w-4 h-4 rounded-full bg-sky-100 border border-sky-300 flex items-center justify-center">
                           <svg className="w-2.5 h-2.5 text-sky-600" fill="currentColor" viewBox="0 0 20 20">
@@ -406,7 +408,7 @@ export default function Landing() {
                 <div className="pt-8 mt-6 border-t border-sky-100 space-y-2.5">
                   <Link to="/auth/hospital/login" id="card-hospital-login"
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-bold text-sm portal-btn-sky">
-                    Hospital Admin Login
+                    {t('landing.portals.hospital.title')}
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
@@ -414,7 +416,7 @@ export default function Landing() {
                   <Link to="/auth/hospital/register" id="card-hospital-register"
                     className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl text-slate-700 font-semibold text-xs border border-sky-200 hover:border-sky-400 hover:bg-white transition-all"
                     style={{ background: "rgba(255,255,255,0.70)" }}>
-                    Register New Healthcare Facility
+                    {t('navbar.registerHospital')}
                   </Link>
                 </div>
               </div>
@@ -431,14 +433,16 @@ export default function Landing() {
                 </div>
                 <div className="flex-1 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-slate-800">Government Portal</h3>
-                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-blue-900 border border-slate-300">Regulatory Officers</span>
+                    <h3 className="text-xl font-bold text-slate-800">{t('landing.portals.govt.title')}</h3>
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-blue-900 border border-slate-300">
+                      {t('landing.portals.govt.badge')}
+                    </span>
                   </div>
                   <p className="text-sm text-slate-600 leading-relaxed">
-                    Authorized officers review pending hospital registrations, grant or reject credentials, and monitor healthcare compliance metrics.
+                    {t('landing.portals.govt.desc')}
                   </p>
                   <ul className="text-xs text-slate-500 space-y-2 pt-2">
-                    {["Verification of Pending Facilities", "Fraud & Impersonation Prevention", "National Healthcare Governance"].map((f) => (
+                    {[t('landing.portals.govt.f1'), t('landing.portals.govt.f2'), t('landing.portals.govt.f3')].map((f) => (
                       <li key={f} className="flex items-center gap-2">
                         <span className="flex-shrink-0 w-4 h-4 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center">
                           <svg className="w-2.5 h-2.5 text-blue-900" fill="currentColor" viewBox="0 0 20 20">
@@ -453,7 +457,7 @@ export default function Landing() {
                 <div className="pt-8 mt-6 border-t border-slate-200">
                   <Link to="/auth/govt" id="card-govt-login"
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-bold text-sm portal-btn-dark">
-                    Government Officer Login
+                    {t('landing.portals.govt.title')}
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
@@ -471,22 +475,22 @@ export default function Landing() {
             <div className="arch-section-bg rounded-3xl p-8 sm:p-14">
               <div className="max-w-3xl mb-12">
                 <span className="text-xs font-bold uppercase tracking-widest text-cyan-600 bg-cyan-50 border border-cyan-200 px-3 py-1 rounded-full">
-                  Core Architecture
+                  {t('landing.arch.tag')}
                 </span>
                 <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-800 mt-4">
-                  Built for National Trust,{" "}
-                  <span className="shimmer-text">Security & Compliance</span>
+                  {t('landing.arch.title')}{" "}
+                  <span className="shimmer-text">{t('landing.arch.titleHighlight')}</span>
                 </h2>
                 <p className="text-sm text-slate-600 mt-3 leading-relaxed">
-                  SAHAY bridges the digital gap between urban tertiary care and rural health outposts with strict multi-role governance and end-to-end encryption.
+                  {t('landing.arch.subtitle')}
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 {[
-                  { num: "01", title: "Mandatory Verification", desc: "Hospitals cannot access patient data or issue prescriptions until an authorized government officer certifies their registration." },
-                  { num: "02", title: "Role-Based Access", desc: "Distinct security perimeters ensure patients, doctors, hospital admins, and government officials only access authorized views." },
-                  { num: "03", title: "Encrypted Passwords & JWT", desc: "Bcrypt 10-round salted password protection and JSON Web Tokens ensure high cryptographic privacy." },
-                  { num: "04", title: "National Scalability", desc: "Decoupled frontend and Express REST architecture primed for integration with central health registries." },
+                  { num: "01", title: t('landing.arch.p1Title'), desc: t('landing.arch.p1Desc') },
+                  { num: "02", title: t('landing.arch.p2Title'), desc: t('landing.arch.p2Desc') },
+                  { num: "03", title: t('landing.arch.p3Title'), desc: t('landing.arch.p3Desc') },
+                  { num: "04", title: t('landing.arch.p4Title'), desc: t('landing.arch.p4Desc') },
                 ].map(({ num, title, desc }) => (
                   <div key={num} className="pillar-box rounded-2xl p-6 space-y-3">
                     <div className="text-2xl font-black number-badge">{num}</div>

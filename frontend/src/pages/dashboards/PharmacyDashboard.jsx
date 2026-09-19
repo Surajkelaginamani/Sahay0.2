@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import pharmacyApi from '../../features/pharmacy/services/pharmacyApi';
+import { Package, X, ClipboardList, CreditCard, Phone, Pill, Ban, AlertTriangle, CheckCircle2, Circle } from 'lucide-react';
 
 function StatCard({ icon, label, value, sub, color, onClick, active }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-2xl border ${color.border} p-4 flex items-center gap-3.5 shadow-sm transition-all ${
+      className={`bg-white dark:bg-slate-800 rounded-2xl border ${color.border} dark:border-slate-700 p-4 flex items-center gap-3.5 shadow-sm transition-all ${
         onClick ? 'cursor-pointer hover:shadow-md hover:scale-[1.01]' : ''
       } ${active ? 'ring-2 ring-emerald-500 bg-emerald-50/20' : ''}`}
     >
@@ -24,6 +26,7 @@ function StatCard({ icon, label, value, sub, color, onClick, active }) {
 
 export default function PharmacyDashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'inventory'
   const [prescriptions, setPrescriptions] = useState([]);
@@ -376,7 +379,7 @@ export default function PharmacyDashboard() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg">
-                  📦
+
                 </div>
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900">Restock Medication</h3>
@@ -386,9 +389,7 @@ export default function PharmacyDashboard() {
               <button
                 onClick={() => setRestockTarget(null)}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              >
-                ✕
-              </button>
+              ><X className="w-4 h-4" /></button>
             </div>
 
             <div className="bg-slate-50 rounded-2xl p-3 text-xs space-y-1">
@@ -493,7 +494,7 @@ export default function PharmacyDashboard() {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>📋 Prescription Queue</span>
+                <span className="flex items-center gap-1.5"><ClipboardList className="w-4 h-4" />Prescription Queue</span>
                 {prescriptions.length > 0 && (
                   <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded-full text-[10px]">
                     {prescriptions.length}
@@ -508,7 +509,7 @@ export default function PharmacyDashboard() {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>📦 Inventory Status</span>
+                <span className="flex items-center gap-1.5"><Package className="w-4 h-4" />Inventory Status</span>
                 {lowStockCount + outOfStockCount > 0 && (
                   <span className="px-1.5 py-0.2 bg-rose-100 text-rose-700 rounded-full text-[10px] animate-pulse">
                     {lowStockCount + outOfStockCount}
@@ -729,18 +730,18 @@ export default function PharmacyDashboard() {
                             </div>
                             {(patient.uhid || rx.patientUhid) && (
                               <span className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
-                                🪪 {patient.uhid || rx.patientUhid}
+                                <CreditCard className="w-3 h-3 inline mr-1 text-slate-400" />{patient.uhid || rx.patientUhid}
                               </span>
                             )}
                             <p className="text-[10px] text-slate-400 mt-0.5">
                               {patient.gender && <span>{patient.gender}</span>}
                               {rx.patientAge !== null && <span> · {rx.patientAge} yrs</span>}
-                              {patient.contactPhone && <span> · 📞 {patient.contactPhone}</span>}
+                              {patient.contactPhone && <span> · <Phone className="w-3 h-3 inline mx-0.5" />{patient.contactPhone}</span>}
                             </p>
                           </div>
 
                           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-xl bg-emerald-100 text-emerald-800 text-[10px] font-extrabold shrink-0">
-                            <span>💊</span>
+                            <Pill className="w-4 h-4 text-violet-600" />
                             <span>{rx.medicationCount} Drugs</span>
                           </span>
                         </div>
@@ -790,7 +791,7 @@ export default function PharmacyDashboard() {
                           </h2>
                           {(selectedRx.patientId?.uhid || selectedRx.patientUhid) && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 border border-violet-200 text-xs font-bold text-violet-700 font-mono">
-                              🪪 {selectedRx.patientId?.uhid || selectedRx.patientUhid}
+                              <CreditCard className="w-3 h-3 inline mr-1 text-slate-400" />{selectedRx.patientId?.uhid || selectedRx.patientUhid}
                             </span>
                           )}
                           <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
@@ -803,7 +804,7 @@ export default function PharmacyDashboard() {
                           )}
                           {selectedRx.patientAge !== null && ` · ${selectedRx.patientAge} yrs`}
                           {selectedRx.patientId?.bloodGroup && ` · Blood: ${selectedRx.patientId.bloodGroup}`}
-                          {selectedRx.patientId?.contactPhone && ` · 📞 ${selectedRx.patientId.contactPhone}`}
+                          {selectedRx.patientId?.contactPhone && <> · <Phone className="w-3 h-3 inline mx-0.5" />{selectedRx.patientId.contactPhone}</>}
                         </p>
                         {selectedRx.patientId?.abhaId && (
                           <p className="text-[11px] font-mono text-sky-700 font-semibold mt-0.5">
@@ -857,7 +858,7 @@ export default function PharmacyDashboard() {
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
                         <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs">
-                          💊
+
                         </span>
                         <span>
                           Prescribed Medication Schedule ({selectedRx.medications?.length || 0})
@@ -868,7 +869,7 @@ export default function PharmacyDashboard() {
                         onClick={() => setActiveTab('inventory')}
                         className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors"
                       >
-                        📦 View Full Inventory
+                        <Package className="w-4 h-4 inline mr-1.5" />View Full Inventory
                       </button>
                     </div>
 
@@ -921,22 +922,22 @@ export default function PharmacyDashboard() {
                             <div className="col-span-4 flex flex-col items-end gap-1">
                               {item.isOutOfStock ? (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 text-[10px] font-extrabold border border-rose-200">
-                                  <span>⛔</span>
+                                  <Ban className="w-4 h-4 text-rose-600" />
                                   <span>Out of Stock (0 {item.unit})</span>
                                 </span>
                               ) : item.isInsufficient ? (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 text-[10px] font-extrabold border border-rose-200">
-                                  <span>⚠️</span>
+                                  <AlertTriangle className="w-4 h-4 text-amber-500" />
                                   <span>Stock Low: {item.available} &lt; {item.requested}</span>
                                 </span>
                               ) : item.isLowStock ? (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 text-[10px] font-extrabold border border-amber-200">
-                                  <span>🟠</span>
+                                  <Circle className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
                                   <span>Low Stock ({item.available} left)</span>
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-200">
-                                  <span>🟢</span>
+                                  <Circle className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
                                   <span>In Stock ({item.available} {item.unit})</span>
                                 </span>
                               )}
@@ -961,7 +962,7 @@ export default function PharmacyDashboard() {
                     {selectedRx.instructions && (
                       <div className="bg-amber-50/60 rounded-2xl p-3.5 border border-amber-200/80 text-xs">
                         <p className="font-bold text-amber-900 flex items-center gap-1.5 mb-0.5">
-                          <span>⚠️</span>
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
                           <span>Doctor's Special Instructions for Patient:</span>
                         </p>
                         <p className="text-amber-800 leading-relaxed pl-5 font-medium">
@@ -974,7 +975,7 @@ export default function PharmacyDashboard() {
                     {rxStockAnalysis.hasStockIssue && (
                       <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-200 flex items-start gap-3">
                         <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-sm shrink-0">
-                          ⛔
+
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-xs font-extrabold text-rose-900">
@@ -1038,7 +1039,7 @@ export default function PharmacyDashboard() {
                             </>
                           ) : rxStockAnalysis.hasStockIssue ? (
                             <>
-                              <span>⛔ Out of Stock — Dispense Disabled</span>
+                              <span className="flex items-center gap-1"><Ban className="w-4 h-4 text-rose-600" />Out of Stock — Dispense Disabled</span>
                             </>
                           ) : (
                             <>
@@ -1119,7 +1120,7 @@ export default function PharmacyDashboard() {
                       : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
                   }`}
                 >
-                  <span>⚠️ Restock Required</span>
+                  <span className="flex items-center gap-1"><AlertTriangle className="w-4 h-4 text-amber-500" />Restock Required</span>
                   <span className="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px]">
                     {lowStockCount}
                   </span>
@@ -1132,7 +1133,7 @@ export default function PharmacyDashboard() {
                       : 'bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100'
                   }`}
                 >
-                  <span>⛔ Out of Stock</span>
+                  <span className="flex items-center gap-1"><Ban className="w-4 h-4 text-rose-600" />Out of Stock</span>
                   <span className="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px]">
                     {outOfStockCount}
                   </span>
@@ -1205,7 +1206,7 @@ export default function PharmacyDashboard() {
                         <tr key={item._id} className={`transition-colors ${rowStyle}`}>
                           <td className="px-4 py-3.5 font-bold text-slate-900">
                             <div className="flex items-center gap-2">
-                              <span className="text-base">{isOut ? '⛔' : isLow ? '⚠️' : '💊'}</span>
+                              {isOut ? <Ban className="w-4 h-4 text-rose-600" /> : isLow ? <AlertTriangle className="w-4 h-4 text-amber-500" /> : <Pill className="w-4 h-4 text-violet-500" />}
                               <div>
                                 <p className="font-extrabold text-slate-900">{item.name}</p>
                                 {item.brandName && (
@@ -1252,15 +1253,15 @@ export default function PharmacyDashboard() {
                           <td className="px-4 py-3.5 text-center">
                             {isOut ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 border border-rose-200 text-rose-800 text-[10px] font-extrabold">
-                                <span>⛔ Out of Stock</span>
+                                <span className="flex items-center gap-1"><Ban className="w-4 h-4 text-rose-600" />Out of Stock</span>
                               </span>
                             ) : isLow ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-extrabold shadow-xs">
-                                <span>⚠️ Restock Required</span>
+                                <span className="flex items-center gap-1"><AlertTriangle className="w-4 h-4 text-amber-500" />Restock Required</span>
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
-                                <span>✓ In Stock</span>
+                                <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4 text-emerald-500" />In Stock</span>
                               </span>
                             )}
                           </td>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Clock, Key } from 'lucide-react';
 import receptionistApi from '../services/receptionistApi';
+import PatientProfileDrawer from './PatientProfileDrawer';
 
 // ─── Status badge ──────────────────────────────────────────────────────────────
 function QueueBadge({ queueNumber, doctorName }) {
@@ -44,6 +45,7 @@ export default function PatientSearch({ onQueueSuccess }) {
   const [queueNumbers, setQueueNumbers]             = useState({});   // { [patientId]: queueNumber }
   const [assignedDoctors, setAssignedDoctors]       = useState({});   // { [patientId]: doctorName }
   const [queuePriorities, setQueuePriorities]       = useState({});   // { [patientId]: 'Routine' | 'Urgent' }
+  const [selectedProfilePatient, setSelectedProfilePatient] = useState(null);
 
   // ── Fetch facility doctors on mount ────────────────────────────────────────
   useEffect(() => {
@@ -391,19 +393,30 @@ export default function PatientSearch({ onQueueSuccess }) {
                             )}
                           </div>
                         ) : !isAssigning ? (
-                          <button
-                            id={`assign-btn-${patient._id}`}
-                            type="button"
-                            onClick={() => handleOpenAssign(patient)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold
-                              bg-violet-600 text-white hover:bg-violet-700 active:scale-[0.97] transition-all shadow-sm"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            Assign to Doctor
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedProfilePatient(patient)}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold
+                                bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 active:scale-[0.97] transition-all shadow-xs"
+                            >
+                              <Key className="w-3.5 h-3.5 text-amber-600" />
+                              Profile &amp; PIN
+                            </button>
+                            <button
+                              id={`assign-btn-${patient._id}`}
+                              type="button"
+                              onClick={() => handleOpenAssign(patient)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold
+                                bg-violet-600 text-white hover:bg-violet-700 active:scale-[0.97] transition-all shadow-sm"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              Assign to Doctor
+                            </button>
+                          </div>
                         ) : null}
                       </div>
                     </div>
@@ -560,9 +573,22 @@ export default function PatientSearch({ onQueueSuccess }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <p className="text-sm font-medium text-slate-400">Search for an existing patient</p>
-          <p className="text-xs text-slate-300 mt-0.5">by name or 10-digit phone number, then assign to a doctor</p>
+          <p className="text-sm">Search by name, phone number, or UHID to find patient</p>
         </div>
+      )}
+
+      {/* ── Patient Profile Drawer & PIN Reset Modal ────────────────────── */}
+      {selectedProfilePatient && (
+        <PatientProfileDrawer
+          patient={selectedProfilePatient}
+          isOpen={Boolean(selectedProfilePatient)}
+          onClose={() => setSelectedProfilePatient(null)}
+          onPatientUpdated={(updated) => {
+            setResults((prev) =>
+              prev ? prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)) : prev
+            );
+          }}
+        />
       )}
     </div>
   );

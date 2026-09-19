@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Video,
   VideoOff,
@@ -92,14 +93,15 @@ function VitalCard({ label, value, unit, Icon, color = 'sky' }) {
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 function EmptyState() {
+  const { t } = useTranslation();
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
       <div className="w-16 h-16 rounded-2xl bg-teal-50 text-teal-400 flex items-center justify-center mx-auto mb-4">
         <Stethoscope className="w-8 h-8" />
       </div>
-      <h3 className="text-base font-extrabold text-slate-800">Select a Patient to Begin</h3>
+      <h3 className="text-base font-extrabold text-slate-800">{t('doctor.emptyState.title')}</h3>
       <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto leading-relaxed">
-        Choose a waiting or triaged patient from the queue to review vitals, order investigations, or prescribe medicines.
+        {t('doctor.emptyState.subtitle')}
       </p>
     </div>
   );

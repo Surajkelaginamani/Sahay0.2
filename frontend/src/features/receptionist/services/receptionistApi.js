@@ -94,6 +94,13 @@ const receptionistApi = {
       { action },
       { headers: getAuthHeader() }
     ),
+
+  // ── Secure Patient PIN Recovery ────────────────────────────────────────────
+  /** Prompt: Verify patient recovery code & demographics and assign temporary PIN */
+  verifyAndResetPin: (patientId, data) =>
+    axios.patch(`/api/auth/patient/${patientId}/verify-and-reset-pin`, data, {
+      headers: getAuthHeader(),
+    }),
 };
 
 export default receptionistApi;

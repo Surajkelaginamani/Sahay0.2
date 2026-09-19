@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import referralApi from '../../services/referralApi';
+import { AlertTriangle, CheckCircle2, Upload } from 'lucide-react';
 
 /**
  * Shared CreateReferralForm Component (Prompt 15.2)
@@ -145,14 +146,14 @@ export default function CreateReferralForm({ onSuccess, onCancel, defaultPatient
       {/* Notifications */}
       {errorMessage && (
         <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-          <span className="text-sm">⚠️</span>
+          <AlertTriangle className="w-4 h-4 text-rose-500" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {successMessage && (
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-          <span className="text-sm">✅</span>
+          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           <span>{successMessage}</span>
         </div>
       )}
@@ -371,7 +372,7 @@ export default function CreateReferralForm({ onSuccess, onCancel, defaultPatient
             <span>Processing Referral…</span>
           ) : (
             <>
-              <span>📤</span>
+              <Upload className="w-4 h-4" />
               <span>Submit Outbound Referral</span>
             </>
           )}

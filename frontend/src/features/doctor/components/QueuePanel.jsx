@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Stethoscope,
   RefreshCw,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import doctorApi from '../services/doctorApi';
 import PatientQueueCard from './PatientQueueCard';
+import { deriveQueueMetrics } from '../utils/queueCalculations';
 
 // ─── Metric strip item ────────────────────────────────────────────────────────
 function MetricChip({ label, value, color = 'slate' }) {
@@ -48,6 +50,7 @@ export default function QueuePanel({
   onQueueLoaded,
   completedCount = 0,
 }) {
+  const { t } = useTranslation();
   const [queue, setQueue]                   = useState([]);
   const [activeQueue, setActiveQueue]       = useState([]);
   const [reviewQueue, setReviewQueue]       = useState([]);
@@ -120,7 +123,16 @@ export default function QueuePanel({
       setReviewQueue(rawReview);
       setTeleconsultQueue(rawTeleconsult);
       setSummary(rawSummary);
-      onQueueLoaded?.({ queue: rawQueue, activeQueue: rawActive, reviewQueue: rawReview, teleconsultQueue: rawTeleconsult, summary: rawSummary });
+      const metrics = deriveQueueMetrics(rawQueue);
+      onQueueLoaded?.({
+        queue: rawQueue,
+        appointments: rawQueue,
+        activeQueue: rawActive,
+        reviewQueue: rawReview,
+        teleconsultQueue: rawTeleconsult,
+        summary: rawSummary,
+        derivedMetrics: metrics,
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load patient queue.');
     } finally {
@@ -156,6 +168,10 @@ export default function QueuePanel({
   const visibleReview      = (queueTab === 'ALL' || queueTab === 'REPORTS') ? filteredReview : [];
   const visibleTeleconsult = (queueTab === 'ALL' || queueTab === 'TELECONSULT') ? filteredTeleconsult : [];
 
+  // Strictly derived KPI metrics from the queue array
+  const derivedMetrics = useMemo(() => deriveQueueMetrics(queue), [queue]);
+  const activeTabsTotal = activeQueue.length + reviewQueue.length + teleconsultQueue.length;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden h-full">
 
@@ -168,8 +184,8 @@ export default function QueuePanel({
               <Stethoscope className="w-4 h-4 text-teal-600" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Patient Queue</h2>
-              <p className="text-[10px] text-slate-400">OPD Triage · Today</p>
+              <h2 className="text-sm font-bold text-slate-900">{t('doctor.queue.title')}</h2>
+              <p className="text-[10px] text-slate-400">{t('doctor.queue.opdTriage')}</p>
             </div>
           </div>
 
@@ -178,34 +194,34 @@ export default function QueuePanel({
             type="button"
             onClick={fetchQueue}
             disabled={loading}
-            title="Refresh queue"
+            title={t('common.refresh')}
             className="p-1.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-teal-600' : ''}`} />
           </button>
         </div>
 
-        {/* Metric strip */}
+        {/* Metric strip - dynamically derived from queue array */}
         <div className="flex items-center gap-2">
-          <MetricChip label="Waiting" value={summary.total || 0} color="slate" />
+          <MetricChip label={t('doctor.queue.waiting')} value={derivedMetrics.waitingCount} color="slate" />
           <MetricChip
-            label="Critical"
-            value={summary.criticalLabs || summary.emergency || 0}
-            color={(summary.criticalLabs || summary.emergency) > 0 ? 'red' : 'slate'}
+            label={t('doctor.queue.critical')}
+            value={derivedMetrics.urgentCount}
+            color={derivedMetrics.urgentCount > 0 ? 'red' : 'slate'}
           />
-          <MetricChip label="Done Today" value={completedCount} color="green" />
-          {summary.reportsReady > 0 && (
-            <MetricChip label="Reports" value={summary.reportsReady} color="teal" />
+          <MetricChip label={t('doctor.queue.doneToday')} value={derivedMetrics.completedTodayCount} color="green" />
+          {derivedMetrics.reportsReadyCount > 0 && (
+            <MetricChip label={t('doctor.queue.reports')} value={derivedMetrics.reportsReadyCount} color="teal" />
           )}
         </div>
 
         {/* Queue section tabs */}
         <div className="flex items-center bg-slate-100 p-0.5 rounded-xl gap-0.5 text-[10px] font-bold">
           {[
-            { id: 'ALL', label: `All (${queue.length})` },
-            { id: 'ONGOING', label: `Queue (${activeQueue.length})` },
-            { id: 'REPORTS', label: `Reports (${reviewQueue.length})`, accent: reviewQueue.length > 0 ? 'teal' : null },
-            { id: 'TELECONSULT', label: `Virtual (${teleconsultQueue.length})`, accent: teleconsultQueue.length > 0 ? 'violet' : null },
+            { id: 'ALL', label: `${t('doctor.queue.all')} (${activeTabsTotal})` },
+            { id: 'ONGOING', label: `${t('doctor.tabs.queue')} (${activeQueue.length})` },
+            { id: 'REPORTS', label: `${t('doctor.queue.reports')} (${reviewQueue.length})`, accent: reviewQueue.length > 0 ? 'teal' : null },
+            { id: 'TELECONSULT', label: `${t('doctor.queue.virtual')} (${teleconsultQueue.length})`, accent: teleconsultQueue.length > 0 ? 'violet' : null },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -245,7 +261,7 @@ export default function QueuePanel({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, UHID, complaint..."
+              placeholder={t('doctor.queue.searchPlaceholder')}
               className="w-full pl-8 pr-7 py-1.5 rounded-xl text-xs bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:bg-white transition-all"
             />
             {searchQuery && (
@@ -279,7 +295,7 @@ export default function QueuePanel({
                 }`}
               >
                 {f.id === 'Emergency' && <Flame className="w-2.5 h-2.5 inline mr-0.5 -mt-0.5" />}
-                {f.label}
+                {f.id === 'ALL' ? t('doctor.queue.all') : f.id === 'Emergency' ? t('doctor.queue.emergency') : f.id === 'Urgent' ? t('doctor.queue.urgent') : t('doctor.queue.routine')}
                 {f.id !== 'ALL' && summary[f.id.toLowerCase()] > 0 && (
                   <span className="ml-1 opacity-70">({summary[f.id.toLowerCase()] || 0})</span>
                 )}
@@ -293,7 +309,7 @@ export default function QueuePanel({
       {error && (
         <div className="mx-4 mt-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={fetchQueue} className="font-bold underline ml-2">Retry</button>
+          <button onClick={fetchQueue} className="font-bold underline ml-2">{t('common.retry')}</button>
         </div>
       )}
 
@@ -315,20 +331,20 @@ export default function QueuePanel({
             <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center mb-3">
               <Users className="w-6 h-6 text-teal-400" />
             </div>
-            <p className="text-xs font-bold text-slate-700">Queue is Clear</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">No waiting patients right now.</p>
+            <p className="text-xs font-bold text-slate-700">{t('doctor.queue.queueClear')}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{t('doctor.queue.noWaitingPatients')}</p>
           </div>
         )}
 
         {/* Filtered empty */}
         {!loading && queue.length > 0 && totalFiltered === 0 && (
           <div className="py-8 text-center text-slate-400">
-            <p className="text-xs font-semibold">No matching patients</p>
+            <p className="text-xs font-semibold">{t('doctor.queue.noMatchingPatients')}</p>
             <button
               onClick={() => { setSearchQuery(''); setFilterPriority('ALL'); setQueueTab('ALL'); }}
               className="text-[11px] text-teal-600 font-bold mt-1 underline"
             >
-              Reset filters
+              {t('doctor.queue.resetFilters')}
             </button>
           </div>
         )}
@@ -343,7 +359,7 @@ export default function QueuePanel({
             >
               <span className="flex items-center gap-1.5 text-xs font-extrabold text-teal-800">
                 <FlaskConical className="w-3.5 h-3.5" />
-                Reports Ready
+                {t('doctor.queue.reportsReady')}
                 <span className="px-1.5 py-0.5 rounded-md bg-teal-100 text-teal-800 text-[10px]">{visibleReview.length}</span>
               </span>
               {showReportsReady
@@ -370,8 +386,8 @@ export default function QueuePanel({
         {!loading && queueTab === 'REPORTS' && filteredReview.length === 0 && (
           <div className="p-8 text-center border border-dashed border-teal-200 rounded-2xl bg-teal-50/30">
             <FlaskConical className="w-8 h-8 text-teal-400 mx-auto mb-2" />
-            <p className="text-xs font-bold text-teal-900">No Reports Ready</p>
-            <p className="text-[11px] text-teal-600 mt-0.5">Lab reports appear here once uploaded by Lab Head.</p>
+            <p className="text-xs font-bold text-teal-900">{t('doctor.queue.noReportsReady')}</p>
+            <p className="text-[11px] text-teal-600 mt-0.5">{t('doctor.queue.noReportsReadyDesc')}</p>
           </div>
         )}
 
@@ -385,7 +401,7 @@ export default function QueuePanel({
             >
               <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-700">
                 <Users className="w-3.5 h-3.5" />
-                Ongoing Queue
+                {t('doctor.queue.ongoingQueue')}
                 <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px]">{filteredActive.length}</span>
               </span>
               {showOngoing
@@ -397,8 +413,8 @@ export default function QueuePanel({
               <div className="space-y-2">
                 {filteredActive.length === 0 ? (
                   <div className="p-6 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                    <p className="text-xs font-bold text-slate-600">No active patients</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">All consultations complete.</p>
+                    <p className="text-xs font-bold text-slate-600">{t('doctor.queue.noActivePatients')}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{t('doctor.queue.allConsultationsComplete')}</p>
                   </div>
                 ) : (
                   filteredActive.map((appt) => (
@@ -425,7 +441,7 @@ export default function QueuePanel({
             >
               <span className="flex items-center gap-1.5 text-xs font-extrabold text-violet-800">
                 <Video className="w-3.5 h-3.5" />
-                Virtual OPD
+                {t('doctor.queue.virtualOpd')}
                 <span className="px-1.5 py-0.5 rounded-md bg-violet-100 text-violet-800 text-[10px]">{visibleTeleconsult.length}</span>
               </span>
               {showTeleconsult
@@ -452,8 +468,8 @@ export default function QueuePanel({
         {!loading && queueTab === 'TELECONSULT' && filteredTeleconsult.length === 0 && (
           <div className="p-8 text-center border border-dashed border-violet-200 rounded-2xl bg-violet-50/30">
             <Video className="w-8 h-8 text-violet-400 mx-auto mb-2" />
-            <p className="text-xs font-bold text-violet-900">No Teleconsults</p>
-            <p className="text-[11px] text-violet-600 mt-0.5">Virtual OPD sessions appear once confirmed by receptionist.</p>
+            <p className="text-xs font-bold text-violet-900">{t('doctor.queue.noTeleconsults')}</p>
+            <p className="text-[11px] text-violet-600 mt-0.5">{t('doctor.queue.noTeleconsultsDesc')}</p>
           </div>
         )}
       </div>

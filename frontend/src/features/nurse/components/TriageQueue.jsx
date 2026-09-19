@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  PhoneCall,
-  ClockAlert,
-  Clock,
-  RotateCcw,
-  UserX,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Clock, ClockAlert, CreditCard, PhoneCall, RotateCcw, Siren, UserX, Video } from 'lucide-react';
 import nurseApi from '../services/nurseApi';
 
 // ── Elapsed time helper ───────────────────────────────────────────────────────
@@ -212,7 +204,7 @@ export default function TriageQueue({
           <div className="flex items-center gap-2">
             {summary.urgent > 0 && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-xs font-black border border-rose-200 animate-pulse">
-                <span>⚠️</span>
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
                 <span>{summary.urgent} Urgent Cases</span>
               </span>
             )}
@@ -406,7 +398,7 @@ export default function TriageQueue({
                       </p>
                       {patient?.uhid && (
                         <span className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
-                          🪪 {patient.uhid}
+                          <CreditCard className="w-3 h-3 inline mr-1 text-slate-400" />{patient.uhid}
                         </span>
                       )}
                       <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
@@ -443,11 +435,11 @@ export default function TriageQueue({
                     <td className="py-3 px-3.5 whitespace-nowrap">
                       {appt.urgency === 'Emergency' ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse">
-                          🚨 Emergency
+                          Emergency
                         </span>
                       ) : appt.urgency === 'Urgent' || appt.priority === 'Urgent' ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                          ⚠️ Urgent
+                          Urgent
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-medium">
@@ -524,7 +516,7 @@ export default function TriageQueue({
                               : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200'
                           }`}
                         >
-                          <span>📹</span>
+                          <Video className="w-4 h-4 text-violet-600" />
                           <span className="hidden sm:inline">
                             {appt.status === 'Teleconsult Requested' ? 'Requested' : appt.status === 'In Teleconsult' ? 'Live Call' : 'Teleconsult'}
                           </span>

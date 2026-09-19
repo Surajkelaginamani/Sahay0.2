@@ -170,6 +170,8 @@ const appointmentSchema = new mongoose.Schema(
       spO2:          { type: String, trim: true },
       bmi:           { type: String, trim: true },
       notes:         { type: String, trim: true },
+      consentProvided: { type: Boolean, default: true },
+      consentTimestamp: { type: Date, default: Date.now },
       recordedBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       recordedAt:    { type: Date },
     },
