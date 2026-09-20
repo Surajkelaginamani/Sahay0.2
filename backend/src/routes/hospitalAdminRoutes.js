@@ -9,8 +9,8 @@ import { protect, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// All routes require a valid JWT and HospitalAdmin role
-router.use(protect, authorize('HospitalAdmin'));
+// All routes require a valid JWT and HospitalAdmin or FacilityAdmin role
+router.use(protect, authorize('HospitalAdmin', 'FacilityAdmin'));
 
 router.post('/create-staff', createStaff);
 router.get('/staff', getHospitalStaff);

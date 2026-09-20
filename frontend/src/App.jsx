@@ -15,6 +15,7 @@ import GovtLogin from './pages/auth/GovtLogin';
 import PatientDashboard from './pages/dashboards/PatientDashboard';
 import HospitalAdminDashboard from './pages/dashboards/HospitalAdminDashboard';
 import GovtDashboard from './pages/dashboards/GovtDashboard';
+import AdminDashboard from './pages/dashboards/AdminDashboard';
 import DoctorDashboard from './pages/dashboards/DoctorDashboard';
 import DrDashboardLayout from './pages/dashboards/DrDashboard/DrDashboardLayout';
 import LabDashboard from './pages/dashboards/LabDashboard';
@@ -22,6 +23,7 @@ import AshaDashboard from './pages/dashboards/AshaDashboard';
 import ReceptionistDashboard from './pages/dashboards/ReceptionistDashboard';
 import NurseDashboard from './pages/dashboards/NurseDashboard';
 import PharmacyDashboard from './pages/dashboards/PharmacyDashboard';
+import DistrictReferralInbox from './pages/dashboards/DistrictReferralInbox';
 import OfflineSyncToast from './components/common/OfflineSyncToast';
 
 function App() {
@@ -49,6 +51,8 @@ function App() {
             {/* Dashboards */}
             <Route path="/dashboard/patient" element={<PatientDashboard />} />
             <Route path="/dashboard/govt" element={<GovtDashboard />} />
+            <Route path="/dashboard/state-admin" element={<AdminDashboard />} />
+            <Route path="/dashboard/admin-radar" element={<AdminDashboard />} />
 
             {/* Hospital Admin */}
             <Route path="/dashboard/admin" element={<HospitalAdminDashboard />} />
@@ -62,6 +66,9 @@ function App() {
             <Route path="/dashboard/lab" element={<LabDashboard />} />
             <Route path="/dashboard/lab-pharmacy" element={<LabDashboard />} />
             <Route path="/dashboard/pharmacy" element={<PharmacyDashboard />} />
+            <Route path="/dashboard/district-referrals" element={<DistrictReferralInbox />} />
+            <Route path="/district-referrals" element={<DistrictReferralInbox />} />
+            <Route path="/referrals/inbox" element={<DistrictReferralInbox />} />
 
             {/* ASHA / Frontline Community Health Worker */}
             <Route path="/dashboard/asha" element={<AshaDashboard />} />

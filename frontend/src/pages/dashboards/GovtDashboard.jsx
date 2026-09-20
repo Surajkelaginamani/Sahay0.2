@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { govtAPI } from '../../services/api';
 import { AlertTriangle, Hospital } from 'lucide-react';
+import EpidemicRadar from '../../components/EpidemicRadar';
 
 // ─── Toast Notification Component ───────────────────────────────────────────
 function Toast({ toasts, removeToast }) {
@@ -348,6 +349,9 @@ export default function GovtDashboard() {
             Sign Out
           </button>
         </div>
+
+        {/* ── High-Priority Geospatial Epidemic Radar ───────────────────────── */}
+        <EpidemicRadar className="mb-6" />
 
         {/* ── Metric Stat Cards ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

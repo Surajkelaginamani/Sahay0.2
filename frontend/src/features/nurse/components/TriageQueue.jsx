@@ -392,37 +392,36 @@ export default function TriageQueue({
                     </td>
 
                     {/* Patient Name & Details */}
-                    <td className="py-3 px-3.5">
-                      <p className="font-bold text-slate-900 text-xs leading-tight">
-                        {appt.patientFullName}
-                      </p>
-                      {patient?.uhid && (
-                        <span className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[9px] font-bold text-violet-700 font-mono tracking-wide">
-                          <CreditCard className="w-3 h-3 inline mr-1 text-slate-400" />{patient.uhid}
-                        </span>
-                      )}
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
-                        {patient?.gender && <span>{patient.gender}</span>}
-                        {age !== null && (
-                          <>
-                            <span>·</span>
-                            <span>{age} yrs</span>
-                          </>
-                        )}
-                        {patient?.bloodGroup && (
-                          <>
-                            <span>·</span>
-                            <span className="font-semibold text-rose-600">{patient.bloodGroup}</span>
-                          </>
-                        )}
-                        {patient?.abhaId && (
-                          <>
-                            <span>·</span>
-                            <span className="font-mono text-slate-400 truncate max-w-[110px]">
-                              ABHA: {patient.abhaId}
+                    <td className="py-3 px-3.5 min-w-[250px]">
+                      <div className="flex flex-col gap-1">
+                        <p className="font-semibold text-gray-900 text-sm leading-tight">
+                          {appt.patientFullName}
+                        </p>
+                        {patient?.uhid && (
+                          <div className="w-fit whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 border border-violet-200 text-[10px] font-bold text-violet-700 font-mono tracking-wide whitespace-nowrap">
+                              <CreditCard className="w-3 h-3 text-violet-500" />
+                              {patient.uhid}
                             </span>
-                          </>
+                          </div>
                         )}
+                        <div className="flex flex-row items-center gap-2 text-sm text-gray-500 whitespace-nowrap">
+                          {patient?.gender && <span>{patient.gender}</span>}
+                          {patient?.gender && age !== null && <span>•</span>}
+                          {age !== null && <span>{age} yrs</span>}
+                          {(patient?.gender || age !== null) && patient?.bloodGroup && <span>•</span>}
+                          {patient?.bloodGroup && (
+                            <span className="font-semibold text-rose-600">{patient.bloodGroup}</span>
+                          )}
+                          {patient?.abhaId && (
+                            <>
+                              <span>•</span>
+                              <span className="font-mono text-xs text-gray-400 truncate max-w-[130px]" title={`ABHA: ${patient.abhaId}`}>
+                                ABHA: {patient.abhaId}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </td>
 
@@ -451,7 +450,7 @@ export default function TriageQueue({
                     {/* Chief Complaint */}
                     <td className="py-3 px-3.5 max-w-[200px]">
                       <p className="text-xs text-slate-600 truncate" title={appt.chiefComplaint || 'No complaint notes'}>
-                        {appt.chiefComplaint || <span className="text-slate-300 italic">None recorded</span>}
+                        {appt.chiefComplaint || <span className="text-gray-400 italic">None recorded</span>}
                       </p>
                     </td>
 

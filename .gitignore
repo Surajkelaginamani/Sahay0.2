@@ -10,3 +10,5 @@ dist/
 dist-ssr/
 .vscode/
 .idea/
+*.exe
+ngrok.exe

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -45,7 +45,14 @@ function StatCard({ icon, label, value, sub, color }) {
 export default function PatientDashboard() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('user') || localStorage.getItem('sahay_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [patientData, setPatientData] = useState(null);
   const [hospitals, setHospitals] = useState([]);
   const [timeline, setTimeline] = useState([]);
@@ -172,6 +179,14 @@ export default function PatientDashboard() {
   };
 
   // ── Prompt: Live Queue Tracker - Fetch Active Today Appointment ─────────────
+  const consultationsRef = useRef(consultations);
+  const timelineRef = useRef(timeline);
+
+  useEffect(() => {
+    consultationsRef.current = consultations;
+    timelineRef.current = timeline;
+  }, [consultations, timeline]);
+
   const loadActiveTodayAppointment = useCallback(async () => {
     try {
       const res = await patientApi.getActiveTodayAppointment();
@@ -181,7 +196,7 @@ export default function PatientDashboard() {
         // Fallback check against today's appointments list
         const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
         const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
-        const allAppts   = consultations.concat(timeline);
+        const allAppts   = (consultationsRef.current || []).concat(timelineRef.current || []);
         const found = allAppts.find((c) => {
           const d = new Date(c.date || c.appointmentDate || c.createdAt);
           const isToday = d >= todayStart && d <= todayEnd;
@@ -195,24 +210,24 @@ export default function PatientDashboard() {
     } catch {
       // Non-blocking fallback
     }
-  }, [consultations, timeline]);
+  }, []);
 
+  // ── Fetch Longitudinal Medical Timeline & Video Consults on Mount ───────────
   useEffect(() => {
-    if (user) {
-      fetchRecords();
-      loadMyTeleconsults();
-      loadActiveTodayAppointment();
-      // Set up a 20-second interval to refresh queue status per plans.md
-      const qInterval = setInterval(loadActiveTodayAppointment, 20000);
-      return () => clearInterval(qInterval);
-    }
-  }, [user, fetchRecords, loadMyTeleconsults, loadActiveTodayAppointment]);
+    fetchRecords();
+    loadMyTeleconsults();
+    loadActiveTodayAppointment();
+    // Set up a 20-second interval to refresh queue status per plans.md
+    const qInterval = setInterval(loadActiveTodayAppointment, 20000);
+    return () => clearInterval(qInterval);
+  }, []); // Run exactly once on mount with empty dependency array [] to prevent infinite loop
 
+  // ── Refresh Video Consults when switching to 'teleconsults' tab ──────────────
   useEffect(() => {
-    if (user && activeTab === 'teleconsults') {
+    if (activeTab === 'teleconsults') {
       loadMyTeleconsults();
     }
-  }, [user, activeTab, loadMyTeleconsults]);
+  }, [activeTab]);
 
   if (!user) return null;
 

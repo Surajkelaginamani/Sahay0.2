@@ -41,6 +41,7 @@ import doctorApi from '../services/doctorApi';
 import VideoRoom from '../../../components/common/VideoRoom';
 import AiClinicalInsightCard from './AiClinicalInsightCard';
 import EndVisitModal from './EndVisitModal';
+import ClinicalVoiceScribe from '../../../pages/dashboards/DrDashboard/ClinicalVoiceScribe';
 
 // ── Standard lab catalog fallback ────────────────────────────────────────────
 const DEFAULT_LAB_CATALOG = [
@@ -712,6 +713,55 @@ export default function ConsultationPanel({
                 {vitals.height && <VitalCard label="Height" value={vitals.height} unit="cm" Icon={User} color="sky" />}
               </div>
             </div>
+
+            {/* Autonomous Clinical Voice Scribe (Native Web Speech API + Gemini LLM Auto-Fill) */}
+            <ClinicalVoiceScribe
+              onAutoFill={(responseData) => {
+                if (!responseData) return;
+                // Auto-fill React state variables that control form inputs (Requirement 3)
+                if (responseData.final_diagnosis) {
+                  setDiagnosis(responseData.final_diagnosis);
+                }
+                if (responseData.clinical_notes) {
+                  setNotes(responseData.clinical_notes);
+                }
+                if (Array.isArray(responseData.chief_complaints) && responseData.chief_complaints.length) {
+                  setChiefComplaint(responseData.chief_complaints.join(', '));
+                }
+                if (Array.isArray(responseData.medicines) && responseData.medicines.length) {
+                  setMedications(
+                    responseData.medicines.map((m) => ({
+                      medicineName: m.name || m.medicineName || '',
+                      dosage: m.dosage || '500mg',
+                      frequency: m.frequency || 'Twice daily after meals',
+                      duration: m.duration || '5 days',
+                    }))
+                  );
+                }
+              }}
+              onApplySymptoms={(symptomsText) => {
+                setChiefComplaint((prev) =>
+                  prev ? `${prev}, ${symptomsText}` : symptomsText
+                );
+              }}
+              onApplyMedicines={(meds) => {
+                setMedications((prev) => {
+                  const filteredExisting = prev.filter((p) => p.medicineName?.trim());
+                  const existingNames = new Set(
+                    filteredExisting.map((p) => p.medicineName.toLowerCase())
+                  );
+                  const newMeds = meds
+                    .filter((m) => !existingNames.has(m.toLowerCase()))
+                    .map((m) => ({
+                      medicineName: m.charAt(0).toUpperCase() + m.slice(1),
+                      dosage: '500mg',
+                      frequency: 'Twice daily after meals',
+                      duration: '5 days',
+                    }));
+                  return [...filteredExisting, ...newMeds];
+                });
+              }}
+            />
 
             {/* Clinical evaluation form */}
             <div className="border-t border-slate-100 pt-4 space-y-3">

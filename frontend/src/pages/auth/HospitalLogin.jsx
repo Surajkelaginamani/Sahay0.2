@@ -188,12 +188,28 @@ export default function HospitalLogin() {
               </p>
             </div>
 
-            {/* Role chips — visual hint */}
+            {/* Role chips — clickable quick demo fill */}
             <div className="flex flex-wrap justify-center gap-1.5 pt-1">
-              {['Hospital Admin', 'Doctor', 'ASHA / ANM', 'Lab Head', 'Receptionist'].map((r) => (
-                <span key={r} className="px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-[10px] font-medium">
-                  {r}
-                </span>
+              {[
+                { label: 'Hospital Admin', email: 'admin.civil@sahay.in' },
+                { label: 'Doctor', email: 'dr.sharma.civil@sahay.in' },
+                { label: 'Receptionist', email: 'recep.civil@sahay.in' },
+                { label: 'Lab Head', email: 'lab.civil@sahay.in' },
+                { label: 'ASHA', email: 'asha.civil@sahay.in' },
+              ].map((r) => (
+                <button
+                  key={r.label}
+                  type="button"
+                  onClick={() => {
+                    setFormData({ email: r.email, password: 'Sahay@2026' });
+                    setError('');
+                    setErrorType('');
+                  }}
+                  title={`Quick demo fill: ${r.label}`}
+                  className="px-2.5 py-0.5 rounded-full bg-sky-50 hover:bg-sky-100 active:bg-sky-200 border border-sky-200 text-sky-700 text-[10px] font-semibold transition-colors cursor-pointer"
+                >
+                  ⚡ {r.label}
+                </button>
               ))}
             </div>
           </div>

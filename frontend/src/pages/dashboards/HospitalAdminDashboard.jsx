@@ -3,6 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { hospitalAdminAPI } from '../../services/api';
 import { Users, Stethoscope, Leaf, FlaskConical } from 'lucide-react';
+import EpidemicRadar from '../../components/EpidemicRadar';
+import { getStoredAuth } from '../../utils/auth';
+
+// ─── Stat Icons Map ──────────────────────────────────────────────────────────
+const adminIconMap = {
+  users: <Users className="w-5 h-5" />,
+  stethoscope: <Stethoscope className="w-5 h-5" />,
+  leaf: <Leaf className="w-5 h-5" />,
+  flask: <FlaskConical className="w-5 h-5" />,
+};
 
 // ─── Role config ─────────────────────────────────────────────────────────────
 const STAFF_ROLES = [
@@ -91,7 +101,7 @@ export default function HospitalAdminDashboard() {
     error: '',
   });
 
-  // ── Toast helpers ─────────────────────────────────────────────────────────
+  // Toast helpers
   const addToast = useCallback((type, title, message) => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, type, title, message }]);
@@ -102,36 +112,33 @@ export default function HospitalAdminDashboard() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // ── JWT Guard ─────────────────────────────────────────────────────────────
+  // JWT Guard
   useEffect(() => {
-    const token = localStorage.getItem('sahay_token');
-    const stored = localStorage.getItem('sahay_user');
+    const auth = getStoredAuth();
 
-    if (!token || !stored) {
-      navigate('/auth/hospital/login');
+    if (!auth || !auth.user) {
+      navigate('/auth/hospital/login', { replace: true });
       return;
     }
 
-    const parsed = JSON.parse(stored);
-    if (parsed.role !== 'HospitalAdmin') {
-      navigate('/');
+    if (!['HospitalAdmin', 'FacilityAdmin'].includes(auth.user.role)) {
+      navigate('/', { replace: true });
       return;
     }
 
-    setUser(parsed);
+    setUser(auth.user);
   }, [navigate]);
 
-  // ── Fetch Staff ───────────────────────────────────────────────────────────
+  // Fetch Staff
   const fetchStaff = useCallback(async () => {
     setLoadingStaff(true);
     try {
       const res = await hospitalAdminAPI.getStaff();
       setStaff(res.data);
     } catch (err) {
-      if (err.response?.status === 401) {
-        localStorage.removeItem('sahay_token');
-        localStorage.removeItem('sahay_user');
-        navigate('/auth/hospital/login');
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        ['token', 'sahay_token', 'user', 'sahay_user'].forEach((k) => localStorage.removeItem(k));
+        navigate('/auth/hospital/login', { replace: true });
       }
     } finally {
       setLoadingStaff(false);
@@ -230,10 +237,9 @@ export default function HospitalAdminDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('sahay_token');
-    localStorage.removeItem('sahay_user');
-    navigate('/');
+    const handleLogout = () => {
+    ['token', 'sahay_token', 'user', 'sahay_user'].forEach((k) => localStorage.removeItem(k));
+    navigate('/auth/hospital/login');
   };
 
   if (!user) return null;
@@ -278,6 +284,9 @@ export default function HospitalAdminDashboard() {
             {t('common.signOut')}
           </button>
         </div>
+
+        {/* ── High-Priority Geospatial Epidemic Radar ───────────────────────── */}
+        <EpidemicRadar />
 
         {/* ── Stats Row ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

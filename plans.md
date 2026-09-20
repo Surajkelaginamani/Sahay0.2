@@ -1,3 +1,41 @@
-# Prompt: Correct SAHAY Acronym & i18n Translations in Hero SectionTask: 
+Task: Upgrade the Autonomous Clinical Voice Scribe to use an LLM for structured JSON data extraction to auto-fill the SAHAY clinical evaluation form.
 
-Fix the hero section title on the Landing Page. The UI currently displays "Smart Access to Healthcare (SAHAY)" and must be corrected to the full acronym: "Smart Access to Healthcare and Assistance for You (SAHAY)". Additionally, fix the non-English i18n dictionaries so they translate this exact phrase instead of improperly defaulting to "India's Unified Healthcare Network".   1. Update English Dictionary (locales/en/translation.json)Locate the JSON key for the hero title (e.g., landing.hero.title).Update the value to exactly: "Smart Access to Healthcare and Assistance for You (SAHAY)".Update the header/logo subtitle key (if separate) to "Smart Access to Healthcare and Assistance for You".2. Update Regional DictionariesUpdate the exact same key in the regional language files to reflect the literal meaning of the acronym.Hindi (locales/hi/translation.json):"title": "आपके लिए स्वास्थ्य सेवा और सहायता तक स्मार्ट पहुँच (SAHAY)"Marathi (locales/mr/translation.json):"title": "तुमच्यासाठी आरोग्य सेवा आणि मदतीसाठी स्मार्ट प्रवेश (SAHAY)"Kannada (locales/kn/translation.json):"title": "ನಿಮಗಾಗಿ ಆರೋಗ್ಯ ಸೇವೆ ಮತ್ತು ಸಹಾಯಕ್ಕೆ ಸ್ಮಾರ್ಟ್ ಪ್ರವೇಶ (SAHAY)"3. Verify Component Rendering (LandingPage.jsx)Ensure the main <h1> tag in the hero section is strictly utilizing the translation hook (e.g., <h1>{t('landing.hero.title')}</h1>).Remove any hardcoded text inside the <h1> tag that might be overriding or appending to the i18n dictionary value.
+1. Backend LLM Route (server.js or new route file):
+
+Create a POST route at /api/scribe/process.
+
+It will receive { text: "raw messy transcript from frontend" }.
+
+Integrate an LLM call (e.g., Gemini API, OpenAI, or whatever AI package is already in the project).
+
+System Prompt for the LLM: "You are an expert medical scribe. Fix any speech-to-text transcription errors in the following text. Extract the medical data and return ONLY a valid JSON object with the following strict schema:
+
+chief_complaints: array of strings
+
+allergies: array of strings
+
+final_diagnosis: string (infer a brief diagnosis based on the context, e.g., 'Acute Bronchitis')
+
+clinical_notes: string (a professional medical summary of the transcript)
+
+medicines: array of objects, each containing: { name: string, dosage: string, frequency: string (e.g., 'Twice daily after meals'), duration: string }"
+
+Return this JSON object to the frontend.
+
+2. Frontend Integration (DoctorDashboard.jsx):
+
+Update the startListening function. When the speech recognition finishes (recognition.onend or a manual "Stop" button click), take the final transcript string and make an axios.post request to /api/scribe/process.
+
+3. Auto-Filling the UI State:
+
+When the backend returns the structured JSON, directly update the React state variables that control the form inputs shown in the UI.
+
+For example:
+
+setFinalDiagnosis(responseData.final_diagnosis)
+
+setClinicalNotes(responseData.clinical_notes)
+
+setPrescribedMedicines(responseData.medicines)
+
+Ensure the input fields for "Final Diagnosis" and "Clinical Notes & Observations" have their value props tied to these state variables so they populate instantly on the screen.

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRedundancyCheck } from '../../../utils/useRedundancyCheck';
+import ClinicalVoiceScribe from './ClinicalVoiceScribe';
 
 // Helper to read the auth token from localStorage
 const getToken = () =>
@@ -347,6 +348,58 @@ export default function ConsultationView({ patient, appointment, onCompleted }) 
           {submitError}
         </div>
       )}
+
+      {/* Autonomous Clinical Voice Scribe (Native Web Speech API + Gemini LLM Auto-Fill) */}
+      <ClinicalVoiceScribe
+        onAutoFill={(responseData) => {
+          if (!responseData) return;
+          setForm((f) => ({
+            ...f,
+            diagnosis: responseData.final_diagnosis || f.diagnosis,
+            clinicalObservations: responseData.clinical_notes || f.clinicalObservations,
+            chiefComplaints:
+              Array.isArray(responseData.chief_complaints) && responseData.chief_complaints.length
+                ? responseData.chief_complaints.join(', ')
+                : f.chiefComplaints,
+            prescription:
+              Array.isArray(responseData.medicines) && responseData.medicines.length
+                ? responseData.medicines.map((m) => ({
+                    medicineName: m.name || m.medicineName || 'Medication',
+                    dosage: m.dosage || '1 tab',
+                    frequency: m.frequency || '1-0-1',
+                    durationDays: parseInt(m.duration) || 3,
+                  }))
+                : f.prescription,
+          }));
+        }}
+        onApplySymptoms={(symptomsText) => {
+          setForm((f) => ({
+            ...f,
+            chiefComplaints: f.chiefComplaints
+              ? `${f.chiefComplaints}, ${symptomsText}`
+              : symptomsText,
+          }));
+        }}
+        onApplyMedicines={(meds) => {
+          setForm((f) => {
+            const existingNames = new Set(
+              f.prescription.map((p) => p.medicineName?.toLowerCase())
+            );
+            const newRows = meds
+              .filter((m) => !existingNames.has(m.toLowerCase()))
+              .map((m) => ({
+                medicineName: m.charAt(0).toUpperCase() + m.slice(1),
+                dosage: '1 tab',
+                frequency: '1-0-1',
+                durationDays: 3,
+              }));
+            return {
+              ...f,
+              prescription: [...f.prescription, ...newRows],
+            };
+          });
+        }}
+      />
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">

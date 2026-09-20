@@ -15,6 +15,7 @@ import {
   FileText,
   CircleDot,
   Power,
+  Siren,
 } from 'lucide-react';
 import QueuePanel from '../../features/doctor/components/QueuePanel';
 import ConsultationPanel from '../../features/doctor/components/ConsultationPanel';
@@ -246,6 +247,14 @@ export default function DoctorDashboard() {
             >
               <ExternalLink className="w-3.5 h-3.5" />
               {t('doctor.clinicalTimeline')}
+            </button>
+            <button
+              onClick={() => navigate('/district-referrals')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold border border-rose-200 transition-all cursor-pointer shadow-xs"
+              title="Open District Hospital Emergency Referrals Inbox"
+            >
+              <Siren className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+              <span>Emergency Referrals</span>
             </button>
             <button
               onClick={handleLogout}

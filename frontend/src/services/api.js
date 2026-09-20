@@ -90,5 +90,13 @@ export const receptionistAPI = {
     api.patch(`/auth/patient/${patientId}/verify-and-reset-pin`, data),
 };
 
+// Admin API (Geospatial Epidemic Radar & Surveillance)
+export const adminAPI = {
+  getEpidemicAlerts: () => api.get('/admin/epidemic-alerts'),
+  triggerScan: (data) => api.post('/admin/epidemic-alerts/scan', data),
+  seedDemoAlerts: () => api.post('/admin/epidemic-alerts/seed-demo'),
+  updateAlertStatus: (id, status) => api.patch(`/admin/epidemic-alerts/${id}/status`, { status }),
+};
+
 export default api;
 
