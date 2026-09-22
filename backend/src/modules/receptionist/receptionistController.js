@@ -886,7 +886,7 @@ export const getPendingTeleconsults = async (req, res) => {
     const teleconsults = await Appointment.find({
       facilityId,
       type:   'Teleconsultation',
-      status: 'Teleconsult Requested',
+      status: { $in: ['Teleconsult Requested', 'Teleconsult Scheduled', 'Pending'] },
     })
       .populate('patientId',        'firstName lastName contactPhone gender dob abhaId uhid allergies')
       .populate('assignedDoctorId', 'name email')
@@ -908,7 +908,11 @@ export const getPendingTeleconsults = async (req, res) => {
         : 'Self (Patient)',
     }));
 
-    res.json({ count: enriched.length, teleconsults: enriched });
+    res.json({
+      count: enriched.length,
+      teleconsults: enriched,
+      appointments: enriched,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1008,7 +1012,7 @@ export const getIncomingReferrals = async (req, res) => {
 
     const referrals = await Referral.find({
       referredToFacility: facilityId,
-      status: 'Pending',
+      status: { $in: ['Pending', 'Inbound_Referral'] },
     })
       .populate('patientId',  'firstName lastName contactPhone gender dob abhaId uhid')
       .populate('referredBy', 'name firstName lastName role email')
@@ -1030,7 +1034,11 @@ export const getIncomingReferrals = async (req, res) => {
       };
     });
 
-    res.json({ count: enriched.length, referrals: enriched });
+    res.json({
+      count: enriched.length,
+      referrals: enriched,
+      inbound: enriched,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

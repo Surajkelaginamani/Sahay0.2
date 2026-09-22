@@ -26,6 +26,7 @@ export const bookTeleconsult = async (req, res) => {
       scheduledDate,
       timeSlot,
       chiefComplaint,
+      vitals,
     } = req.body;
 
     // ── Required fields ────────────────────────────────────────────────────────
@@ -63,6 +64,31 @@ export const bookTeleconsult = async (req, res) => {
       return res.status(400).json({ message: 'scheduledDate is not a valid date.' });
     }
 
+    // ── Optional vitals snapshot (captured by ASHA or field triage worker) ────
+    let vitalsSnapshot = undefined;
+    if (vitals && typeof vitals === 'object') {
+      const hasAnyVital = Object.values(vitals).some(
+        (v) => v !== null && v !== undefined && String(v).trim().length > 0
+      );
+      if (hasAnyVital) {
+        vitalsSnapshot = {
+          bloodPressure: vitals.bloodPressure ? String(vitals.bloodPressure).trim() : undefined,
+          bloodSugar:    vitals.bloodSugar ? String(vitals.bloodSugar).trim() : undefined,
+          height:        vitals.height ? String(vitals.height).trim() : undefined,
+          weight:        vitals.weight ? String(vitals.weight).trim() : undefined,
+          temperature:   vitals.temperature ? String(vitals.temperature).trim() : undefined,
+          pulse:         vitals.pulse ? String(vitals.pulse).trim() : undefined,
+          spO2:          vitals.spO2 ? String(vitals.spO2).trim() : undefined,
+          bmi:           vitals.bmi ? String(vitals.bmi).trim() : undefined,
+          notes:         vitals.notes ? String(vitals.notes).trim() : undefined,
+          consentProvided: true,
+          consentTimestamp: new Date(),
+          recordedBy:    req.user._id,
+          recordedAt:    new Date(),
+        };
+      }
+    }
+
     // ── Create the Appointment with Teleconsult Requested status ──────────────
     const appointment = await Appointment.create({
       patientId:        resolvedPatientId,
@@ -73,6 +99,7 @@ export const bookTeleconsult = async (req, res) => {
       scheduledDate:    parsedDate,
       timeSlot:         timeSlot?.trim() || undefined,
       chiefComplaint:   chiefComplaint?.trim() || undefined,
+      vitals:           vitalsSnapshot,
       type:             'Teleconsultation',
       teleconsultSource,
       teleconsultInitiatedBy: req.user._id,

@@ -21,6 +21,7 @@ import followUpRoutes from './src/routes/followUpRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import whatsappRoutes from './src/routes/whatsappRoutes.js';
 import scribeRoutes from './src/routes/scribeRoutes.js';
+import campRoutes from './src/routes/campRoutes.js';
 import { initEpidemicScannerCron } from './cron/epidemicScanner.js';
 
 dotenv.config();
@@ -61,6 +62,7 @@ app.use('/api/follow-up', followUpRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/scribe', scribeRoutes);
+app.use('/api/camps', campRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

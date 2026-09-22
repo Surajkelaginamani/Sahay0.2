@@ -1,6 +1,22 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { Video, X, AlertTriangle, Search, Phone, Check, Info, Lightbulb } from 'lucide-react';
+import {
+  Video,
+  X,
+  AlertTriangle,
+  Search,
+  Phone,
+  Check,
+  Info,
+  Lightbulb,
+  Activity,
+  Heart,
+  Droplets,
+  Thermometer,
+  Scale,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 
 // ─── API helpers ────────────────────────────────────────────────────────────
 function getAuthHeader() {
@@ -86,12 +102,29 @@ export default function BookTeleconsultModal({
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
   const [chiefComplaint, setChiefComplaint]     = useState('');
 
+  // Is the caller a field worker / triage staff booking FOR a patient?
+  const isFieldWorker = ['ASHA', 'AshaWorker', 'Nurse'].includes(callerRole);
+
+  // Optional Patient Vitals (ASHA Field Vitals Capture)
+  const [vitals, setVitals] = useState({
+    bloodPressure: '',
+    pulse: '',
+    temperature: '',
+    spO2: '',
+    bloodSugar: '',
+    weight: '',
+    height: '',
+    notes: '',
+  });
+  const [showVitalsForm, setShowVitalsForm] = useState(isFieldWorker);
+
+  const handleVitalChange = (field, val) => {
+    setVitals((prev) => ({ ...prev, [field]: val }));
+  };
+
   // Submission state
   const [submitting, setSubmitting]             = useState(false);
   const [error, setError]                       = useState('');
-
-  // Is the caller a field worker / triage staff booking FOR a patient?
-  const isFieldWorker = ['ASHA', 'AshaWorker', 'Nurse'].includes(callerRole);
 
   const searchInputRef = useRef(null);
 
@@ -144,9 +177,19 @@ export default function BookTeleconsultModal({
     setScheduledDate('');
     setSelectedTimeSlot('');
     setChiefComplaint('');
+    setVitals({
+      bloodPressure: '',
+      pulse: '',
+      temperature: '',
+      spO2: '',
+      bloodSugar: '',
+      weight: '',
+      height: '',
+    });
+    setShowVitalsForm(isFieldWorker);
     setError('');
     onClose();
-  }, [onClose]);
+  }, [onClose, isFieldWorker]);
 
   // ── Patient search execution ──────────────────────────────────────────────
   const executeSearch = useCallback(async (query) => {
@@ -230,6 +273,11 @@ export default function BookTeleconsultModal({
       return;
     }
 
+    // Clean optional vitals (strip empty string fields)
+    const cleanedVitals = Object.fromEntries(
+      Object.entries(vitals).filter(([_, v]) => v && String(v).trim().length > 0)
+    );
+
     setSubmitting(true);
     try {
       const res = await teleconsultApi.bookTeleconsult({
@@ -238,6 +286,7 @@ export default function BookTeleconsultModal({
         scheduledDate,
         timeSlot: selectedTimeSlot,
         chiefComplaint: chiefComplaint.trim(),
+        vitals: Object.keys(cleanedVitals).length > 0 ? cleanedVitals : undefined,
       });
       onSuccess?.(res.data?.appointment);
       handleClose();
@@ -670,6 +719,169 @@ export default function BookTeleconsultModal({
                   required
                   className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 focus:bg-white transition-all resize-none shadow-inner"
                 />
+              </div>
+
+              {/* ── Optional Patient Vitals (ASHA Worker / Field Worker Capture) ── */}
+              <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl overflow-hidden transition-all shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setShowVitalsForm((v) => !v)}
+                  className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-100/70 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                      <Activity className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                          Patient Vitals
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wide">
+                          Optional
+                        </span>
+                        {Object.values(vitals).some((v) => v && v.trim()) && (
+                          <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-black">
+                            Recorded
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-tight">
+                        Enter patient field vitals if available (visible directly in Doctor&apos;s Dashboard)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-teal-700 shrink-0">
+                    <span>{showVitalsForm ? 'Collapse' : 'Add Vitals'}</span>
+                    {showVitalsForm ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </div>
+                </button>
+
+                {showVitalsForm && (
+                  <div className="p-4 pt-2 border-t border-slate-200/70 space-y-3 bg-white">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {/* Blood Pressure */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                          <Heart className="w-3 h-3 text-rose-500" />
+                          Blood Pressure <span className="text-slate-400 font-normal">(mmHg)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 120/80"
+                          value={vitals.bloodPressure}
+                          onChange={(e) => handleVitalChange('bloodPressure', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner"
+                        />
+                      </div>
+
+                      {/* Pulse */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                          <Activity className="w-3 h-3 text-sky-500" />
+                          Pulse Rate <span className="text-slate-400 font-normal">(bpm)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 72"
+                          value={vitals.pulse}
+                          onChange={(e) => handleVitalChange('pulse', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner"
+                        />
+                      </div>
+
+                      {/* SpO2 */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                          <Droplets className="w-3 h-3 text-emerald-500" />
+                          SpO2 <span className="text-slate-400 font-normal">(%)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 98"
+                          value={vitals.spO2}
+                          onChange={(e) => handleVitalChange('spO2', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner"
+                        />
+                      </div>
+
+                      {/* Temperature */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                          <Thermometer className="w-3 h-3 text-amber-500" />
+                          Temperature <span className="text-slate-400 font-normal">(°F)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 98.6"
+                          value={vitals.temperature}
+                          onChange={(e) => handleVitalChange('temperature', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+                      {/* Blood Sugar */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                          <Droplets className="w-3 h-3 text-violet-500" />
+                          Blood Sugar <span className="text-slate-400 font-normal">(mg/dL)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 110"
+                          value={vitals.bloodSugar}
+                          onChange={(e) => handleVitalChange('bloodSugar', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner"
+                        />
+                      </div>
+
+                      {/* Weight */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                          <Scale className="w-3 h-3 text-teal-500" />
+                          Weight <span className="text-slate-400 font-normal">(kg)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 65"
+                          value={vitals.weight}
+                          onChange={(e) => handleVitalChange('weight', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner"
+                        />
+                      </div>
+
+                      {/* Height */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                          Height <span className="text-slate-400 font-normal">(cm)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 165"
+                          value={vitals.height}
+                          onChange={(e) => handleVitalChange('height', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Vitals Notes / Field Observations */}
+                    <div className="pt-1">
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Field Observations / Vitals Notes <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Patient complaining of dizziness and fatigue; blood pressure measured sitting"
+                        value={vitals.notes}
+                        onChange={(e) => handleVitalChange('notes', e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Explanatory Info Card */}

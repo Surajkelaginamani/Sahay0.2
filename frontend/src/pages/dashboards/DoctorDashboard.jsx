@@ -350,6 +350,11 @@ export default function DoctorDashboard() {
                   <p className="text-xs text-violet-200 mt-0.5">
                     {t('doctor.teleconsult.patient')}: <strong className="text-white">{selectedAppointment.patientFullName}</strong>
                     {selectedAppointment.timeSlot && ` · ${t('doctor.teleconsult.slot')}: ${selectedAppointment.timeSlot}`}
+                    {selectedAppointment.teleconsultSource && (
+                      <span className="ml-1.5 px-2 py-0.5 rounded-full bg-violet-800/70 text-violet-200 text-[10px] font-semibold border border-violet-600/50">
+                        {selectedAppointment.teleconsultSource} Booking
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -361,6 +366,60 @@ export default function DoctorDashboard() {
                 {t('doctor.teleconsult.exit')}
               </button>
             </div>
+
+            {/* Quick Field/Triage Vitals Strip if captured */}
+            {selectedAppointment.vitals && Object.values(selectedAppointment.vitals).some((v) => v !== null && v !== undefined && String(v).trim().length > 0) && (
+              <div className="bg-slate-900/90 border border-violet-700/60 rounded-2xl p-3 px-4 flex flex-wrap items-center justify-between gap-3 text-white shadow-lg backdrop-blur-sm">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs font-extrabold text-violet-300 uppercase tracking-wide">
+                    {selectedAppointment.teleconsultSource === 'ASHA' ? 'ASHA Field Vitals' : 'Captured Vitals'}:
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {selectedAppointment.vitals.bloodPressure && (
+                    <span className="bg-rose-500/20 text-rose-200 px-2.5 py-1 rounded-lg border border-rose-500/30 font-medium">
+                      BP: <strong className="text-white">{selectedAppointment.vitals.bloodPressure}</strong> <span className="text-[10px] text-rose-300">mmHg</span>
+                    </span>
+                  )}
+                  {selectedAppointment.vitals.pulse && (
+                    <span className="bg-sky-500/20 text-sky-200 px-2.5 py-1 rounded-lg border border-sky-500/30 font-medium">
+                      Pulse: <strong className="text-white">{selectedAppointment.vitals.pulse}</strong> <span className="text-[10px] text-sky-300">bpm</span>
+                    </span>
+                  )}
+                  {selectedAppointment.vitals.spO2 && (
+                    <span className="bg-emerald-500/20 text-emerald-200 px-2.5 py-1 rounded-lg border border-emerald-500/30 font-medium">
+                      SpO2: <strong className="text-white">{selectedAppointment.vitals.spO2}%</strong>
+                    </span>
+                  )}
+                  {selectedAppointment.vitals.temperature && (
+                    <span className="bg-amber-500/20 text-amber-200 px-2.5 py-1 rounded-lg border border-amber-500/30 font-medium">
+                      Temp: <strong className="text-white">{selectedAppointment.vitals.temperature}°F</strong>
+                    </span>
+                  )}
+                  {selectedAppointment.vitals.bloodSugar && (
+                    <span className="bg-purple-500/20 text-purple-200 px-2.5 py-1 rounded-lg border border-purple-500/30 font-medium">
+                      Sugar: <strong className="text-white">{selectedAppointment.vitals.bloodSugar}</strong> <span className="text-[10px] text-purple-300">mg/dL</span>
+                    </span>
+                  )}
+                  {selectedAppointment.vitals.weight && (
+                    <span className="bg-indigo-500/20 text-indigo-200 px-2.5 py-1 rounded-lg border border-indigo-500/30 font-medium">
+                      Wt: <strong className="text-white">{selectedAppointment.vitals.weight} kg</strong>
+                    </span>
+                  )}
+                  {selectedAppointment.vitals.height && (
+                    <span className="bg-blue-500/20 text-blue-200 px-2.5 py-1 rounded-lg border border-blue-500/30 font-medium">
+                      Ht: <strong className="text-white">{selectedAppointment.vitals.height} cm</strong>
+                    </span>
+                  )}
+                </div>
+                {selectedAppointment.vitals.notes && (
+                  <div className="w-full text-xs text-violet-200/90 italic bg-violet-950/60 px-3 py-1.5 rounded-lg border border-violet-800/40">
+                    <span className="font-semibold not-italic text-violet-300">Field Notes:</span> &ldquo;{selectedAppointment.vitals.notes}&rdquo;
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Side-by-side: Video | Consultation */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">

@@ -25,6 +25,7 @@ import {
   CreditCard,
   Printer,
   Hash,
+  Activity,
 } from 'lucide-react';
 import PatientRegistrationForm from '../../features/receptionist/components/PatientRegistrationForm';
 import PatientSearch           from '../../features/receptionist/components/PatientSearch';
@@ -147,13 +148,35 @@ export default function ReceptionistDashboard() {
     return () => clearInterval(t);
   }, []);
 
+  // ── Session & Auth Error Handler ─────────────────────────────────────────
+  const handleAuthError = useCallback((err) => {
+    if (err?.response?.status === 401) {
+      showToast('error', 'Session Expired', 'Your session has expired. Redirecting to login...');
+      setTimeout(() => {
+        ['token', 'sahay_token', 'user', 'sahay_user'].forEach((k) => localStorage.removeItem(k));
+        navigate('/auth/hospital/login');
+      }, 2500);
+    }
+  }, [showToast, navigate]);
+
   // ── Auth guard ──────────────────────────────────────────────────────────
   useEffect(() => {
+    const token = localStorage.getItem('token') || localStorage.getItem('sahay_token');
     const stored = localStorage.getItem('user') || localStorage.getItem('sahay_user');
-    if (!stored) { navigate('/auth/hospital/login'); return; }
-    const parsed = JSON.parse(stored);
-    if (parsed.role !== 'Receptionist') { navigate('/'); return; }
-    setUser(parsed);
+    if (!stored || !token) {
+      navigate('/auth/hospital/login');
+      return;
+    }
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed.role !== 'Receptionist' && parsed.role !== 'HospitalAdmin') {
+        navigate('/');
+        return;
+      }
+      setUser(parsed);
+    } catch {
+      navigate('/auth/hospital/login');
+    }
   }, [navigate]);
 
   // ── Load facility doctors ───────────────────────────────────────────────
@@ -161,57 +184,66 @@ export default function ReceptionistDashboard() {
     try {
       const res = await receptionistApi.getFacilityDoctors();
       setFacilityDoctors(res.data.doctors || []);
-    } catch {
-      // non-blocking
+    } catch (err) {
+      if (err.response?.status === 401) handleAuthError(err);
     }
-  }, []);
+  }, [handleAuthError]);
 
   // ── Load incoming referrals ──────────────────────────────────────────────
   const loadIncomingReferrals = useCallback(async () => {
     setLoadingReferrals(true);
     try {
       const res = await receptionistApi.getIncomingReferrals();
-      setIncomingReferrals(res.data.referrals || []);
-    } catch {
-      // non-blocking
+      const list = res.data?.referrals || res.data?.inbound || [];
+      setIncomingReferrals(Array.isArray(list) ? list : []);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        handleAuthError(err);
+      }
     } finally {
       setLoadingReferrals(false);
     }
-  }, []);
+  }, [handleAuthError]);
 
   // ── Load pending teleconsults ───────────────────────────────────────────
   const loadPendingTeleconsults = useCallback(async () => {
     setLoadingTeleconsults(true);
     try {
       const res = await receptionistApi.getPendingTeleconsults();
-      setPendingTeleconsults(res.data.appointments || []);
-    } catch {
-      // non-blocking
+      const list = res.data?.teleconsults || res.data?.appointments || [];
+      setPendingTeleconsults(Array.isArray(list) ? list : []);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        handleAuthError(err);
+      }
     } finally {
       setLoadingTeleconsults(false);
     }
-  }, []);
+  }, [handleAuthError]);
 
   const handleConfirmTeleconsult = useCallback(async (appointmentId) => {
     const doctorId = confirmDoctorId[appointmentId];
     if (!doctorId) return;
     setConfirming(appointmentId);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('sahay_token');
-      const res = await axios.post('/api/receptionist/teleconsults/confirm', {
+      const res = await receptionistApi.confirmTeleconsult({
         appointmentId,
         assignedDoctorId: doctorId,
         timeSlot: confirmTimeSlot[appointmentId] || '',
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      });
       showToast('success', 'Teleconsult Confirmed',
-        res.data.message || 'Doctor assigned and room ID generated.');
+        res.data?.message || 'Doctor assigned and room ID generated.');
       loadPendingTeleconsults();
     } catch (err) {
-      showToast('error', 'Confirm Failed', err.response?.data?.message || 'Could not confirm teleconsult.');
+      if (err.response?.status === 401) {
+        handleAuthError(err);
+      } else {
+        showToast('error', 'Confirm Failed', err.response?.data?.message || 'Could not confirm teleconsult.');
+      }
     } finally {
       setConfirming(null);
     }
-  }, [confirmDoctorId, confirmTimeSlot, showToast, loadPendingTeleconsults]);
+  }, [confirmDoctorId, confirmTimeSlot, showToast, loadPendingTeleconsults, handleAuthError]);
 
   useEffect(() => {
     if (user) {
@@ -721,6 +753,60 @@ export default function ReceptionistDashboard() {
                                 <div className="bg-white rounded-xl px-3 py-2 border border-violet-100">
                                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">{t('reception.chiefComplaint')}</p>
                                   <p className="text-sm text-slate-800 font-medium">{tc.chiefComplaint}</p>
+                                </div>
+                              )}
+
+                              {/* Captured Vitals if provided by ASHA / Field Worker */}
+                              {tc.vitals && Object.values(tc.vitals).some((v) => v !== null && v !== undefined && String(v).trim().length > 0) && (
+                                <div className="bg-white rounded-xl p-3 border border-violet-100 space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-bold text-violet-700 uppercase tracking-wide flex items-center gap-1">
+                                      <Activity className="w-3 h-3 text-violet-500" />
+                                      Patient Vitals (Captured by {tc.teleconsultSource || 'Worker'})
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5 text-xs">
+                                    {tc.vitals.bloodPressure && (
+                                      <span className="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-lg border border-rose-100 font-medium">
+                                        BP: {tc.vitals.bloodPressure}
+                                      </span>
+                                    )}
+                                    {tc.vitals.pulse && (
+                                      <span className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded-lg border border-sky-100 font-medium">
+                                        Pulse: {tc.vitals.pulse} bpm
+                                      </span>
+                                    )}
+                                    {tc.vitals.spO2 && (
+                                      <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg border border-emerald-100 font-medium">
+                                        SpO2: {tc.vitals.spO2}%
+                                      </span>
+                                    )}
+                                    {tc.vitals.temperature && (
+                                      <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-lg border border-amber-100 font-medium">
+                                        Temp: {tc.vitals.temperature}°F
+                                      </span>
+                                    )}
+                                    {tc.vitals.bloodSugar && (
+                                      <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-lg border border-purple-100 font-medium">
+                                        Sugar: {tc.vitals.bloodSugar} mg/dL
+                                      </span>
+                                    )}
+                                    {tc.vitals.weight && (
+                                      <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg border border-indigo-100 font-medium">
+                                        Wt: {tc.vitals.weight} kg
+                                      </span>
+                                    )}
+                                    {tc.vitals.height && (
+                                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100 font-medium">
+                                        Ht: {tc.vitals.height} cm
+                                      </span>
+                                    )}
+                                  </div>
+                                  {tc.vitals.notes && (
+                                    <p className="text-[11px] text-slate-600 italic bg-violet-50/50 p-1.5 rounded-lg border border-violet-100/60">
+                                      <span className="font-semibold not-italic text-violet-700">Notes:</span> {tc.vitals.notes}
+                                    </p>
+                                  )}
                                 </div>
                               )}
 

@@ -36,6 +36,7 @@ import {
   ShieldCheck,
   Ambulance,
   Loader2,
+  Info,
 } from 'lucide-react';
 import doctorApi from '../services/doctorApi';
 import VideoRoom from '../../../components/common/VideoRoom';
@@ -235,6 +236,21 @@ export default function ConsultationPanel({
     ? `${patient.firstName} ${patient.lastName || ''}`
     : patient.name || 'Patient';
   const vitals = appointment.vitals || {};
+  const isAshaWorkerSource = appointment.teleconsultSource === 'ASHA' ||
+    (typeof appointment.sourceLabel === 'string' && appointment.sourceLabel.includes('ASHA'));
+  const hasCapturedVitals = Boolean(
+    vitals && (
+      (vitals.bloodPressure && String(vitals.bloodPressure).trim()) ||
+      (vitals.bp && String(vitals.bp).trim()) ||
+      vitals.pulse ||
+      vitals.spO2 ||
+      vitals.temperature ||
+      vitals.temp ||
+      vitals.bloodSugar ||
+      vitals.weight ||
+      vitals.height
+    )
+  );
 
   // ── Allergies ────────────────────────────────────────────────────────────────
   const patientAllergies = useMemo(() => {
@@ -561,6 +577,12 @@ export default function ConsultationPanel({
                 ) : (
                   <span className="text-slate-300">· No allergies</span>
                 )}
+                {hasCapturedVitals && (
+                  <span className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 text-[10px]">
+                    <Activity className="w-3 h-3 text-emerald-500" />
+                    {isAshaWorkerSource ? 'ASHA Vitals' : 'Vitals Recorded'}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -634,7 +656,12 @@ export default function ConsultationPanel({
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center border-b border-slate-100 px-1 pt-1">
           {[
-            { id: 'vitals',    label: 'Vitals & History', Icon: Activity },
+            {
+              id: 'vitals',
+              label: hasCapturedVitals ? (isAshaWorkerSource ? 'ASHA Vitals & History' : 'Triage Vitals & History') : 'Vitals & History',
+              Icon: Activity,
+              recorded: hasCapturedVitals,
+            },
             {
               id: 'labReports',
               label: `Lab Reports (${displayOrders.length || appointment?.labOrders?.length || 0})`,
@@ -642,7 +669,7 @@ export default function ConsultationPanel({
               critical: hasCriticalLabOrders,
             },
             { id: 'rx',        label: 'Rx & Orders',     Icon: Pill },
-          ].map(({ id, label, Icon, critical }) => (
+          ].map(({ id, label, Icon, critical, recorded }) => (
             <button
               key={id}
               type="button"
@@ -660,6 +687,9 @@ export default function ConsultationPanel({
             >
               <Icon className="w-3.5 h-3.5" />
               {label}
+              {recorded && activeConsultTab !== id && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              )}
               {critical && (
                 <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[8px] font-black uppercase">Critical</span>
               )}
@@ -672,10 +702,27 @@ export default function ConsultationPanel({
           <div className="p-4 space-y-4">
             {/* Vitals grid */}
             <div>
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Triage Vitals — Captured by Nurse
-              </h4>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${hasCapturedVitals ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                  {isAshaWorkerSource
+                    ? 'Patient Vitals — Captured by ASHA Worker (Field Triage)'
+                    : 'Triage Vitals — Captured by Clinical Staff'}
+                </h4>
+                {isAshaWorkerSource && (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 border border-violet-200">
+                    ASHA Teleconsult Input
+                  </span>
+                )}
+              </div>
+
+              {!hasCapturedVitals && (
+                <div className="mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
+                  <Info className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span>No field vitals were recorded for this patient request (vitals entry is optional).</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <VitalCard
                   label="Blood Pressure"
@@ -708,10 +755,20 @@ export default function ConsultationPanel({
               </div>
               {/* Secondary vitals */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
-                <VitalCard label="Blood Sugar" value={vitals.bloodSugar} Icon={Droplets} color="violet" />
+                <VitalCard label="Blood Sugar" value={vitals.bloodSugar} unit="mg/dL" Icon={Droplets} color="violet" />
                 <VitalCard label="Weight" value={vitals.weight} unit="kg" Icon={Scale} color="sky" />
                 {vitals.height && <VitalCard label="Height" value={vitals.height} unit="cm" Icon={User} color="sky" />}
               </div>
+
+              {/* Vitals Notes / ASHA Field Observations */}
+              {vitals.notes && (
+                <div className="mt-3 p-3 rounded-xl bg-violet-50/70 border border-violet-200/80 text-xs text-violet-900">
+                  <span className="font-bold text-[10px] uppercase tracking-wide text-violet-700 block mb-0.5">
+                    Field Notes / Observations (ASHA Worker):
+                  </span>
+                  <p className="italic text-slate-700">{vitals.notes}</p>
+                </div>
+              )}
             </div>
 
             {/* Autonomous Clinical Voice Scribe (Native Web Speech API + Gemini LLM Auto-Fill) */}

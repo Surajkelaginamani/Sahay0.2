@@ -5,6 +5,7 @@ import axios from 'axios';
 import { govtAPI } from '../../services/api';
 import { AlertTriangle, Hospital } from 'lucide-react';
 import EpidemicRadar from '../../components/EpidemicRadar';
+import BroadcastHealthCampCard from '../../components/BroadcastHealthCampCard';
 
 // ─── Toast Notification Component ───────────────────────────────────────────
 function Toast({ toasts, removeToast }) {
@@ -303,6 +304,16 @@ export default function GovtDashboard() {
       icon: (
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'broadcast',
+      label: 'Broadcast Health Camp',
+      badge: null,
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
         </svg>
       ),
     },
@@ -737,6 +748,13 @@ export default function GovtDashboard() {
                 <span>Showing <strong>{MOCK_AUDIT_EVENTS.length}</strong> recent events</span>
                 <span>Events are retained for 90 days per NHM policy</span>
               </div>
+            </div>
+          )}
+
+          {/* ── Tab 4: Broadcast Community Health Camp ───────────────────────── */}
+          {activeTab === 'broadcast' && (
+            <div className="p-6">
+              <BroadcastHealthCampCard />
             </div>
           )}
         </div>

@@ -21,8 +21,8 @@ import {
 
 const router = express.Router();
 
-// All receptionist routes require a valid JWT + Receptionist role
-router.use(protect, authorize('Receptionist'));
+// All receptionist routes require a valid JWT + Receptionist / HospitalAdmin / FacilityAdmin role
+router.use(protect, authorize('Receptionist', 'HospitalAdmin', 'FacilityAdmin'));
 
 // ── Patient routes ────────────────────────────────────────────────────────────
 // POST   /api/receptionist/patient          → register a new walk-in patient

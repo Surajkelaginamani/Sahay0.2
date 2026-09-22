@@ -25,6 +25,8 @@ import {
   Activity,
   History,
   Plus,
+  Megaphone,
+  ExternalLink,
 } from 'lucide-react';
 
 function StatCard({ icon, label, value, sub, color }) {
@@ -73,6 +75,61 @@ export default function PatientDashboard() {
   const [activeAppointment, setActiveAppointment]               = useState(null);
   // Prompt: Closed-Loop Follow-up: upcoming scheduled follow-up
   const [upcomingFollowUp, setUpcomingFollowUp]                 = useState(null);
+
+  // ── Hyper-Local Health Camp Alert State (Prompt: Community Outreach Broadcast) ──
+  const [activeCamp, setActiveCamp] = useState(null);
+  const [campRegistered, setCampRegistered] = useState(false);
+
+  // Fetch active camp for patient's PIN code
+  const loadActiveCamp = useCallback(async (pin) => {
+    const targetPin =
+      pin ||
+      patientData?.address?.pincode ||
+      patientData?.pincode ||
+      user?.address?.pincode ||
+      user?.pincode ||
+      '413709';
+
+    if (!targetPin) {
+      setActiveCamp(null);
+      return;
+    }
+
+    try {
+      const res = await axios.get(`/api/camps/active?pincode=${targetPin}`);
+      if (res.data && (res.data.title || res.data.camp?.title)) {
+        const campData = res.data.camp || res.data;
+        setActiveCamp({
+          ...campData,
+          date: campData.date || campData.dateTime,
+          location: campData.location || `District PHC - PIN ${targetPin}`,
+          registrationUrl: campData.registrationUrl || 'https://forms.gle/mocklink123',
+        });
+      } else {
+        setActiveCamp(null);
+      }
+    } catch (err) {
+      console.error('Failed to load active health camp:', err);
+      setActiveCamp(null);
+    }
+  }, [patientData, user]);
+
+  // Sync camp broadcasts across tabs / admin dispatch
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'active_health_camp') {
+        const pin =
+          patientData?.address?.pincode ||
+          patientData?.pincode ||
+          user?.address?.pincode ||
+          user?.pincode ||
+          '413709';
+        loadActiveCamp(pin);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [patientData, user, loadActiveCamp]);
 
   // ── Auth Guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -217,10 +274,32 @@ export default function PatientDashboard() {
     fetchRecords();
     loadMyTeleconsults();
     loadActiveTodayAppointment();
+
+    // Community Outreach Broadcast: fetch matching camp for patient PIN code on mount
+    const patientPincode =
+      patientData?.address?.pincode ||
+      patientData?.pincode ||
+      user?.address?.pincode ||
+      user?.pincode ||
+      '413709';
+    loadActiveCamp(patientPincode);
+
     // Set up a 20-second interval to refresh queue status per plans.md
     const qInterval = setInterval(loadActiveTodayAppointment, 20000);
     return () => clearInterval(qInterval);
   }, []); // Run exactly once on mount with empty dependency array [] to prevent infinite loop
+
+  // Re-fetch matching camp when patient demographics are loaded
+  useEffect(() => {
+    const pin =
+      patientData?.address?.pincode ||
+      patientData?.pincode ||
+      user?.address?.pincode ||
+      user?.pincode;
+    if (pin) {
+      loadActiveCamp(pin);
+    }
+  }, [patientData?.address?.pincode, patientData?.pincode, user?.address?.pincode, user?.pincode, loadActiveCamp]);
 
   // ── Refresh Video Consults when switching to 'teleconsults' tab ──────────────
   useEffect(() => {
@@ -571,7 +650,50 @@ export default function PatientDashboard() {
         <div className="space-y-4">
           {/* TAB 1: Unified Chronological Medical Timeline */}
           {activeTab === 'timeline' && (
-            <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-6">
+            <div className="space-y-4">
+              {/* ── Hyper-Local Health Camp Alert Banner (Official Government UI Style) ── */}
+              {activeCamp && (
+                <div
+                  id="hyperlocal-health-camp-banner"
+                  className="alert-banner w-full bg-blue-50 border border-blue-200 rounded-lg shadow-sm p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all"
+                >
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className="p-2.5 rounded-md bg-blue-100 text-blue-700 shrink-0">
+                      <Megaphone className="w-5 h-5 text-blue-700" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-base font-semibold text-blue-900 leading-snug">
+                        {activeCamp.title}
+                      </h4>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-blue-700">
+                        <span className="inline-flex items-center gap-1.5 font-medium">
+                          <Calendar className="w-4 h-4 text-blue-700 shrink-0" />
+                          <span>{activeCamp.date || activeCamp.dateTime}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 font-medium">
+                          <MapPin className="w-4 h-4 text-blue-700 shrink-0" />
+                          <span>{activeCamp.location || `District PHC - PIN ${activeCamp.pincode}`}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 self-start md:self-center">
+                    <a
+                      id="register-health-camp-btn"
+                      href={activeCamp.registrationUrl || 'https://forms.gle/mocklink123'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md transition flex items-center gap-2 text-sm font-medium shadow-xs"
+                    >
+                      <span>Register Now</span>
+                      <ExternalLink className="w-4 h-4 text-white shrink-0" />
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900">
@@ -708,6 +830,7 @@ export default function PatientDashboard() {
                   })}
                 </div>
               )}
+              </div>
             </div>
           )}
 

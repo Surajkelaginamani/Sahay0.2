@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { hospitalAdminAPI } from '../../services/api';
 import { Users, Stethoscope, Leaf, FlaskConical } from 'lucide-react';
 import EpidemicRadar from '../../components/EpidemicRadar';
+import CampBroadcastPanel from '../../components/CampBroadcastPanel';
 import { getStoredAuth } from '../../utils/auth';
 
 // ─── Stat Icons Map ──────────────────────────────────────────────────────────
@@ -307,6 +308,9 @@ export default function HospitalAdminDashboard() {
             </div>
           ))}
         </div>
+
+        {/* ── Community Outreach Broadcast Panel ───────────────────────── */}
+        <CampBroadcastPanel hospitalName={user?.hospitalName} />
 
         {/* ── Main Content Grid ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">

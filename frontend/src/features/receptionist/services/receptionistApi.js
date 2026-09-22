@@ -82,6 +82,23 @@ const receptionistApi = {
   getIncomingReferrals: () =>
     axios.get(`${BASE_URL}/referrals/incoming`, { headers: getAuthHeader() }),
 
+  // ── Teleconsultations ──────────────────────────────────────────────────────
+  /** Fetch all pending teleconsultation requests for this facility. */
+  getPendingTeleconsults: async () => {
+    try {
+      return await axios.get(`${BASE_URL}/teleconsults/pending`, { headers: getAuthHeader() });
+    } catch (err) {
+      if (err.response?.status === 404) {
+        return await axios.get('/api/teleconsult/pending', { headers: getAuthHeader() });
+      }
+      throw err;
+    }
+  },
+
+  /** Confirm teleconsultation request, assign doctor, timeSlot and generate room ID. */
+  confirmTeleconsult: (data) =>
+    axios.post(`${BASE_URL}/teleconsults/confirm`, data, { headers: getAuthHeader() }),
+
   // ── Data Conflicts (Prompt 2.2) ────────────────────────────────────────────
   /** Fetch all pending SyncConflict records for admin review. */
   getPendingConflicts: () =>
