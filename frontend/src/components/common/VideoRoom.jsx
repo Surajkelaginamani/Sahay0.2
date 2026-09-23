@@ -233,7 +233,7 @@ export default function VideoRoom({ roomName, displayName, onClose, waitingBanne
                 </h3>
                 <p className="text-[11px] font-mono text-slate-400 truncate max-w-sm">
                   Room: <strong className="text-slate-200">{roomName}</strong> &middot; As:{" "}
-                  <span className="text-sky-300">{displayName || "Clinician"}</span>
+                  <span className="text-sky-300">{displayName || "Dr. Sufi Shaikh"}</span>
                 </p>
               </div>
             </div>
@@ -330,7 +330,7 @@ export default function VideoRoom({ roomName, displayName, onClose, waitingBanne
                 SHOW_BRAND_WATERMARK: false,
                 TOOLBAR_BUTTONS: ["microphone", "camera", "chat", "tileview", "settings", "hangup"],
               }}
-              userInfo={{ displayName: displayName || "Healthcare Staff" }}
+              userInfo={{ displayName: displayName || "Dr. Sufi Shaikh" }}
               onApiReady={handleApiReady}
               onReadyToClose={onClose}
               getIFrameRef={(iframeRef) => {

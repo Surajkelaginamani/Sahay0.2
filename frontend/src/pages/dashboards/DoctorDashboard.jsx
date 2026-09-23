@@ -84,6 +84,14 @@ export default function DoctorDashboard() {
   const [isOnDuty, setIsOnDuty] = useState(false);
   const [togglingDuty, setTogglingDuty] = useState(false);
 
+  // Compute clean doctor display name (guarantees logged-in doctor identity and avoids "Dr. Dr." or patient name)
+  const doctorDisplayName = useMemo(() => {
+    const raw = user?.name || user?.doctorName;
+    if (!raw) return 'Dr. Sufi Shaikh';
+    const trimmed = String(raw).trim();
+    return /^dr\.?\s+/i.test(trimmed) ? trimmed : `Dr. ${trimmed}`;
+  }, [user]);
+
   // Auth guard
   useEffect(() => {
     const stored = localStorage.getItem('user') || localStorage.getItem('sahay_user');
@@ -427,7 +435,7 @@ export default function DoctorDashboard() {
                 <div className="bg-slate-950 rounded-2xl p-3 border border-slate-800 shadow-2xl overflow-hidden">
                   <VideoRoom
                     roomName={selectedAppointment.teleconsultRoomId || `sahay-room-${selectedAppointment._id}`}
-                    displayName={`Dr. ${user.name}`}
+                    displayName={doctorDisplayName}
                     onClose={() => setSelectedAppointment(null)}
                   />
                 </div>

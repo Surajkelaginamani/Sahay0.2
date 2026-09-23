@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Video,
-  VideoOff,
   CheckCircle2,
   AlertTriangle,
   Activity,
@@ -39,7 +38,6 @@ import {
   Info,
 } from 'lucide-react';
 import doctorApi from '../services/doctorApi';
-import VideoRoom from '../../../components/common/VideoRoom';
 import AiClinicalInsightCard from './AiClinicalInsightCard';
 import EndVisitModal from './EndVisitModal';
 import ClinicalVoiceScribe from '../../../pages/dashboards/DrDashboard/ClinicalVoiceScribe';
@@ -153,20 +151,8 @@ export default function ConsultationPanel({
   const [allergyOverrideAcknowledged, setAllergyOverrideAcknowledged] = useState(false);
   const [allergyOverrideReason, setAllergyOverrideReason]             = useState('');
 
-  // ── Teleconsult video ───────────────────────────────────────────────────────
-  const [inVideoCall, setInVideoCall] = useState(false);
-  const [joiningCall, setJoiningCall] = useState(false);
-
   // ── Active clinical tab ──────────────────────────────────────────────────────
   const [activeConsultTab, setActiveConsultTab] = useState('vitals');
-
-  useEffect(() => {
-    if (appointment?.status === 'In Teleconsult') {
-      setInVideoCall(true);
-    } else {
-      setInVideoCall(false);
-    }
-  }, [appointment]);
 
   useEffect(() => {
     if (initialTab) {
@@ -512,17 +498,6 @@ export default function ConsultationPanel({
     }
   };
 
-  const handleJoinVideoCall = async () => {
-    setJoiningCall(true);
-    try {
-      await doctorApi.joinTeleconsult(appointment._id);
-      setInVideoCall(true);
-    } catch (err) {
-      if (appointment?.teleconsultRoomId) setInVideoCall(true);
-    } finally {
-      setJoiningCall(false);
-    }
-  };
 
   const age = patient?.dob
     ? Math.floor((Date.now() - new Date(patient.dob)) / (1000 * 60 * 60 * 24 * 365.25))
@@ -589,28 +564,11 @@ export default function ConsultationPanel({
 
           {/* Quick action buttons */}
           <div className="flex items-center gap-2">
-            {isTeleconsult && !inVideoCall && (
-              <button
-                type="button"
-                id="join-video-call-btn"
-                onClick={handleJoinVideoCall}
-                disabled={joiningCall}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-sm shadow-violet-200 transition-all disabled:opacity-60"
-              >
-                {joiningCall ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
-                {joiningCall ? 'Joining…' : 'Start Teleconsult'}
-              </button>
-            )}
-
-            {inVideoCall && (
-              <button
-                type="button"
-                onClick={() => setInVideoCall(false)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
-              >
-                <VideoOff className="w-4 h-4" />
-                Hide Video
-              </button>
+            {isTeleconsult && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-50 text-violet-700 text-xs font-bold border border-violet-200">
+                <Video className="w-3.5 h-3.5 text-violet-600 animate-pulse" />
+                <span>Teleconsult Active</span>
+              </span>
             )}
 
             <button
@@ -628,19 +586,6 @@ export default function ConsultationPanel({
           </div>
         </div>
       </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          Live Teleconsult Video (inline when active)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      {inVideoCall && (
-        <div className="bg-slate-950 rounded-2xl p-3 border border-slate-700 shadow-xl overflow-hidden">
-          <VideoRoom
-            roomName={appointment.teleconsultRoomId || `sahay-room-${appointment._id}`}
-            displayName={`Dr. ${patient.firstName || 'Doctor'}`}
-            onClose={() => setInVideoCall(false)}
-          />
-        </div>
-      )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
           ZONE 2: AI Clinical Intelligence Card
