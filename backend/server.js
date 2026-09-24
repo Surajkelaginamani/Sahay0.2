@@ -29,6 +29,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Ensure database is connected for requests (crucial for serverless invocations on Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('[DB Middleware] Database connection failed:', err.message);
+    res.status(500).json({ error: 'Database connection failed', details: err.message });
+  }
+});
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
@@ -91,6 +102,9 @@ const startServer = async () => {
   }
 };
 
-startServer();
+// Start standalone HTTP server only when not running in serverless environment (e.g. Vercel)
+if (!process.env.VERCEL) {
+  startServer();
+}
 
 export default app;

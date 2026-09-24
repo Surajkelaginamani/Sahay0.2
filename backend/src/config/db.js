@@ -9,6 +9,10 @@ try {
 }
 
 const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) {
+    return mongoose.connection;
+  }
+
   const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/sahay';
   const options = {
     family: 4,
@@ -37,11 +41,17 @@ const connectDB = async () => {
         return conn;
       } catch (fallbackError) {
         console.error(`MongoDB connection error (after fallback): ${fallbackError.message}`);
-        process.exit(1);
+        if (!process.env.VERCEL) {
+          process.exit(1);
+        }
+        throw fallbackError;
       }
     } else {
       console.error(`MongoDB connection error: ${error.message}`);
-      process.exit(1);
+      if (!process.env.VERCEL) {
+        process.exit(1);
+      }
+      throw error;
     }
   }
 };

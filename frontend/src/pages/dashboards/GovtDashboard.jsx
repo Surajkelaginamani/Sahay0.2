@@ -185,7 +185,7 @@ export default function GovtDashboard() {
       const token = localStorage.getItem('token') || localStorage.getItem('sahay_token');
       if (token && !localStorage.getItem('token')) localStorage.setItem('token', token);
 
-      const res = await axios.get('http://localhost:5000/api/govt/pending-hospitals', {
+      const res = await axios.get('/api/govt/pending-hospitals', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
 
